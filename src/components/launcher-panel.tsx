@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Rocket, Search, Settings2 } from "lucide-react";
+import { ClipboardPanel } from "@/components/clipboard-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,6 +28,26 @@ type LauncherPanelProps = {
 };
 
 const iconCache = new Map<string, string | null>();
+
+function parseClipboardCommand(raw: string) {
+  const q = raw.trim();
+  if (!q) {
+    return { active: false, query: "" };
+  }
+
+  const lower = q.toLowerCase();
+  if (lower === "cl" || lower === "clipboard") {
+    return { active: true, query: "" };
+  }
+  if (lower.startsWith("cl ")) {
+    return { active: true, query: q.slice(3).trim() };
+  }
+  if (lower.startsWith("clipboard ")) {
+    return { active: true, query: q.slice("clipboard ".length).trim() };
+  }
+
+  return { active: false, query: "" };
+}
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -99,6 +120,8 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const clipboardCommand = React.useMemo(() => parseClipboardCommand(query), [query]);
+
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -145,6 +168,14 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
     const run = async () => {
       const q = debouncedQuery.trim();
+      const clipboardMode = parseClipboardCommand(q).active;
+
+      if (clipboardMode) {
+        setSearchResults([]);
+        setSelectedId(null);
+        return;
+      }
+
       if (!q) {
         setSearchResults(allApps.slice(0, 120));
         setSelectedId((prev) => prev ?? allApps[0]?.id ?? null);
@@ -171,9 +202,12 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   }, [debouncedQuery, allApps]);
 
   const navigationList = React.useMemo(() => {
+    if (clipboardCommand.active) {
+      return [];
+    }
     const source = debouncedQuery.trim() ? searchResults : allApps;
     return source.slice(0, 72);
-  }, [debouncedQuery, searchResults, allApps]);
+  }, [clipboardCommand.active, debouncedQuery, searchResults, allApps]);
 
   const selectedApp = React.useMemo(() => {
     if (!selectedId) return navigationList[0] ?? null;
@@ -240,6 +274,9 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     }
     if (event.key === "Enter") {
       event.preventDefault();
+      if (clipboardCommand.active) {
+        return;
+      }
       void launchSelected();
       return;
     } 
@@ -289,85 +326,89 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
       {expanded && (
         <div className="relative h-[calc(100%-2.5rem)] p-2.5">
-          <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-            <div className="rounded-xl border border-border/70 bg-card/90 shadow-lg overflow-hidden h-full">
-              <ScrollArea className="h-full">
-                <div className="p-3.5">
-                  <div className="flex flex-col gap-1">
-                    {navigationList.map((app) => {
-                      const active = selectedApp?.id === app.id;
-                      return (
-                        <button
-                          key={app.id}
-                          type="button"
-                          ref={(el) => { if (el) itemRefs.current.set(app.id, el); else itemRefs.current.delete(app.id); }}
-                          onMouseEnter={() => setSelectedId(app.id)}
-                          onClick={() => {
-                            setSelectedId(app.id);
-                            void launchById(app.id);
-                          }}
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
-                            active
-                              ? "border-primary/70 bg-primary/10"
-                              : "border-transparent hover:border-primary/40 hover:bg-accent/50",
-                          )}
-                        >
-                          <AppIcon appId={app.id} className="size-6 shrink-0" />
-                          <span className="text-sm line-clamp-1">{app.name}</span>
-                        </button>
-                      );
-                    })}
+          {clipboardCommand.active ? (
+            <ClipboardPanel commandQuery={clipboardCommand.query} />
+          ) : (
+            <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
+              <div className="rounded-xl border border-border/70 bg-card/90 shadow-lg overflow-hidden h-full">
+                <ScrollArea className="h-full">
+                  <div className="p-3.5">
+                    <div className="flex flex-col gap-1">
+                      {navigationList.map((app) => {
+                        const active = selectedApp?.id === app.id;
+                        return (
+                          <button
+                            key={app.id}
+                            type="button"
+                            ref={(el) => { if (el) itemRefs.current.set(app.id, el); else itemRefs.current.delete(app.id); }}
+                            onMouseEnter={() => setSelectedId(app.id)}
+                            onClick={() => {
+                              setSelectedId(app.id);
+                              void launchById(app.id);
+                            }}
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
+                              active
+                                ? "border-primary/70 bg-primary/10"
+                                : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+                            )}
+                          >
+                            <AppIcon appId={app.id} className="size-6 shrink-0" />
+                            <span className="text-sm line-clamp-1">{app.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </ScrollArea>
+                </ScrollArea>
+              </div>
+
+              <aside className="rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5">
+                {selectedApp ? (
+                  <>
+                    <div className="space-y-2">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected App</p>
+                      <h3 className="text-xl font-semibold leading-tight">{selectedApp.name}</h3>
+                      <p className="text-xs text-muted-foreground break-all">{selectedApp.launchPath}</p>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Publisher</span>
+                        <span className="text-right">{selectedApp.publisher ?? "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Version</span>
+                        <span className="text-right">{selectedApp.version ?? "-"}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Source</span>
+                        <span className="text-right">{selectedApp.source}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto space-y-2">
+                      <Button className="w-full" onClick={() => void launchSelected()} disabled={busy}>
+                        {busy ? "Launching..." : "Open App"}
+                      </Button>
+                      <div className="text-xs text-muted-foreground flex items-center justify-between">
+                        <span>Navigate</span>
+                        <span className="font-mono">Arrow keys</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-between">
+                        <span>Run selected</span>
+                        <span className="font-mono">Enter</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full grid place-items-center text-muted-foreground text-sm">
+                    No apps found.
+                  </div>
+                )}
+              </aside>
             </div>
-
-            <aside className="rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5">
-              {selectedApp ? (
-                <>
-                  <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected App</p>
-                    <h3 className="text-xl font-semibold leading-tight">{selectedApp.name}</h3>
-                    <p className="text-xs text-muted-foreground break-all">{selectedApp.launchPath}</p>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Publisher</span>
-                      <span className="text-right">{selectedApp.publisher ?? "Unknown"}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Version</span>
-                      <span className="text-right">{selectedApp.version ?? "-"}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Source</span>
-                      <span className="text-right">{selectedApp.source}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-auto space-y-2">
-                    <Button className="w-full" onClick={() => void launchSelected()} disabled={busy}>
-                      {busy ? "Launching..." : "Open App"}
-                    </Button>
-                    <div className="text-xs text-muted-foreground flex items-center justify-between">
-                      <span>Navigate</span>
-                      <span className="font-mono">Arrow keys</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center justify-between">
-                      <span>Run selected</span>
-                      <span className="font-mono">Enter</span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="h-full grid place-items-center text-muted-foreground text-sm">
-                  No apps found.
-                </div>
-              )}
-            </aside>
-          </div>
+          )}
         </div>
       )}
     </div>

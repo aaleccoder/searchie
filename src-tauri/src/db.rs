@@ -27,6 +27,25 @@ const CREATE_META_TABLE: &str = "
     )
 ";
 
+const CREATE_CLIPBOARD_TABLE: &str = "
+    CREATE TABLE IF NOT EXISTS clipboard_history (
+        id TEXT PRIMARY KEY,
+        signature TEXT NOT NULL UNIQUE,
+        kind TEXT NOT NULL,
+        preview TEXT NOT NULL,
+        text_value TEXT,
+        image_blob BLOB,
+        files_json TEXT NOT NULL,
+        formats_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    )
+";
+
+const CREATE_CLIPBOARD_CREATED_AT_INDEX: &str = "
+    CREATE INDEX IF NOT EXISTS idx_clipboard_history_created_at
+    ON clipboard_history (created_at DESC)
+";
+
 /// Migrations registered with tauri-plugin-sql (used for the preloaded JS-side connection).
 pub fn migrations() -> Vec<Migration> {
     vec![
@@ -58,6 +77,24 @@ pub fn migrations() -> Vec<Migration> {
             )",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "create_clipboard_history_table",
+            sql: "CREATE TABLE IF NOT EXISTS clipboard_history (\
+                id TEXT PRIMARY KEY, \
+                signature TEXT NOT NULL UNIQUE, \
+                kind TEXT NOT NULL, \
+                preview TEXT NOT NULL, \
+                text_value TEXT, \
+                image_blob BLOB, \
+                files_json TEXT NOT NULL, \
+                formats_json TEXT NOT NULL, \
+                created_at INTEGER NOT NULL\
+            ); \
+            CREATE INDEX IF NOT EXISTS idx_clipboard_history_created_at \
+            ON clipboard_history (created_at DESC)",
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -84,6 +121,14 @@ pub async fn open(app: &AppHandle) -> Result<SqlitePool, String> {
         .await
         .map_err(|e| e.to_string())?;
     sqlx::query(CREATE_META_TABLE)
+        .execute(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query(CREATE_CLIPBOARD_TABLE)
+        .execute(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query(CREATE_CLIPBOARD_CREATED_AT_INDEX)
         .execute(&pool)
         .await
         .map_err(|e| e.to_string())?;

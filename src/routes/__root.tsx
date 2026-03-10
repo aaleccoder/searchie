@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Outlet, createRootRoute, useRouter } from '@tanstack/react-router'
 import "../App.css"
 import { ThemeProvider, useTheme } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/sonner';
 import { useSettingsStore } from '@/lib/settings-store';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
@@ -16,6 +17,7 @@ function RootComponent() {
       <div className="w-[800px] max-w-[800px]">
         <Outlet />
       </div>
+      <Toaster position="top-right" richColors />
     </ThemeProvider>
   )
 }

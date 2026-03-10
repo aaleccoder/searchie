@@ -22,6 +22,7 @@ use std::os::windows::process::CommandExt;
 
 const WATCH_INTERVAL_SECONDS: u64 = 8;
 const DETACHED_PROCESS: u32 = 0x0000_0008;
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -435,15 +436,20 @@ fn build_uwp_family_meta_index() -> HashMap<String, UwpFamilyMeta> {
 fn scan_start_apps() -> Vec<InstalledApp> {
     let family_meta = build_uwp_family_meta_index();
 
-    let output = match Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress",
-        ])
-        .output()
+    let mut cmd = Command::new("powershell");
+    cmd.args([
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress",
+    ]);
+
+    #[cfg(target_os = "windows")]
     {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = match cmd.output() {
         Ok(v) if v.status.success() => v,
         _ => return Vec::new(),
     };

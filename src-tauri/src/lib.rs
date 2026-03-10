@@ -1,11 +1,15 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod apps;
+pub mod clipboard;
 pub mod db;
 pub mod icons;
 
 use crate::apps::{
     bootstrap_app_index, get_app_icon, launch_installed_app, list_installed_apps,
     search_installed_apps, AppIndexState,
+};
+use crate::clipboard::{
+    clear_clipboard_history, search_clipboard_history, start_clipboard_watcher, ClipboardState,
 };
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -128,6 +132,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(AppIndexState::default())
+        .manage(ClipboardState::default())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 // Don't restore position for the main bar — we always position it ourselves.
@@ -181,6 +186,10 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 bootstrap_app_index(&app_handle).await;
             });
+
+            // Start clipboard watcher so the registry is always fresh.
+            let clip_state = app.state::<ClipboardState>().inner().clone();
+            start_clipboard_watcher(app.handle(), clip_state);
 
             // Build system-tray menu
             let show_item = MenuItem::with_id(app, "show", "Show / Hide", true, None::<&str>)?;
@@ -244,6 +253,8 @@ pub fn run() {
             update_shortcut,
             show_settings,
             set_main_window_mode,
+            search_clipboard_history,
+            clear_clipboard_history,
             list_installed_apps,
             search_installed_apps,
             launch_installed_app,
