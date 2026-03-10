@@ -107,6 +107,14 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     inputRef.current?.focus();
   }, []);
 
+  React.useEffect(() => {
+    const onWindowFocus = () => {
+      inputRef.current?.focus();
+    };
+    window.addEventListener('focus', onWindowFocus);
+    return () => window.removeEventListener('focus', onWindowFocus);
+  }, []);
+
   const refreshAllApps = React.useCallback(async () => {
     const apps = await invoke<InstalledApp[]>("list_installed_apps");
     setAllApps(apps);
@@ -236,7 +244,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       return;
     } 
     if (event.key === "Escape") {
-      if (query.trim()) {
+      if (query) {
         setQuery("");
       } else {
         onExpandedChange(false);
