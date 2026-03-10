@@ -291,10 +291,10 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   };
 
   return (
-    <div className="relative h-screen w-200 max-w-200 bg-background/95 text-foreground overflow-hidden">
+    <div className="relative h-screen w-200 max-w-200 text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_52%),radial-gradient(circle_at_bottom_right,hsl(var(--ring)/0.12),transparent_55%)]" />
 
-      <div className="relative h-10 w-full border-b border-border/60 bg-background/70 backdrop-blur-md" data-tauri-drag-region>
+      <div className="relative h-10 w-full backdrop-blur-md" data-tauri-drag-region>
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
@@ -330,7 +330,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
             <ClipboardPanel commandQuery={clipboardCommand.query} />
           ) : (
             <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-              <div className="rounded-xl border border-border/70 bg-card/90 shadow-lg overflow-hidden h-full">
+              <div className="overflow-hidden h-full">
                 <ScrollArea className="h-full">
                   <div className="p-3.5">
                     <div className="flex flex-col gap-1">

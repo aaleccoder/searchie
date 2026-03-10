@@ -156,7 +156,7 @@ export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
 
   return (
     <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-      <section className="rounded-xl border border-border/70 bg-card/90 shadow-lg overflow-hidden h-full">
+      <section className="overflow-hidden h-full">
         <div className="p-3 border-b border-border/60 flex items-center gap-2 flex-wrap">
           {FILTERS.map((f) => (
             <Button
