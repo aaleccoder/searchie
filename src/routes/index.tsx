@@ -56,7 +56,7 @@ function Index() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <DialogContent className="w-[min(92vw,760px)] sm:max-w-190 p-0 overflow-hidden border-border/70 shadow-2xl">
+      <DialogContent className="w-full max-w-190 p-0 overflow-hidden border-border/70 shadow-2xl">
         <div className="bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--accent)/0.35)_100%)]">
           <DialogHeader className="px-6 pt-6 pb-2 text-left">
             <DialogTitle className="text-xl">Settings</DialogTitle>

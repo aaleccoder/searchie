@@ -16,9 +16,8 @@ pub fn extract_icon_png(path: &str) -> Option<Vec<u8>> {
         .collect();
 
     let mut large_icon: HICON = ptr::null_mut();
-    let extracted = unsafe {
-        ExtractIconExW(wide.as_ptr(), 0, &mut large_icon, ptr::null_mut(), 1)
-    };
+    let extracted =
+        unsafe { ExtractIconExW(wide.as_ptr(), 0, &mut large_icon, ptr::null_mut(), 1) };
 
     if extracted == 0 || large_icon.is_null() {
         return None;
@@ -27,6 +26,74 @@ pub fn extract_icon_png(path: &str) -> Option<Vec<u8>> {
     let result = hicon_to_png(large_icon);
     unsafe { DestroyIcon(large_icon) };
     result
+}
+
+/// Extracts a packaged app icon (UWP/Store/System app) from `shell:AppsFolder\{AUMID}`.
+#[cfg(target_os = "windows")]
+pub fn extract_apps_folder_icon_png(aumid: &str) -> Option<Vec<u8>> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::SIZE;
+    use windows::Win32::System::Com::{
+        CoInitializeEx, CoTaskMemFree, CoUninitialize, COINIT_APARTMENTTHREADED,
+    };
+    use windows::Win32::UI::Shell::{
+        IShellItemImageFactory, SHCreateItemFromIDList, SHParseDisplayName, SIIGBF_BIGGERSIZEOK,
+        SIIGBF_ICONONLY, SIIGBF_RESIZETOFIT,
+    };
+    use windows::Win32::UI::Shell::Common::ITEMIDLIST;
+
+    let display_name = format!("shell:AppsFolder\\{}", aumid);
+    let wide: Vec<u16> = OsStr::new(&display_name)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    unsafe {
+        let coinit_ok = CoInitializeEx(None, COINIT_APARTMENTTHREADED).is_ok();
+
+        let mut pidl: *mut ITEMIDLIST = ptr::null_mut();
+        if SHParseDisplayName(PCWSTR(wide.as_ptr()), None, &mut pidl, 0, None).is_err()
+            || pidl.is_null()
+        {
+            if coinit_ok {
+                CoUninitialize();
+            }
+            return None;
+        }
+
+        let image_factory = SHCreateItemFromIDList::<IShellItemImageFactory>(pidl);
+        CoTaskMemFree(Some(pidl as *const _ as _));
+
+        let image_factory = match image_factory {
+            Ok(v) => v,
+            Err(_) => {
+                if coinit_ok {
+                    CoUninitialize();
+                }
+                return None;
+            }
+        };
+
+        let size = SIZE { cx: 128, cy: 128 };
+        let hbitmap = image_factory.GetImage(
+            size,
+            SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK | SIIGBF_RESIZETOFIT,
+        );
+
+        if coinit_ok {
+            CoUninitialize();
+        }
+
+        let hbitmap = match hbitmap {
+            Ok(v) => v,
+            Err(_) => return None,
+        };
+
+        hbitmap_to_png(hbitmap.0 as winapi::shared::windef::HBITMAP)
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -112,6 +179,72 @@ fn hicon_to_png(hicon: winapi::shared::windef::HICON) -> Option<Vec<u8>> {
 }
 
 #[cfg(target_os = "windows")]
+fn hbitmap_to_png(hbitmap: winapi::shared::windef::HBITMAP) -> Option<Vec<u8>> {
+    use std::ptr;
+    use winapi::shared::minwindef::LPVOID;
+    use winapi::um::wingdi::{
+        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+    };
+    use winapi::um::winuser::{GetDC, ReleaseDC};
+
+    let (pixels, w, h): (Vec<u8>, u32, u32) = unsafe {
+        let mut bm: BITMAP = std::mem::zeroed();
+        GetObjectW(
+            hbitmap as LPVOID,
+            std::mem::size_of::<BITMAP>() as i32,
+            &mut bm as *mut BITMAP as LPVOID,
+        );
+
+        let w = bm.bmWidth as u32;
+        let h = bm.bmHeight.unsigned_abs();
+        if w == 0 || h == 0 {
+            DeleteObject(hbitmap as LPVOID);
+            return None;
+        }
+
+        let hdc_screen = GetDC(ptr::null_mut());
+        let hdc = CreateCompatibleDC(hdc_screen);
+        ReleaseDC(ptr::null_mut(), hdc_screen);
+
+        let mut bmi: BITMAPINFO = std::mem::zeroed();
+        bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        bmi.bmiHeader.biWidth = w as i32;
+        bmi.bmiHeader.biHeight = -(h as i32); // top-down DIB
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        let mut pixels = vec![0u8; (w * h * 4) as usize];
+        let copied = GetDIBits(
+            hdc,
+            hbitmap,
+            0,
+            h,
+            pixels.as_mut_ptr() as LPVOID,
+            &mut bmi,
+            DIB_RGB_COLORS,
+        );
+
+        DeleteDC(hdc);
+        DeleteObject(hbitmap as LPVOID);
+
+        if copied == 0 {
+            return None;
+        }
+
+        // Windows stores bitmap pixels as BGRA; PNG expects RGBA.
+        for chunk in pixels.chunks_exact_mut(4) {
+            chunk.swap(0, 2);
+        }
+
+        Some((pixels, w, h))
+    }?;
+
+    encode_rgba_as_png(&pixels, w, h)
+}
+
+#[cfg(target_os = "windows")]
 fn encode_rgba_as_png(pixels: &[u8], w: u32, h: u32) -> Option<Vec<u8>> {
     let mut buf = Vec::new();
     {
@@ -126,5 +259,10 @@ fn encode_rgba_as_png(pixels: &[u8], w: u32, h: u32) -> Option<Vec<u8>> {
 
 #[cfg(not(target_os = "windows"))]
 pub fn extract_icon_png(_path: &str) -> Option<Vec<u8>> {
+    None
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn extract_apps_folder_icon_png(_aumid: &str) -> Option<Vec<u8>> {
     None
 }

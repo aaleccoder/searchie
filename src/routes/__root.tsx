@@ -13,7 +13,9 @@ function RootComponent() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="searchie-theme">
       <AppInit />
-      <Outlet />
+      <div className="w-[800px] max-w-[800px]">
+        <Outlet />
+      </div>
     </ThemeProvider>
   )
 }

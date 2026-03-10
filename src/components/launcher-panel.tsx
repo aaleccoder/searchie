@@ -1,6 +1,7 @@
 import * as React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Rocket, Search, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +101,11 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const [busy, setBusy] = React.useState(false);
 
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  React.useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const refreshAllApps = React.useCallback(async () => {
     const apps = await invoke<InstalledApp[]>("list_installed_apps");
@@ -173,6 +179,11 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     }
   }, [selectedApp, selectedId]);
 
+  React.useEffect(() => {
+    if (!selectedId) return;
+    itemRefs.current.get(selectedId)?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
+
   const launchSelected = React.useCallback(async () => {
     if (!selectedApp) return;
     try {
@@ -223,18 +234,19 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       event.preventDefault();
       void launchSelected();
       return;
-    }
+    } 
     if (event.key === "Escape") {
       if (query.trim()) {
         setQuery("");
       } else {
         onExpandedChange(false);
+        void getCurrentWindow().hide();
       }
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-background/95 text-foreground overflow-hidden">
+    <div className="relative h-screen w-200 max-w-200 bg-background/95 text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_52%),radial-gradient(circle_at_bottom_right,hsl(var(--ring)/0.12),transparent_55%)]" />
 
       <div className="relative h-10 w-full border-b border-border/60 bg-background/70 backdrop-blur-md" data-tauri-drag-region>
@@ -269,8 +281,8 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
       {expanded && (
         <div className="relative h-[calc(100%-2.5rem)] p-2.5">
-          <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-start">
-            <div className="rounded-xl border border-border/70 bg-card/90 shadow-lg overflow-hidden">
+          <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
+            <div className="rounded-xl border border-border/70 bg-card/90 shadow-lg overflow-hidden h-full">
               <ScrollArea className="h-full">
                 <div className="p-3.5">
                   <div className="flex flex-col gap-1">
@@ -280,6 +292,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                         <button
                           key={app.id}
                           type="button"
+                          ref={(el) => { if (el) itemRefs.current.set(app.id, el); else itemRefs.current.delete(app.id); }}
                           onMouseEnter={() => setSelectedId(app.id)}
                           onClick={() => {
                             setSelectedId(app.id);

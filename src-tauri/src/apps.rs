@@ -1,8 +1,9 @@
 use base64::{engine::general_purpose, Engine};
 use serde::Serialize;
+use serde_json::Value;
 use sqlx::SqlitePool;
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     process::Command,
@@ -59,14 +60,7 @@ impl Default for AppIndexState {
 
 impl AppIndexState {
     pub fn set_apps(&self, new_apps: Vec<InstalledApp>) {
-        let mut sig_hasher = DefaultHasher::new();
-        for app in &new_apps {
-            app.id.hash(&mut sig_hasher);
-            app.name.hash(&mut sig_hasher);
-            app.launch_path.hash(&mut sig_hasher);
-            app.version.hash(&mut sig_hasher);
-        }
-        let next_sig = sig_hasher.finish();
+        let next_sig = compute_signature(&new_apps);
 
         if let Ok(mut lock) = self.apps.write() {
             *lock = new_apps;
@@ -156,7 +150,10 @@ fn is_launchable(path: &str) -> bool {
         return false;
     }
     let p = Path::new(path);
-    p.exists() && p.extension().map(|x| x.eq_ignore_ascii_case("exe")).unwrap_or(false)
+    p.exists()
+        && p.extension()
+            .map(|x| x.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false)
 }
 
 fn read_uninstall_apps(root: &RegKey, uninstall_path: &str, source: &str) -> Vec<InstalledApp> {
@@ -229,10 +226,11 @@ fn read_uninstall_apps(root: &RegKey, uninstall_path: &str, source: &str) -> Vec
 }
 
 fn read_app_paths(root: &RegKey, source: &str) -> Vec<InstalledApp> {
-    let app_paths_root = match root.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\App Paths") {
-        Ok(key) => key,
-        Err(_) => return Vec::new(),
-    };
+    let app_paths_root =
+        match root.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\App Paths") {
+            Ok(key) => key,
+            Err(_) => return Vec::new(),
+        };
 
     let mut apps = Vec::new();
 
@@ -303,15 +301,487 @@ fn scan_installed_apps() -> Vec<InstalledApp> {
     apps.extend(read_app_paths(&hkcu, "hkcu-app-paths"));
     apps.extend(read_app_paths(&hklm, "hklm-app-paths"));
 
+    apps.extend(scan_uwp_apps());
+    apps.extend(scan_start_apps());
+
     let mut dedup = HashMap::<String, InstalledApp>::new();
     for app in apps {
-        let key = format!("{}::{}", app.name.to_lowercase(), app.launch_path.to_lowercase());
+        let key = format!(
+            "{}::{}",
+            app.name.to_lowercase(),
+            app.launch_path.to_lowercase()
+        );
         dedup.entry(key).or_insert(app);
     }
 
     let mut values = dedup.into_values().collect::<Vec<_>>();
     values.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     values
+}
+
+#[derive(Clone, Default)]
+struct UwpFamilyMeta {
+    icon_path: Option<String>,
+    version: Option<String>,
+    publisher: Option<String>,
+    install_location: Option<String>,
+}
+
+fn version_parts(version: &str) -> Vec<u32> {
+    version
+        .split('.')
+        .filter_map(|p| p.trim().parse::<u32>().ok())
+        .collect::<Vec<_>>()
+}
+
+fn is_version_newer(new_ver: &str, old_ver: &str) -> bool {
+    let a = version_parts(new_ver);
+    let b = version_parts(old_ver);
+    let len = a.len().max(b.len());
+    for i in 0..len {
+        let av = *a.get(i).unwrap_or(&0);
+        let bv = *b.get(i).unwrap_or(&0);
+        if av > bv {
+            return true;
+        }
+        if av < bv {
+            return false;
+        }
+    }
+    false
+}
+
+fn merge_uwp_family_meta(dst: &mut UwpFamilyMeta, src: UwpFamilyMeta) {
+    if dst.icon_path.is_none() {
+        dst.icon_path = src.icon_path.clone();
+    }
+    if dst.install_location.is_none() {
+        dst.install_location = src.install_location.clone();
+    }
+    if dst.publisher.is_none() {
+        dst.publisher = src.publisher.clone();
+    }
+
+    match (&dst.version, &src.version) {
+        (None, Some(v)) => dst.version = Some(v.clone()),
+        (Some(old), Some(new)) if is_version_newer(new, old) => dst.version = Some(new.clone()),
+        _ => {}
+    }
+}
+
+fn collect_uwp_family_meta_from_root(
+    root: &RegKey,
+    packages_path: &str,
+    out: &mut HashMap<String, UwpFamilyMeta>,
+) {
+    let packages_key = match root.open_subkey(packages_path) {
+        Ok(k) => k,
+        Err(_) => return,
+    };
+
+    for pkg_name in packages_key.enum_keys().flatten() {
+        if is_framework_package(&pkg_name) {
+            continue;
+        }
+
+        let Some(family) = pkg_family_name(&pkg_name) else {
+            continue;
+        };
+
+        let install_path = pkg_install_path(&pkg_name);
+        let icon_path = install_path
+            .as_ref()
+            .and_then(|p| find_uwp_logo(p))
+            .and_then(|p| p.to_str().map(|s| s.to_string()));
+
+        let meta = UwpFamilyMeta {
+            icon_path,
+            version: pkg_version(&pkg_name),
+            publisher: pkg_publisher(&pkg_name),
+            install_location: install_path
+                .as_ref()
+                .and_then(|p| p.to_str().map(|s| s.to_string())),
+        };
+
+        if let Some(existing) = out.get_mut(&family) {
+            merge_uwp_family_meta(existing, meta);
+        } else {
+            out.insert(family, meta);
+        }
+    }
+}
+
+fn build_uwp_family_meta_index() -> HashMap<String, UwpFamilyMeta> {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let mut out = HashMap::new();
+
+    collect_uwp_family_meta_from_root(
+        &hkcu,
+        "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages",
+        &mut out,
+    );
+    collect_uwp_family_meta_from_root(
+        &hklm,
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages",
+        &mut out,
+    );
+
+    out
+}
+
+/// Supplemental discovery from Start menu registrations.
+/// This reliably includes system UWP apps like Settings/Clock.
+fn scan_start_apps() -> Vec<InstalledApp> {
+    let family_meta = build_uwp_family_meta_index();
+
+    let output = match Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress",
+        ])
+        .output()
+    {
+        Ok(v) if v.status.success() => v,
+        _ => return Vec::new(),
+    };
+
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if raw.is_empty() {
+        return Vec::new();
+    }
+
+    let parsed: Value = match serde_json::from_str(&raw) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+
+    let rows = match parsed {
+        Value::Array(v) => v,
+        Value::Object(_) => vec![parsed],
+        _ => return Vec::new(),
+    };
+
+    let mut seen = HashSet::<String>::new();
+    let mut apps = Vec::new();
+
+    for row in rows {
+        let name = row
+            .get("Name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_default();
+
+        let app_id = row
+            .get("AppID")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_default();
+
+        if name.is_empty() || app_id.is_empty() {
+            continue;
+        }
+
+        // UWP / Store app IDs include `!` and can be launched via AppsFolder.
+        if !app_id.contains('!') {
+            continue;
+        }
+
+        if !seen.insert(app_id.to_string()) {
+            continue;
+        }
+
+        let family = app_id.split('!').next().unwrap_or_default();
+        let meta = family_meta.get(family);
+
+        apps.push(InstalledApp {
+            id: make_app_id(name, app_id, "startapps"),
+            name: name.to_string(),
+            launch_path: "explorer.exe".to_string(),
+            launch_args: vec![format!("shell:AppsFolder\\{}", app_id)],
+            icon_path: meta.and_then(|m| m.icon_path.clone()),
+            icon_blob: None,
+            version: meta.and_then(|m| m.version.clone()),
+            publisher: meta.and_then(|m| m.publisher.clone()),
+            install_location: meta.and_then(|m| m.install_location.clone()),
+            source: "startapps".to_string(),
+        });
+    }
+
+    apps
+}
+
+// ── UWP / Microsoft Store apps ──────────────────────────────────────────────
+
+fn is_framework_package(pkg_full_name: &str) -> bool {
+    let lower = pkg_full_name.to_lowercase();
+    lower.starts_with("microsoft.vclibs")
+        || lower.starts_with("microsoft.net.")
+        || lower.starts_with("microsoft.ui.xaml")
+        || lower.starts_with("microsoft.services.")
+        || lower.contains("vcjasper")
+        || lower.contains("framework")
+        || lower.contains("runtime")
+}
+
+/// `"Microsoft.WindowsCalculator_10.0_x64__hash"` → `"Microsoft.WindowsCalculator"`
+fn pkg_identity_name(full: &str) -> &str {
+    full.splitn(2, '_').next().unwrap_or(full)
+}
+
+/// `"Microsoft.WindowsCalculator_…"` → `"Windows Calculator"`
+fn pkg_display_name(full: &str) -> String {
+    let identity = pkg_identity_name(full);
+    let short = identity.rsplit('.').next().unwrap_or(identity);
+    // CamelCase → "Camel Case"
+    let mut out = String::new();
+    let chars: Vec<char> = short.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        let next_lower = chars.get(i + 1).map(|n| n.is_lowercase()).unwrap_or(false);
+        if c.is_uppercase() && !out.is_empty() {
+            let prev_upper = out.chars().last().map(|p| p.is_uppercase()).unwrap_or(false);
+            if !prev_upper || next_lower {
+                out.push(' ');
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn pkg_version(full: &str) -> Option<String> {
+    full.splitn(4, '_').nth(1).map(|v| v.to_string())
+}
+
+fn pkg_publisher(full: &str) -> Option<String> {
+    let identity = pkg_identity_name(full);
+    let mut parts = identity.splitn(2, '.');
+    let first = parts.next()?;
+    if parts.next().is_some() {
+        Some(first.to_string())
+    } else {
+        None
+    }
+}
+
+/// `"Name_Version_Arch_ResourceId_PublisherId"` -> `"Name_PublisherId"`
+fn pkg_family_name(full: &str) -> Option<String> {
+    let parts = full.split('_').collect::<Vec<_>>();
+    if parts.len() < 2 {
+        return None;
+    }
+    let name = parts.first()?.trim();
+    let publisher_id = parts.last()?.trim();
+    if name.is_empty() || publisher_id.is_empty() {
+        return None;
+    }
+    Some(format!("{}_{}", name, publisher_id))
+}
+
+/// Try `%ProgramFiles%\WindowsApps\{PackageFullName}` — may fail silently.
+fn pkg_install_path(full: &str) -> Option<PathBuf> {
+    let pf = std::env::var("ProgramFiles").ok()?;
+    let p = PathBuf::from(pf).join("WindowsApps").join(full);
+    if p.exists() { Some(p) } else { None }
+}
+
+/// Naively extract a non-resource `DisplayName` from an AppxManifest.xml.
+fn manifest_display_name(pkg_path: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(pkg_path.join("AppxManifest.xml")).ok()?;
+    // Per-application VisualElements attribute
+    if let Some(pos) = text.find("VisualElements") {
+        let tag_end = text[pos..].find('>').unwrap_or(text.len() - pos);
+        let tag = &text[pos..pos + tag_end];
+        if let Some(v) = xml_attr(tag, "DisplayName") {
+            if !v.starts_with("ms-resource:") && !v.is_empty() {
+                return Some(v.to_string());
+            }
+        }
+    }
+    // Package-level <DisplayName> element
+    if let Some(s) = text.find("<DisplayName>") {
+        let rest = &text[s + "<DisplayName>".len()..];
+        if let Some(e) = rest.find("</DisplayName>") {
+            let v = rest[..e].trim();
+            if !v.starts_with("ms-resource:") && !v.is_empty() {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn xml_attr<'a>(text: &'a str, attr: &str) -> Option<&'a str> {
+    let pat = format!("{}=\"", attr);
+    let start = text.find(&pat)? + pat.len();
+    let end = text[start..].find('"')? + start;
+    Some(&text[start..end])
+}
+
+/// Returns AppxManifest `<Application ... Id="...">` values.
+fn manifest_application_ids(pkg_path: &Path) -> Vec<String> {
+    let text = match std::fs::read_to_string(pkg_path.join("AppxManifest.xml")) {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut out = Vec::new();
+    let mut offset = 0usize;
+    while let Some(pos) = text[offset..].find("<Application") {
+        let start = offset + pos;
+        let end = match text[start..].find('>') {
+            Some(e) => start + e,
+            None => break,
+        };
+        let tag = &text[start..=end];
+        if let Some(id) = xml_attr(tag, "Id") {
+            let id = id.trim();
+            if !id.is_empty() && !out.iter().any(|x| x == id) {
+                out.push(id.to_string());
+            }
+        }
+        offset = end + 1;
+    }
+    out
+}
+
+/// Search common asset paths for a PNG logo, including DPI-scaled variants.
+fn find_uwp_logo(pkg_path: &Path) -> Option<PathBuf> {
+    let candidates = [
+        "Assets\\Square44x44Logo.png",
+        "Assets\\SmallTile.png",
+        "Assets\\StoreLogo.png",
+        "Assets\\Square150x150Logo.png",
+    ];
+    for rel in &candidates {
+        let full = pkg_path.join(rel);
+        if full.exists() {
+            return Some(full);
+        }
+        let rel_path = Path::new(rel);
+        let stem = rel_path.file_stem().and_then(|s| s.to_str())?;
+        let parent = rel_path.parent().unwrap_or(Path::new(""));
+        for scale in &["scale-100", "scale-125", "scale-150", "scale-200"] {
+            let scaled = pkg_path.join(parent).join(format!("{}.{}.png", stem, scale));
+            if scaled.exists() {
+                return Some(scaled);
+            }
+        }
+        for size in &["16", "24", "32", "44", "48"] {
+            let sized = pkg_path.join(parent).join(format!("{}.targetsize-{}.png", stem, size));
+            if sized.exists() {
+                return Some(sized);
+            }
+        }
+    }
+    None
+}
+
+fn scan_uwp_apps() -> Vec<InstalledApp> {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let mut seen = HashSet::new();
+    let mut apps = Vec::new();
+    scan_uwp_from_root(
+        &hkcu,
+        "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages",
+        &mut seen,
+        &mut apps,
+    );
+    scan_uwp_from_root(
+        &hklm,
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages",
+        &mut seen,
+        &mut apps,
+    );
+    apps
+}
+
+fn scan_uwp_from_root(
+    root: &RegKey,
+    packages_path: &str,
+    seen: &mut HashSet<String>,
+    apps: &mut Vec<InstalledApp>,
+) {
+    let packages_key = match root.open_subkey(packages_path) {
+        Ok(k) => k,
+        Err(_) => return,
+    };
+    for pkg_name in packages_key.enum_keys().flatten() {
+        if is_framework_package(&pkg_name) {
+            continue;
+        }
+        let pkg_key = match packages_key.open_subkey(&pkg_name) {
+            Ok(k) => k,
+            Err(_) => continue,
+        };
+        let install_path = pkg_install_path(&pkg_name);
+        let display_name = install_path
+            .as_ref()
+            .and_then(|p| manifest_display_name(p))
+            .unwrap_or_else(|| pkg_display_name(&pkg_name));
+        let version = pkg_version(&pkg_name);
+        let publisher = pkg_publisher(&pkg_name);
+        let icon_path_str = install_path
+            .as_ref()
+            .and_then(|p| find_uwp_logo(p))
+            .and_then(|p| p.to_str().map(|s| s.to_string()));
+        let install_location = install_path
+            .as_ref()
+            .and_then(|p| p.to_str().map(|s| s.to_string()));
+
+        let mut aumids = Vec::<String>::new();
+
+        if let Ok(apps_key) = pkg_key.open_subkey("Applications") {
+            for app_id in apps_key.enum_keys().flatten() {
+                let app_key = match apps_key.open_subkey(&app_id) {
+                    Ok(k) => k,
+                    Err(_) => continue,
+                };
+                let aumid: String = match app_key.get_value("AppUserModelId") {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+                if !aumid.is_empty() && !aumids.iter().any(|x| x == &aumid) {
+                    aumids.push(aumid);
+                }
+            }
+        }
+
+        // Fallback when AppUserModelId registry values are missing: derive AUMID from manifest app IDs.
+        if aumids.is_empty() {
+            if let (Some(pkg_path), Some(family)) = (install_path.as_ref(), pkg_family_name(&pkg_name)) {
+                for app_id in manifest_application_ids(pkg_path) {
+                    let aumid = format!("{}!{}", family, app_id);
+                    if !aumids.iter().any(|x| x == &aumid) {
+                        aumids.push(aumid);
+                    }
+                }
+            }
+        }
+
+        for aumid in aumids {
+            if aumid.is_empty() || !seen.insert(aumid.clone()) {
+                continue;
+            }
+            apps.push(InstalledApp {
+                id: make_app_id(&display_name, &aumid, "uwp"),
+                name: display_name.clone(),
+                launch_path: "explorer.exe".to_string(),
+                launch_args: vec![format!("shell:AppsFolder\\{}", aumid)],
+                icon_path: icon_path_str.clone(),
+                icon_blob: None,
+                version: version.clone(),
+                publisher: publisher.clone(),
+                install_location: install_location.clone(),
+                source: "uwp".to_string(),
+            });
+        }
+    }
 }
 
 fn fuzzy_score(query: &str, candidate: &str) -> i64 {
@@ -421,10 +891,7 @@ pub async fn get_app_icon(
     state: State<'_, AppIndexState>,
     app_id: String,
 ) -> Result<Option<String>, String> {
-    let pool = state
-        .pool
-        .get()
-        .ok_or_else(|| "db not ready".to_string())?;
+    let pool = state.pool.get().ok_or_else(|| "db not ready".to_string())?;
 
     let bytes = db::get_app_icon(pool, &app_id).await;
     Ok(bytes.map(|b| general_purpose::STANDARD.encode(b)))
@@ -449,10 +916,9 @@ pub async fn bootstrap_app_index(app: &AppHandle) {
         state.set_apps(apps);
     } else {
         // First run: scan registry + extract icons in a blocking thread.
-        let apps_with_icons =
-            tokio::task::spawn_blocking(scan_with_icons)
-                .await
-                .unwrap_or_default();
+        let apps_with_icons = tokio::task::spawn_blocking(scan_with_icons)
+            .await
+            .unwrap_or_default();
 
         db::replace_all_apps(&pool, &apps_with_icons).await;
         db::mark_initial_scan_done(&pool).await;
@@ -484,8 +950,7 @@ pub async fn bootstrap_app_index(app: &AppHandle) {
                 None => continue,
             };
 
-            let latest_with_icons =
-                match tokio::task::spawn_blocking(scan_with_icons).await {
+            let latest_with_icons = match tokio::task::spawn_blocking(scan_with_icons).await {
                 Ok(v) => v,
                 Err(_) => continue,
             };
@@ -514,7 +979,20 @@ pub async fn bootstrap_app_index(app: &AppHandle) {
 fn scan_with_icons() -> Vec<InstalledApp> {
     let mut apps = scan_installed_apps();
     for app in &mut apps {
-        app.icon_blob = icons::extract_icon_png(&app.launch_path);
+        app.icon_blob = if app.source == "uwp" || app.source == "startapps" {
+            // For packaged apps, prefer package logo files; fallback to AppsFolder shell icon.
+            app.icon_path
+                .as_ref()
+                .and_then(|p| std::fs::read(p).ok())
+                .or_else(|| {
+                    app.launch_args
+                        .first()
+                        .and_then(|arg| arg.strip_prefix("shell:AppsFolder\\"))
+                        .and_then(icons::extract_apps_folder_icon_png)
+                })
+        } else {
+            icons::extract_icon_png(&app.launch_path)
+        };
     }
     apps
 }
@@ -523,8 +1001,12 @@ fn compute_signature(apps: &[InstalledApp]) -> u64 {
     let mut hasher = DefaultHasher::new();
     for app in apps {
         app.id.hash(&mut hasher);
+        app.name.hash(&mut hasher);
         app.launch_path.hash(&mut hasher);
+        app.launch_args.hash(&mut hasher);
         app.version.hash(&mut hasher);
+        app.icon_path.hash(&mut hasher);
+        app.source.hash(&mut hasher);
     }
     hasher.finish()
 }

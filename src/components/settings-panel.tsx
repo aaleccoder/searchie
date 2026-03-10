@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useTheme } from "@/components/theme-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Settings } from "@/lib/settings-schema";
 import { useSettingsStore } from "@/lib/settings-store";
 
@@ -94,6 +96,24 @@ function ShortcutRecorder({
 export function SettingsPanel() {
   const { settings, loading, updateSettings } = useSettingsStore();
   const { setTheme } = useTheme();
+  const [autostart, setAutostart] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    isEnabled().then(setAutostart).catch(() => setAutostart(false));
+  }, []);
+
+  const handleAutostartChange = async (checked: boolean) => {
+    try {
+      if (checked) {
+        await enable();
+      } else {
+        await disable();
+      }
+      setAutostart(checked);
+    } catch (e) {
+      console.error("[autostart] Failed to update:", e);
+    }
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -131,6 +151,22 @@ export function SettingsPanel() {
               void updateSettings({ toggleShortcut: shortcut });
             }}
           />
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <div>
+          <Label className="text-base font-medium">Launch at login</Label>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Automatically start Searchie when you log in.
+          </p>
+        </div>
+        {autostart === null ? (
+          <Skeleton className="h-5 w-8 rounded-full" />
+        ) : (
+          <Switch checked={autostart} onCheckedChange={(checked) => void handleAutostartChange(checked)} />
         )}
       </div>
 

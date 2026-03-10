@@ -101,11 +101,10 @@ pub async fn is_initial_scan_done(pool: &SqlitePool) -> bool {
 }
 
 pub async fn mark_initial_scan_done(pool: &SqlitePool) {
-    let _ = sqlx::query(
-        "INSERT OR REPLACE INTO meta (key, value) VALUES ('initial_scan_done', '1')",
-    )
-    .execute(pool)
-    .await;
+    let _ =
+        sqlx::query("INSERT OR REPLACE INTO meta (key, value) VALUES ('initial_scan_done', '1')")
+            .execute(pool)
+            .await;
 }
 
 /// Replaces the entire apps table inside a single transaction.
@@ -182,5 +181,9 @@ pub async fn get_app_icon(pool: &SqlitePool, app_id: &str) -> Option<Vec<u8>> {
         .await
         .ok()
         .flatten()
-        .and_then(|row| row.try_get::<Option<Vec<u8>>, _>("icon_blob").ok().flatten())
+        .and_then(|row| {
+            row.try_get::<Option<Vec<u8>>, _>("icon_blob")
+                .ok()
+                .flatten()
+        })
 }

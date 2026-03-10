@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-pub mod db;
 pub mod apps;
+pub mod db;
 pub mod icons;
 
 use crate::apps::{
@@ -21,9 +21,9 @@ use window_vibrancy::apply_mica;
 const DEFAULT_SHORTCUT: &str = "Alt+Space";
 const COMPACT_WIDTH: f64 = 800.0;
 const COMPACT_HEIGHT: f64 = 40.0;
-const LAUNCHER_WIDTH: f64 = 980.0;
+const LAUNCHER_WIDTH: f64 = 800.0;
 const LAUNCHER_HEIGHT: f64 = 600.0;
-const SETTINGS_WIDTH: f64 = 920.0;
+const SETTINGS_WIDTH: f64 = 800.0;
 const SETTINGS_HEIGHT: f64 = 620.0;
 
 #[derive(Clone, Copy)]
@@ -126,6 +126,7 @@ fn set_main_window_mode(app: tauri::AppHandle, mode: String) -> Result<(), Strin
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(AppIndexState::default())
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -182,13 +183,10 @@ pub fn run() {
             });
 
             // Build system-tray menu
-            let show_item =
-                MenuItem::with_id(app, "show", "Show / Hide", true, None::<&str>)?;
-            let settings_item =
-                MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+            let show_item = MenuItem::with_id(app, "show", "Show / Hide", true, None::<&str>)?;
+            let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
-            let quit_item =
-                MenuItem::with_id(app, "quit", "Quit Searchie", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit Searchie", true, None::<&str>)?;
 
             let menu = Menu::with_items(app, &[&show_item, &settings_item, &sep, &quit_item])?;
 
@@ -227,11 +225,15 @@ pub fn run() {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let win = window.clone();
-                        tauri::async_runtime::spawn(async move { let _ = win.hide(); });
+                        tauri::async_runtime::spawn(async move {
+                            let _ = win.hide();
+                        });
                     }
                     tauri::WindowEvent::Focused(false) => {
                         let win = window.clone();
-                        tauri::async_runtime::spawn(async move { let _ = win.hide(); });
+                        tauri::async_runtime::spawn(async move {
+                            let _ = win.hide();
+                        });
                     }
                     _ => {}
                 }
@@ -250,4 +252,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
