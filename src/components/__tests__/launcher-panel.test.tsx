@@ -227,6 +227,51 @@ describe("LauncherPanel with panel registry", () => {
     expect(screen.getByText("Panel Focus Target")).toHaveFocus();
   });
 
+  it("moves command selection with ArrowDown even when focus left launcher input", async () => {
+    const user = userEvent.setup();
+
+    const firstPanel: ShortcutPanelDescriptor = {
+      id: "test-panel-one",
+      name: "Test Panel One",
+      aliases: ["tp1"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp1"]),
+      component: () => <div>Panel One</div>,
+      searchIntegration: {
+        activationMode: "result-item",
+      },
+      priority: 5,
+    };
+
+    const secondPanel: ShortcutPanelDescriptor = {
+      id: "test-panel-two",
+      name: "Test Panel Two",
+      aliases: ["tp2"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp2"]),
+      component: () => <div>Panel Two</div>,
+      searchIntegration: {
+        activationMode: "result-item",
+      },
+      priority: 4,
+    };
+
+    renderLauncherWithRegistry(createRegistryWithPanels([firstPanel, secondPanel]));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp");
+
+    const settingsButton = screen.getByLabelText("Open settings");
+    settingsButton.focus();
+    expect(settingsButton).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+
+    expect(screen.getByRole("button", { name: /Open Test Panel Two/i })).toHaveClass(
+      "border-primary/70",
+    );
+  });
+
   it("lets a panel return focus to the launcher input", async () => {
     const user = userEvent.setup();
 
@@ -355,10 +400,8 @@ describe("LauncherPanel with panel registry", () => {
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "clip");
 
-    expect(await screen.findByText("Open Clipboard")).toBeInTheDocument();
-
-    await user.keyboard("{ArrowDown}");
-    await user.keyboard("{ArrowDown}");
+    const clipboardCommand = await screen.findByRole("button", { name: /Open Clipboard/i });
+    clipboardCommand.focus();
     await user.keyboard("{Enter}");
 
     expect(screen.getByText("Clipboard Panel")).toBeInTheDocument();

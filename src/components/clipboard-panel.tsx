@@ -1,10 +1,25 @@
 import * as React from "react";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { toast } from "sonner";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  File01Icon,
+  Image01Icon,
+  MoreHorizontalCircle01Icon,
+  TextIcon,
+} from "@hugeicons/core-free-icons";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { invokePanelCommand } from "@/lib/tauri-commands";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
 type ClipboardKind = "text" | "image" | "files" | "other";
@@ -18,6 +33,7 @@ type ClipboardEntry = {
   files: string[];
   formats: string[];
   createdAt: number;
+  pinned?: boolean;
 };
 
 type ClipboardPanelProps = {
@@ -34,14 +50,40 @@ const FILTERS: Array<{ label: string; value: ClipboardKind | "all" }> = [
   { label: "Other", value: "other" },
 ];
 
-const clipboardCommandScope = {
+const clipboardCommandScope: PanelCommandScope = {
   id: "clipboard",
-  capabilities: ["clipboard.search", "clipboard.clear"] as const,
+  capabilities: ["clipboard.search", "clipboard.clear", "clipboard.pin", "clipboard.delete"],
+};
+
+const URL_PATTERN = /https?:\/\/[^\s<>")\]]+/gi;
+
+const KIND_ICON_MAP: Record<ClipboardKind, typeof TextIcon> = {
+  text: TextIcon,
+  image: Image01Icon,
+  files: File01Icon,
+  other: MoreHorizontalCircle01Icon,
 };
 
 function formatWhen(ts: number) {
   const date = new Date(ts);
   return date.toLocaleString();
+}
+
+function collectUrls(input: string): string[] {
+  const matches = input.match(URL_PATTERN) ?? [];
+  const seen = new Set<string>();
+  const urls: string[] = [];
+
+  for (const raw of matches) {
+    const normalized = raw.replace(/[.,;:!?]+$/, "");
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    urls.push(normalized);
+  }
+
+  return urls;
 }
 
 export function ClipboardPanel({
@@ -128,8 +170,13 @@ export function ClipboardPanel({
 
   React.useEffect(() => {
     const el = itemRefs.current[selectedIndex];
-    el?.scrollIntoView({ block: "nearest" });
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
   }, [selectedIndex]);
+
+  const selectedItem = items[selectedIndex] ?? null;
+  const selectedItemText = selectedItem?.text?.trim() || selectedItem?.preview || "";
 
   const copyEntry = React.useCallback(async (item: ClipboardEntry) => {
     try {
@@ -164,59 +211,207 @@ export function ClipboardPanel({
     }
   }, []);
 
-  const onListKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const cycleFilter = React.useCallback(() => {
+    setFilter((prev) => {
+      const index = FILTERS.findIndex((f) => f.value === prev);
+      const next = FILTERS[(index + 1) % FILTERS.length];
+      return next.value;
+    });
+  }, []);
+
+  const openSelectedLinks = React.useCallback(async () => {
+    if (!selectedItem) {
+      return;
+    }
+
+    const sourceText = [selectedItem.text, selectedItem.preview].filter(Boolean).join("\n");
+    const urls = collectUrls(sourceText).slice(0, 8);
+
+    if (urls.length === 0) {
+      toast.error("No links found", {
+        description: "The selected clipboard entry does not contain any URLs.",
+      });
+      return;
+    }
+
+    try {
+      for (const url of urls) {
+        await openUrl(url);
+      }
+      toast.success("Opened links", {
+        description: urls.length === 1 ? urls[0] : `${urls.length} links opened in browser`,
+      });
+    } catch (error) {
+      console.error("Failed to open links", error);
+      toast.error("Could not open links", {
+        description: "Your system blocked opening one or more URLs.",
+      });
+    }
+  }, [selectedItem]);
+
+  const togglePinSelected = React.useCallback(async () => {
+    if (!selectedItem) {
+      return;
+    }
+
+    try {
+      await invokePanelCommand<void>(clipboardCommandScope, "toggle_clipboard_pin", {
+        id: selectedItem.id,
+      });
+      toast.success(selectedItem.pinned ? "Entry unpinned" : "Entry pinned");
+      await loadItems();
+    } catch (error) {
+      console.error("Failed to toggle pin", error);
+      toast.error("Could not pin entry", {
+        description: "Please try again.",
+      });
+    }
+  }, [loadItems, selectedItem]);
+
+  const deleteSelected = React.useCallback(async () => {
+    if (!selectedItem) {
+      return;
+    }
+
+    try {
+      await invokePanelCommand<void>(clipboardCommandScope, "delete_clipboard_entry", {
+        id: selectedItem.id,
+      });
+      toast.success("Entry removed", {
+        description: selectedItem.preview.slice(0, 80),
+      });
+      await loadItems();
+    } catch (error) {
+      console.error("Failed to delete entry", error);
+      toast.error("Could not remove entry", {
+        description: "Please try again.",
+      });
+    }
+  }, [loadItems, selectedItem]);
+
+  const clearAll = React.useCallback(async () => {
+    try {
+      await invokePanelCommand<void>(clipboardCommandScope, "clear_clipboard_history", {});
+      toast.success("Clipboard history cleared");
+      await loadItems();
+    } catch (error) {
+      console.error("Failed to clear clipboard history", error);
+      toast.error("Could not clear history", {
+        description: "Please try again.",
+      });
+    }
+  }, [loadItems]);
+
+  useHotkey(
+    "ArrowDown",
+    () => {
+      if (items.length === 0) {
+        return;
+      }
+      setSelectedIndex((prev) => (prev + 1) % items.length);
+    },
+    { enabled: items.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "ArrowUp",
+    () => {
       if (items.length === 0) {
         return;
       }
 
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % items.length);
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        if (selectedIndex === 0) {
+      setSelectedIndex((prev) => {
+        if (prev === 0) {
           focusLauncherInput?.();
-          return;
+          return 0;
         }
-        setSelectedIndex((prev) => prev - 1);
-      } else if (event.key === "Enter") {
-        event.preventDefault();
-        const selected = items[selectedIndex];
-        if (selected) {
-          void copyEntry(selected);
-        }
+        return prev - 1;
+      });
+    },
+    { enabled: items.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "Enter",
+    () => {
+      if (selectedItem) {
+        void copyEntry(selectedItem);
       }
     },
-    [copyEntry, focusLauncherInput, items, selectedIndex],
+    { enabled: !!selectedItem, preventDefault: true },
+  );
+
+  useHotkey(
+    "Mod+O",
+    () => {
+      void openSelectedLinks();
+    },
+    { enabled: !!selectedItem, preventDefault: true },
+  );
+
+  useHotkey(
+    "Mod+Shift+P",
+    () => {
+      void togglePinSelected();
+    },
+    { enabled: !!selectedItem, preventDefault: true },
+  );
+
+  useHotkey(
+    "Mod+P",
+    () => {
+      cycleFilter();
+    },
+    { preventDefault: true },
+  );
+
+  useHotkey(
+    "Control+X",
+    () => {
+      void deleteSelected();
+    },
+    { enabled: !!selectedItem, preventDefault: true },
+  );
+
+  useHotkey(
+    "Control+Shift+X",
+    () => {
+      void clearAll();
+    },
+    { enabled: items.length > 0, preventDefault: true },
   );
 
   return (
     <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-      <section className="overflow-hidden h-full">
-        <div className="p-3 border-b border-border/60 flex items-center gap-2 flex-wrap">
-          {FILTERS.map((f) => (
-            <Button
-              key={f.value}
-              type="button"
-              size="sm"
-              variant={filter === f.value ? "default" : "outline"}
-              onClick={() => setFilter(f.value)}
-            >
-              {f.label}
-            </Button>
-          ))}
-          <span className="ml-auto text-xs text-muted-foreground truncate max-w-64">
+      <section className="flex h-full min-h-0 flex-col overflow-hidden outline-none border-none">
+        <div className="flex shrink-0 items-center gap-2 border-b border-border/60 p-3">
+          <Select
+            value={filter}
+            onValueChange={(value) => {
+              setFilter(value as ClipboardKind | "all");
+            }}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start" className="backdrop-blur-md">
+              {FILTERS.map((f) => (
+                <SelectItem key={f.value} value={f.value}>
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="ml-auto max-w-64 truncate text-xs text-muted-foreground">
             {commandQuery ? `Query: ${commandQuery}` : "Type in top search to filter"}
           </span>
         </div>
 
-        <ScrollArea className="h-[calc(100%-3.25rem)]">
+        <ScrollArea className="min-h-0 flex-1">
           <div
             ref={listContainerRef}
-            className="p-3.5 space-y-2.5"
+            className="space-y-2.5 p-3.5 outline-none focus-visible:outline-none"
             tabIndex={0}
-            onKeyDown={onListKeyDown}
           >
             {items.map((item, idx) => (
               <article
@@ -239,46 +434,43 @@ export function ClipboardPanel({
                   }
                 }}
                 className={cn(
-                  "rounded-lg border border-border/60 bg-background/65 p-3 space-y-2",
-                  "hover:border-primary/55 transition outline-none",
-                  selectedIndex === idx && "border-primary ring-1 ring-primary/45",
+                  "p-3",
+                  "hover:bg-card-foreground/10 hover:backdrop-blur-sm hover:rounded-md transition outline-none",
+                  selectedIndex === idx && "bg-card-foreground/10 backdrop-blur-sm rounded-md",
                 )}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="capitalize">{item.kind}</Badge>
-                    <span className="text-xs text-muted-foreground">{formatWhen(item.createdAt)}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Badge
+                      variant="ghost"
+                      className="size-6 p-0 [&_svg]:size-3.5"
+                      aria-label={`${item.kind} clipboard item`}
+                      title={item.kind}
+                    >
+                      <HugeiconsIcon icon={KIND_ICON_MAP[item.kind]} strokeWidth={2} aria-hidden="true" />
+                    </Badge>
+                    {item.imageBase64 && (
+                      <img
+                        src={`data:image/png;base64,${item.imageBase64}`}
+                        alt="Clipboard thumbnail"
+                        className="size-7 rounded border border-border/50 bg-muted object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    <p className="w-72 truncate text-sm leading-relaxed" title={item.preview}>
+                      {item.preview || "(empty)"}
+                    </p>
+                    {item.pinned && <Badge variant="outline">Pinned</Badge>}
                   </div>
-                  {item.formats.length > 0 && (
-                    <span className="text-[11px] text-muted-foreground truncate max-w-68">
-                      {item.formats.join(", ")}
-                    </span>
-                  )}
+                  <div className="shrink-0 text-[11px] text-muted-foreground">
+                    <span>{formatWhen(item.createdAt)}</span>
+                  </div>
                 </div>
-
-                <p className="text-sm leading-relaxed">{item.preview}</p>
-
-                {item.imageBase64 && (
-                  <img
-                    src={`data:image/png;base64,${item.imageBase64}`}
-                    alt="Clipboard"
-                    className="max-h-52 rounded-md border border-border/50 bg-muted object-contain"
-                    loading="lazy"
-                  />
-                )}
-
-                {!!item.files.length && (
-                  <div className="space-y-1">
-                    {item.files.slice(0, 4).map((path) => (
-                      <p key={path} className="text-xs text-muted-foreground break-all">{path}</p>
-                    ))}
-                  </div>
-                )}
               </article>
             ))}
 
             {!busy && items.length === 0 && (
-              <div className="h-32 grid place-items-center text-muted-foreground text-sm">
+              <div className="grid h-32 place-items-center text-sm text-muted-foreground">
                 Clipboard history is empty.
               </div>
             )}
@@ -286,36 +478,82 @@ export function ClipboardPanel({
         </ScrollArea>
       </section>
 
-      <aside className="rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Clipboard App</p>
-          <h3 className="text-xl font-semibold leading-tight">Clipboard</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Searchie now keeps an internal clipboard registry for text, images, and file copies.
-          </p>
-        </div>
+      <aside className="flex min-h-0 flex-col gap-3 p-3.5">
+        {!selectedItem && (
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            Select a clipboard item to see details.
+          </div>
+        )}
 
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Tracked items</span>
-            <span className="text-right">{items.length}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Active filter</span>
-            <span className="text-right capitalize">{filter}</span>
-          </div>
-        </div>
+        {selectedItem && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="ghost" className="size-6 p-0 [&_svg]:size-3.5" title={selectedItem.kind}>
+                  <HugeiconsIcon icon={KIND_ICON_MAP[selectedItem.kind]} strokeWidth={2} aria-hidden="true" />
+                </Badge>
+                <h3 className="text-lg font-semibold capitalize leading-tight">{selectedItem.kind} item</h3>
+                {selectedItem.pinned && <Badge variant="outline">Pinned</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">{formatWhen(selectedItem.createdAt)}</p>
+            </div>
 
-        <div className="mt-auto space-y-2 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between">
-            <span>Command mode</span>
-            <span className="font-mono">cl</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Refresh</span>
-            <span className="font-mono">Live</span>
-          </div>
-        </div>
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-3">
+                {selectedItem.kind === "text" && (
+                  <pre
+                    className="wrap-break-word max-h-40 whitespace-pre-wrap text-sm leading-relaxed font-sans max-w-80"
+                  >
+                    {selectedItemText || "(empty text)"}
+                  </pre>
+                )}
+
+                {selectedItem.imageBase64 && (
+                  <img
+                    src={`data:image/png;base64,${selectedItem.imageBase64}`}
+                    alt="Clipboard preview"
+                    className="max-h-105 w-full rounded-md border border-border/50 bg-muted object-contain"
+                    loading="lazy"
+                  />
+                )}
+
+                {selectedItem.files.length > 0 && (
+                  <div className="space-y-1.5">
+                    {selectedItem.files.map((path) => (
+                      <p key={path} className="break-all text-xs text-muted-foreground">
+                        {path}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {selectedItem.kind !== "text" && !selectedItem.imageBase64 && (
+                  <p className="wrap-break-word whitespace-pre-wrap text-sm text-muted-foreground">
+                    {selectedItemText || "No preview available."}
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              <span className="text-muted-foreground">ID</span>
+              <span className="truncate text-right" title={selectedItem.id}>
+                {selectedItem.id}
+              </span>
+              <span className="text-muted-foreground">Formats</span>
+              <span className="truncate text-right" title={selectedItem.formats.join(", ")}>
+                {selectedItem.formats.length > 0 ? selectedItem.formats.join(", ") : "-"}
+              </span>
+              <span className="text-muted-foreground">Files</span>
+              <span className="text-right">{selectedItem.files.length}</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <span>Copy</span>
+              <span className="font-mono">Enter</span>
+            </div>
+          </>
+        )}
       </aside>
     </div>
   );

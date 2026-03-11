@@ -14,6 +14,8 @@ export type BackendCommand =
   | "get_app_icon"
   | "search_clipboard_history"
   | "clear_clipboard_history"
+  | "toggle_clipboard_pin"
+  | "delete_clipboard_entry"
   | "search_files"
   | "open_file_path"
   | "set_main_window_mode"
@@ -31,6 +33,8 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   get_app_icon: "apps.icon",
   search_clipboard_history: "clipboard.search",
   clear_clipboard_history: "clipboard.clear",
+  toggle_clipboard_pin: "clipboard.pin",
+  delete_clipboard_entry: "clipboard.delete",
   search_files: "files.search",
   open_file_path: "files.open",
   set_main_window_mode: "window.mode",

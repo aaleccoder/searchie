@@ -42,6 +42,7 @@ pub struct ClipboardEntry {
     pub files: Vec<String>,
     pub formats: Vec<String>,
     pub created_at: i64,
+    pub pinned: bool,
 }
 
 #[derive(Clone)]
@@ -160,11 +161,25 @@ async fn ensure_clipboard_table(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             image_blob BLOB,
             files_json TEXT NOT NULL,
             formats_json TEXT NOT NULL,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            pinned INTEGER NOT NULL DEFAULT 0
         )",
     )
     .execute(pool)
     .await?;
+
+    let columns = sqlx::query("PRAGMA table_info(clipboard_history)")
+        .fetch_all(pool)
+        .await?;
+    let has_pinned = columns.into_iter().any(|row| {
+        let name: String = row.try_get("name").unwrap_or_default();
+        name == "pinned"
+    });
+    if !has_pinned {
+        sqlx::query("ALTER TABLE clipboard_history ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+            .execute(pool)
+            .await?;
+    }
 
     sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_clipboard_history_created_at
@@ -193,8 +208,8 @@ async fn persist_clipboard_entry(pool: &SqlitePool, entry: &ClipboardEntry) -> R
 
     sqlx::query(
         "INSERT INTO clipboard_history
-         (id, signature, kind, preview, text_value, image_blob, files_json, formats_json, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 (id, signature, kind, preview, text_value, image_blob, files_json, formats_json, created_at, pinned)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(signature) DO UPDATE SET
            id = excluded.id,
            kind = excluded.kind,
@@ -203,7 +218,11 @@ async fn persist_clipboard_entry(pool: &SqlitePool, entry: &ClipboardEntry) -> R
            image_blob = excluded.image_blob,
            files_json = excluded.files_json,
            formats_json = excluded.formats_json,
-           created_at = excluded.created_at",
+                     created_at = excluded.created_at,
+                     pinned = CASE
+                         WHEN clipboard_history.pinned = 1 THEN 1
+                         ELSE excluded.pinned
+                     END",
     )
     .bind(&entry.id)
     .bind(signature)
@@ -214,13 +233,15 @@ async fn persist_clipboard_entry(pool: &SqlitePool, entry: &ClipboardEntry) -> R
     .bind(files_json)
     .bind(formats_json)
     .bind(entry.created_at)
+    .bind(if entry.pinned { 1 } else { 0 })
     .execute(pool)
     .await?;
 
     sqlx::query(
         "DELETE FROM clipboard_history
          WHERE id IN (
-           SELECT id FROM clipboard_history
+                     SELECT id FROM clipboard_history
+                     WHERE pinned = 0
            ORDER BY created_at DESC
            LIMIT -1 OFFSET ?
          )",
@@ -234,9 +255,9 @@ async fn persist_clipboard_entry(pool: &SqlitePool, entry: &ClipboardEntry) -> R
 
 async fn load_clipboard_entries(pool: &SqlitePool) -> Vec<ClipboardEntry> {
     let rows = sqlx::query(
-        "SELECT id, signature, kind, preview, text_value, image_blob, files_json, formats_json, created_at
+        "SELECT id, signature, kind, preview, text_value, image_blob, files_json, formats_json, created_at, pinned
          FROM clipboard_history
-         ORDER BY created_at DESC",
+         ORDER BY pinned DESC, created_at DESC",
     )
     .fetch_all(pool)
     .await
@@ -270,6 +291,7 @@ async fn load_clipboard_entries(pool: &SqlitePool) -> Vec<ClipboardEntry> {
                 files,
                 formats,
                 created_at: row.try_get("created_at").unwrap_or_default(),
+                pinned: row.try_get::<i64, _>("pinned").unwrap_or_default() == 1,
             }
         })
         .collect()
@@ -302,6 +324,7 @@ fn capture_snapshot() -> Option<(ClipboardEntry, u64)> {
                     files,
                     formats,
                     created_at,
+                    pinned: false,
                 },
                 sig,
             ));
@@ -331,6 +354,7 @@ fn capture_snapshot() -> Option<(ClipboardEntry, u64)> {
                 files,
                 formats,
                 created_at,
+                pinned: false,
             },
             sig,
         ));
@@ -355,6 +379,7 @@ fn capture_snapshot() -> Option<(ClipboardEntry, u64)> {
                 files,
                 formats,
                 created_at,
+                pinned: false,
             },
             sig,
         ));
@@ -461,5 +486,44 @@ pub async fn clear_clipboard_history(
         }
     }
     state.reset_signature();
+    let _ = app.emit(features::events::CLIPBOARD_UPDATED, ());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn toggle_clipboard_pin(app: AppHandle, id: String) -> Result<(), String> {
+    let pool = db::open(&app).await?;
+    ensure_clipboard_table(&pool)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    sqlx::query(
+        "UPDATE clipboard_history
+         SET pinned = CASE WHEN pinned = 1 THEN 0 ELSE 1 END
+         WHERE id = ?",
+    )
+    .bind(id)
+    .execute(&pool)
+    .await
+    .map_err(|err| err.to_string())?;
+
+    let _ = app.emit(features::events::CLIPBOARD_UPDATED, ());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_clipboard_entry(app: AppHandle, id: String) -> Result<(), String> {
+    let pool = db::open(&app).await?;
+    ensure_clipboard_table(&pool)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    sqlx::query("DELETE FROM clipboard_history WHERE id = ?")
+        .bind(id)
+        .execute(&pool)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let _ = app.emit(features::events::CLIPBOARD_UPDATED, ());
     Ok(())
 }

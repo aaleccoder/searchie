@@ -277,6 +277,38 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     }
   };
 
+  const isInputFocused = React.useCallback(() => {
+    return document.activeElement === inputRef.current;
+  }, []);
+
+  React.useEffect(() => {
+    if (activePanel) {
+      return;
+    }
+
+    const onDocumentKeyDown = (event: KeyboardEvent) => {
+      if (isInputFocused()) {
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSelection(1);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSelection(-1);
+      }
+    };
+
+    document.addEventListener("keydown", onDocumentKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onDocumentKeyDown);
+    };
+  }, [activePanel, isInputFocused, moveSelection]);
+
   const selectedCommand = React.useMemo(() => {
     if (!selectedCommandId) {
       return panelCommandSuggestions[0] ?? null;

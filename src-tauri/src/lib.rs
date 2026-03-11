@@ -12,7 +12,8 @@ use crate::apps::{
     search_installed_apps, uninstall_installed_app, AppIndexState,
 };
 use crate::clipboard::{
-    clear_clipboard_history, search_clipboard_history, start_clipboard_watcher, ClipboardState,
+    clear_clipboard_history, delete_clipboard_entry, search_clipboard_history, start_clipboard_watcher,
+    toggle_clipboard_pin, ClipboardState,
 };
 use crate::file_search::{open_file_path, search_files, FileIndexState};
 use tauri::{
@@ -24,7 +25,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_store::StoreExt;
 
 #[cfg(target_os = "windows")]
-use window_vibrancy::apply_mica;
+use window_vibrancy::{apply_acrylic, apply_blur, apply_mica};
 
 const DEFAULT_SHORTCUT: &str = "Alt+Space";
 const COMPACT_WIDTH: f64 = 800.0;
@@ -264,6 +265,8 @@ pub fn run() {
             set_main_window_mode,
             search_clipboard_history,
             clear_clipboard_history,
+            toggle_clipboard_pin,
+            delete_clipboard_entry,
             search_files,
             open_file_path,
             list_installed_apps,

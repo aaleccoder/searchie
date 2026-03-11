@@ -8,7 +8,7 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
   name: "Clipboard",
   aliases: ["cl", "clip", "clipboard"],
   commandIcon: Clipboard,
-  capabilities: ["clipboard.search", "clipboard.clear"],
+  capabilities: ["clipboard.search", "clipboard.clear", "clipboard.pin", "clipboard.delete"],
   priority: 10,
   searchIntegration: {
     activationMode: "result-item",

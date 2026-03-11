@@ -11,6 +11,8 @@ export type PanelCapability =
   | "apps.icon"
   | "clipboard.search"
   | "clipboard.clear"
+  | "clipboard.pin"
+  | "clipboard.delete"
   | "files.search"
   | "files.open"
   | "settings.read"

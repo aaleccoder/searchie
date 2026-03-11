@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Rocket } from "lucide-react";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +60,8 @@ type NavigationItem =
       command: PanelCommandSuggestion;
     };
 
+  type NavigationMode = "list" | "actions";
+
 const iconCache = new Map<string, string | null>();
 
 const launcherCommandScope: PanelCommandScope = {
@@ -94,6 +97,27 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function isEditableElement(element: Element | null): boolean {
+  if (!element) {
+    return false;
+  }
+
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (element instanceof HTMLInputElement) {
+    const type = element.type.toLowerCase();
+    return type !== "button" && type !== "checkbox" && type !== "radio";
+  }
+
+  if (element instanceof HTMLElement) {
+    return element.isContentEditable;
+  }
+
+  return false;
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -218,6 +242,7 @@ export function AppsLauncherPanel({
   const [busy, setBusy] = React.useState(false);
   const [busyActionId, setBusyActionId] = React.useState<AppActionItem["id"] | null>(null);
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
+  const [navigationMode, setNavigationMode] = React.useState<NavigationMode>("list");
 
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
@@ -357,6 +382,18 @@ export function AppsLauncherPanel({
     return navigationList.find((item) => item.id === selectedId) ?? navigationList[0] ?? null;
   }, [navigationList, selectedId]);
 
+  const selectedListIndex = React.useMemo(() => {
+    if (!navigationList.length) {
+      return -1;
+    }
+
+    if (!selectedItem) {
+      return 0;
+    }
+
+    return navigationList.findIndex((item) => item.id === selectedItem.id);
+  }, [navigationList, selectedItem]);
+
   const selectedApp = selectedItem?.kind === "app" ? selectedItem.app : null;
 
   const appActions = React.useMemo<AppActionItem[]>(() => {
@@ -408,6 +445,7 @@ export function AppsLauncherPanel({
   React.useEffect(() => {
     if (!appActions.length) {
       setSelectedActionIndex(0);
+      setNavigationMode("list");
       return;
     }
 
@@ -466,6 +504,14 @@ export function AppsLauncherPanel({
     [],
   );
 
+  const focusListItemById = React.useCallback((id: string) => {
+    itemRefs.current.get(id)?.focus();
+  }, []);
+
+  const focusActionByIndex = React.useCallback((index: number) => {
+    actionRefs.current[index]?.focus();
+  }, []);
+
   const activateSelectedItem = React.useCallback(() => {
     if (!selectedItem) {
       return false;
@@ -491,6 +537,7 @@ export function AppsLauncherPanel({
     }
 
     setSelectedId(first.id);
+  setNavigationMode("list");
     const target = itemRefs.current.get(first.id);
     if (target) {
       target.focus();
@@ -514,105 +561,134 @@ export function AppsLauncherPanel({
     };
   }, [activateSelectedItem, registerInputEnterHandler]);
 
-  const handleListItemKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, item: NavigationItem, index: number) => {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        const next = Math.min(navigationList.length - 1, index + 1);
-        const nextItem = navigationList[next];
-        if (!nextItem) {
-          return;
-        }
-        setSelectedId(nextItem.id);
-        itemRefs.current.get(nextItem.id)?.focus();
+  useHotkey(
+    "ArrowDown",
+    () => {
+      if (!navigationList.length) {
         return;
       }
 
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        const prev = index - 1;
-        if (prev < 0) {
-          focusLauncherInput?.();
-          return;
-        }
-        const prevItem = navigationList[prev];
-        if (!prevItem) {
-          return;
-        }
-        setSelectedId(prevItem.id);
-        itemRefs.current.get(prevItem.id)?.focus();
+      if (navigationMode === "actions" && selectedApp && appActions.length > 0) {
+        setSelectedActionIndex((prev) => {
+          const next = Math.min(appActions.length - 1, prev + 1);
+          focusActionByIndex(next);
+          return next;
+        });
         return;
       }
 
-      if (event.key === "ArrowRight") {
-        if (!selectedApp) {
-          return;
-        }
-        event.preventDefault();
-        if (!appActions.length) {
-          return;
-        }
-        setSelectedActionIndex(0);
-        actionRefs.current[0]?.focus();
+      const currentIndex = selectedListIndex >= 0 ? selectedListIndex : 0;
+      const nextIndex = Math.min(navigationList.length - 1, currentIndex + 1);
+      const nextItem = navigationList[nextIndex];
+      if (!nextItem) {
         return;
       }
 
-      if (event.key === "Enter") {
-        event.preventDefault();
-        if (item.kind === "panel-command") {
-          activatePanelSession?.(item.command.panel, item.command.commandQuery);
-          return;
-        }
-        void executeAppAction("open", item.app);
-      }
+      setNavigationMode("list");
+      setSelectedId(nextItem.id);
+      focusListItemById(nextItem.id);
     },
-    [activatePanelSession, appActions.length, executeAppAction, focusLauncherInput, navigationList, selectedApp],
+    { enabled: navigationList.length > 0, preventDefault: true },
   );
 
-  const handleActionKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, index: number, action: AppActionItem) => {
-      if (!selectedApp) {
+  useHotkey(
+    "ArrowUp",
+    () => {
+      if (!navigationList.length) {
         return;
       }
 
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        const next = Math.min(appActions.length - 1, index + 1);
-        setSelectedActionIndex(next);
-        actionRefs.current[next]?.focus();
+      if (navigationMode === "actions" && selectedApp && appActions.length > 0) {
+        setSelectedActionIndex((prev) => {
+          const next = prev - 1;
+          if (next >= 0) {
+            focusActionByIndex(next);
+            return next;
+          }
+
+          setNavigationMode("list");
+          setSelectedId(selectedApp.id);
+          focusListItemById(selectedApp.id);
+          return 0;
+        });
         return;
       }
 
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        const prev = index - 1;
-        if (prev < 0) {
-          const app = selectedApp;
-          setSelectedId(app.id);
-          itemRefs.current.get(app.id)?.focus();
-          return;
-        }
-        setSelectedActionIndex(prev);
-        actionRefs.current[prev]?.focus();
+      const currentIndex = selectedListIndex >= 0 ? selectedListIndex : 0;
+      const prevIndex = currentIndex - 1;
+      if (prevIndex < 0) {
+        focusLauncherInput?.();
         return;
       }
 
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        const app = selectedApp;
-        setSelectedId(app.id);
-        itemRefs.current.get(app.id)?.focus();
+      const prevItem = navigationList[prevIndex];
+      if (!prevItem) {
         return;
       }
 
-      if (event.key === "Enter") {
-        event.preventDefault();
-        if (!action.disabled) {
+      setNavigationMode("list");
+      setSelectedId(prevItem.id);
+      focusListItemById(prevItem.id);
+    },
+    { enabled: navigationList.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "ArrowRight",
+    () => {
+      if (!selectedApp || appActions.length === 0) {
+        return;
+      }
+
+      setNavigationMode("actions");
+      const nextIndex = Math.min(selectedActionIndex, appActions.length - 1);
+      setSelectedActionIndex(nextIndex);
+      focusActionByIndex(nextIndex);
+    },
+    { enabled: !!selectedApp && appActions.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "ArrowLeft",
+    () => {
+      if (navigationMode !== "actions" || !selectedApp) {
+        return;
+      }
+
+      setNavigationMode("list");
+      setSelectedId(selectedApp.id);
+      focusListItemById(selectedApp.id);
+    },
+    { enabled: navigationMode === "actions" && !!selectedApp, preventDefault: true },
+  );
+
+  useHotkey(
+    "Escape",
+    () => {
+      const activeElement = document.activeElement;
+      if (isEditableElement(activeElement)) {
+        return;
+      }
+
+      focusLauncherInput?.();
+    },
+    { enabled: !!focusLauncherInput },
+  );
+
+  useHotkey(
+    "Enter",
+    () => {
+      if (navigationMode === "actions" && selectedApp) {
+        const action = appActions[selectedActionIndex];
+        if (action && !action.disabled) {
           void executeAppAction(action.id, selectedApp);
         }
+        return;
       }
+
+      activateSelectedItem();
     },
-    [appActions.length, executeAppAction, selectedApp],
+    { enabled: !!selectedItem, preventDefault: true },
   );
 
   return (
@@ -620,9 +696,9 @@ export function AppsLauncherPanel({
       <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
         <div className="overflow-hidden h-full">
           <ScrollArea className="h-full">
-            <div className="p-3.5">
+            <div className="">
               <div className="flex flex-col gap-1">
-                {navigationList.map((item, index) => {
+                {navigationList.map((item) => {
                   const active = selectedItem?.id === item.id;
 
                   if (item.kind === "panel-command") {
@@ -636,15 +712,20 @@ export function AppsLauncherPanel({
                           else itemRefs.current.delete(item.id);
                         }}
                         onMouseEnter={() => {
+                          setNavigationMode("list");
+                          setSelectedId(item.id);
+                        }}
+                        onFocus={() => {
+                          setNavigationMode("list");
                           setSelectedId(item.id);
                         }}
                         onClick={() => {
+                          setNavigationMode("list");
                           setSelectedId(item.id);
                           activatePanelSession?.(item.command.panel, item.command.commandQuery);
                         }}
-                        onKeyDown={(event) => handleListItemKeyDown(event, item, index)}
                         className={cn(
-                          "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
+                          "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
                           active
                             ? "border-primary/70 bg-primary/10"
                             : "border-transparent hover:border-primary/40 hover:bg-accent/50",
@@ -674,15 +755,20 @@ export function AppsLauncherPanel({
                         else itemRefs.current.delete(item.id);
                       }}
                       onMouseEnter={() => {
+                        setNavigationMode("list");
+                        setSelectedId(item.id);
+                      }}
+                      onFocus={() => {
+                        setNavigationMode("list");
                         setSelectedId(item.id);
                       }}
                       onClick={() => {
+                        setNavigationMode("list");
                         setSelectedId(item.id);
                         void executeAppAction("open", app);
                       }}
-                      onKeyDown={(event) => handleListItemKeyDown(event, item, index)}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
+                        "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
                         active
                           ? "border-primary/70 bg-primary/10"
                           : "border-transparent hover:border-primary/40 hover:bg-accent/50",
@@ -698,7 +784,7 @@ export function AppsLauncherPanel({
           </ScrollArea>
         </div>
 
-        <aside className="rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5 overflow-hidden">
+        <aside className="flex flex-col gap-3.5 overflow-hidden">
           {selectedItem?.kind === "panel-command" ? (
             <div className="h-full grid place-items-center text-muted-foreground text-sm text-center px-2">
               Press Enter to open {selectedItem.command.panel.name}.
@@ -735,17 +821,22 @@ export function AppsLauncherPanel({
                         actionRefs.current[index] = el;
                       }}
                       variant={active ? "default" : "outline"}
-                      className="w-full justify-between gap-3 min-w-0"
+                      className="w-full justify-between gap-3 min-w-0 outline-none focus-visible:outline-none focus-visible:ring-0"
                       onMouseEnter={() => {
+                        setNavigationMode("actions");
+                        setSelectedActionIndex(index);
+                      }}
+                      onFocus={() => {
+                        setNavigationMode("actions");
                         setSelectedActionIndex(index);
                       }}
                       onClick={() => {
+                        setNavigationMode("actions");
                         setSelectedActionIndex(index);
                         if (!action.disabled) {
                           void executeAppAction(action.id, selectedApp);
                         }
                       }}
-                      onKeyDown={(event) => handleActionKeyDown(event, index, action)}
                       disabled={busy || action.disabled}
                     >
                       <SingleLineTooltipText text={pending ? "Running..." : action.label} className="min-w-0" />
