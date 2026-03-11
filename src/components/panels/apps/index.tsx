@@ -27,6 +27,13 @@ function createAppsPanel(): ShortcutPanelDescriptor {
       placeholder: "Search apps...",
       exitOnEscape: true,
     },
+    shortcuts: [
+      { keys: "Enter", description: "Open selected app" },
+      { keys: "ArrowUp/ArrowDown", description: "Navigate app list" },
+      { keys: "ArrowRight", description: "Open app actions" },
+      { keys: "ArrowLeft", description: "Back to app list" },
+      { keys: "Escape", description: "Focus launcher input" },
+    ],
     matcher: createPrefixAliasMatcher(aliases),
     component: ({
       commandQuery,

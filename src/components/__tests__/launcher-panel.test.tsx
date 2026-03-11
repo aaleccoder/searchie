@@ -406,4 +406,33 @@ describe("LauncherPanel with panel registry", () => {
 
     expect(screen.getByText("Clipboard Panel")).toBeInTheDocument();
   });
+
+  it("shows active panel shortcut hints in the help popover", async () => {
+    const panelWithShortcuts: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      searchIntegration: {
+        activationMode: "immediate",
+      },
+      shortcuts: [{ keys: "Mod+K", description: "Run panel action" }],
+      component: () => <div>Test Panel</div>,
+      priority: 5,
+    };
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(createTestRegistry(panelWithShortcuts));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp");
+
+    await user.click(screen.getByLabelText("Show keyboard shortcuts"));
+
+    expect(screen.getByText("Test Panel hotkeys")).toBeInTheDocument();
+    expect(screen.getByText("Run panel action")).toBeInTheDocument();
+    expect(screen.getByText("Ctrl/Cmd")).toBeInTheDocument();
+    expect(screen.getByText("K")).toBeInTheDocument();
+  });
 });

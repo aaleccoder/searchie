@@ -25,6 +25,10 @@ function createCalcPanel(): ShortcutPanelDescriptor {
       placeholder: "Search calculator...",
       exitOnEscape: true,
     },
+    shortcuts: [
+      { keys: "Enter", description: "Evaluate input expression" },
+      { keys: "Escape", description: "Back to launcher commands" },
+    ],
     matcher: createPrefixAliasMatcher(aliases),
     component: ({ commandQuery }) => <CalcUtilityPanel commandQuery={commandQuery} />,
   };
@@ -43,6 +47,10 @@ function createConversionPanel(): ShortcutPanelDescriptor {
       placeholder: "Search converter...",
       exitOnEscape: true,
     },
+    shortcuts: [
+      { keys: "Enter", description: "Apply current conversion" },
+      { keys: "Escape", description: "Back to launcher commands" },
+    ],
     matcher: createPrefixAliasMatcher(aliases),
     component: ({ commandQuery }) => <ConversionUtilityPanel commandQuery={commandQuery} />,
   };
@@ -62,6 +70,12 @@ function createFileSearchPanel(): ShortcutPanelDescriptor {
       placeholder: "Search files...",
       exitOnEscape: true,
     },
+    shortcuts: [
+      { keys: "ArrowUp/ArrowDown", description: "Move result selection" },
+      { keys: "ArrowRight", description: "Focus action buttons" },
+      { keys: "Enter", description: "Open file" },
+      { keys: "Shift+Enter", description: "Reveal file in explorer" },
+    ],
     matcher: createPrefixAliasMatcher(aliases),
     onInputKeyDown: onFileSearchInputKeyDown,
     component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (

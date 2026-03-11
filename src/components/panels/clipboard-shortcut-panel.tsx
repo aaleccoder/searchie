@@ -15,6 +15,14 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
     placeholder: "Search clipboard history...",
     exitOnEscape: true,
   },
+  shortcuts: [
+    { keys: "Enter", description: "Copy selected item" },
+    { keys: "Mod+O", description: "Open link(s) from selected item" },
+    { keys: "Mod+Shift+P", description: "Pin or unpin selected item" },
+    { keys: "Mod+P", description: "Cycle filter" },
+    { keys: "Control+X", description: "Delete selected item" },
+    { keys: "Control+Shift+X", description: "Clear all history" },
+  ],
   matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
   component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
     <ClipboardPanel

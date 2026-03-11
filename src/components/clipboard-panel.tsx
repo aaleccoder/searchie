@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { extractFirstColorToken } from "@/lib/utilities/color-preview";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
@@ -175,8 +176,25 @@ export function ClipboardPanel({
     }
   }, [selectedIndex]);
 
+  const colorPreviewById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of items) {
+      if (item.kind !== "text") {
+        continue;
+      }
+
+      const sourceText = [item.text, item.preview].filter(Boolean).join("\n");
+      const color = extractFirstColorToken(sourceText);
+      if (color) {
+        map.set(item.id, color);
+      }
+    }
+    return map;
+  }, [items]);
+
   const selectedItem = items[selectedIndex] ?? null;
   const selectedItemText = selectedItem?.text?.trim() || selectedItem?.preview || "";
+  const selectedItemColorPreview = selectedItem ? colorPreviewById.get(selectedItem.id) ?? null : null;
 
   const copyEntry = React.useCallback(async (item: ClipboardEntry) => {
     try {
@@ -460,6 +478,18 @@ export function ClipboardPanel({
                     <p className="w-72 truncate text-sm leading-relaxed" title={item.preview}>
                       {item.preview || "(empty)"}
                     </p>
+                    {colorPreviewById.get(item.id) && (
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="size-3 rounded border border-border/70"
+                          style={{ backgroundColor: colorPreviewById.get(item.id) }}
+                          aria-hidden="true"
+                        />
+                        <span className="max-w-30 truncate font-mono text-[11px] text-muted-foreground">
+                          {colorPreviewById.get(item.id)}
+                        </span>
+                      </div>
+                    )}
                     {item.pinned && <Badge variant="outline">Pinned</Badge>}
                   </div>
                   <div className="shrink-0 text-[11px] text-muted-foreground">
@@ -506,6 +536,20 @@ export function ClipboardPanel({
                   >
                     {selectedItemText || "(empty text)"}
                   </pre>
+                )}
+
+                {selectedItemColorPreview && (
+                  <div className="rounded-md border border-border/60 bg-background/60 p-3">
+                    <p className="mb-2 text-xs text-muted-foreground">Detected color</p>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="size-8 rounded border border-border/80"
+                        style={{ backgroundColor: selectedItemColorPreview }}
+                        aria-hidden="true"
+                      />
+                      <code className="text-xs font-mono text-foreground">{selectedItemColorPreview}</code>
+                    </div>
+                  </div>
                 )}
 
                 {selectedItem.imageBase64 && (

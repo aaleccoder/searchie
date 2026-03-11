@@ -50,6 +50,11 @@ export type PanelSearchIntegration = {
   exitOnEscape?: boolean;
 };
 
+export type PanelShortcutHint = {
+  keys: string;
+  description: string;
+};
+
 export type ShortcutPanelDescriptor = {
   id: string;
   name: string;
@@ -59,6 +64,7 @@ export type ShortcutPanelDescriptor = {
   matcher: PanelMatcher;
   component: React.ComponentType<PanelRenderProps>;
   commandIcon?: React.ComponentType<{ className?: string }>;
+  shortcuts?: PanelShortcutHint[];
   onInputKeyDown?: PanelInputKeyDownHandler;
   searchIntegration?: PanelSearchIntegration;
   priority?: number;

@@ -5,6 +5,7 @@ import { LauncherSearchInput } from "@/components/launcher-search-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
+import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import { cn } from "@/lib/utils";
 
 type PanelCommandSuggestion = {
@@ -72,6 +73,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     : immediatePanelResolution
       ? immediatePanelResolution.match.commandQuery
       : query;
+  const shortcutHints = React.useMemo(() => resolveLauncherShortcutHints(activePanel), [activePanel]);
   const searchPlaceholder = activePanel?.searchIntegration?.placeholder ?? "Search apps...";
 
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -332,11 +334,20 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
         onValueChange={handleInputValueChange}
         onKeyDown={handleKeyDown}
         onOpenSettings={onOpenSettings}
+        shortcutHints={shortcutHints}
+        shortcutContextLabel={activePanel?.name ?? "Launcher"}
       />
 
-      {expanded && (
-        <div className="relative h-[calc(100%-2.5rem)] p-2.5">
-          {activePanel ? (
+      <div
+        className={cn(
+          "relative overflow-hidden transition-[height,opacity,padding] duration-220 ease-out motion-reduce:transition-none",
+          expanded
+            ? "h-[calc(100%-2.5rem)] p-2.5 opacity-100"
+            : "h-0 px-2.5 py-0 opacity-0 pointer-events-none",
+        )}
+      >
+        {expanded ? (
+          activePanel ? (
             <activePanel.component
               commandQuery={activePanelQuery}
               rawQuery={query}
@@ -413,9 +424,9 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                 </div>
               </ScrollArea>
             </div>
-          )}
-        </div>
-      )}
+          )
+        ) : null}
+      </div>
     </div>
   );
 }
