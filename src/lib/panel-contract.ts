@@ -32,6 +32,8 @@ export type PanelRenderProps = {
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
+  clearLauncherInput?: (() => void) | undefined;
+  closeLauncherWindow?: (() => void) | undefined;
   activatePanelSession?: ((panel: ShortcutPanelDescriptor, nextQuery: string) => void) | undefined;
 };
 

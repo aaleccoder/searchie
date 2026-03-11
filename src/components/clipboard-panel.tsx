@@ -492,9 +492,6 @@ export function ClipboardPanel({
                     )}
                     {item.pinned && <Badge variant="outline">Pinned</Badge>}
                   </div>
-                  <div className="shrink-0 text-[11px] text-muted-foreground">
-                    <span>{formatWhen(item.createdAt)}</span>
-                  </div>
                 </div>
               </article>
             ))}
@@ -525,7 +522,6 @@ export function ClipboardPanel({
                 <h3 className="text-lg font-semibold capitalize leading-tight">{selectedItem.kind} item</h3>
                 {selectedItem.pinned && <Badge variant="outline">Pinned</Badge>}
               </div>
-              <p className="text-xs text-muted-foreground">{formatWhen(selectedItem.createdAt)}</p>
             </div>
 
             <ScrollArea className="min-h-0 flex-1">
@@ -583,6 +579,10 @@ export function ClipboardPanel({
               <span className="text-muted-foreground">ID</span>
               <span className="truncate text-right" title={selectedItem.id}>
                 {selectedItem.id}
+              </span>
+              <span className="text-muted-foreground">Date</span>
+              <span className="truncate text-right" title={formatWhen(selectedItem.createdAt)}>
+                {formatWhen(selectedItem.createdAt)}
               </span>
               <span className="text-muted-foreground">Formats</span>
               <span className="truncate text-right" title={selectedItem.formats.join(", ")}>

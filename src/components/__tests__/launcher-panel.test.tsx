@@ -444,4 +444,40 @@ describe("LauncherPanel with panel registry", () => {
 
     expect(screen.getByText("Hotkeys for: test-panel")).toBeInTheDocument();
   });
+
+  it("does not collapse when clearing query inside an active panel session", async () => {
+    const resultItemPanel: ShortcutPanelDescriptor = {
+      id: "clipboard",
+      name: "Clipboard",
+      aliases: ["clip", "clipboard"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["clip", "clipboard"]),
+      searchIntegration: {
+        activationMode: "result-item",
+      },
+      component: ({ commandQuery }) => <div>Clipboard query: {commandQuery}</div>,
+      priority: 5,
+    };
+
+    const onExpandedChange = vi.fn();
+    const registry = createTestRegistry(resultItemPanel);
+    const user = userEvent.setup();
+
+    render(
+      <PanelRegistryContext.Provider value={registry}>
+        <LauncherPanel expanded onExpandedChange={onExpandedChange} onOpenSettings={vi.fn()} />
+      </PanelRegistryContext.Provider>,
+    );
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "clip");
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("Clipboard query:")).toBeInTheDocument();
+
+    await user.clear(input);
+
+    expect(screen.getByText("Clipboard query:")).toBeInTheDocument();
+    expect(onExpandedChange).not.toHaveBeenCalledWith(false);
+  });
 });

@@ -39,6 +39,8 @@ type AppsLauncherPanelProps = {
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
+  clearLauncherInput?: (() => void) | undefined;
+  closeLauncherWindow?: (() => void) | undefined;
   activatePanelSession?: ((panel: ShortcutPanelDescriptor, nextQuery: string) => void) | undefined;
 };
 
@@ -232,6 +234,8 @@ export function AppsLauncherPanel({
   registerInputArrowDownHandler,
   registerInputEnterHandler,
   focusLauncherInput,
+  clearLauncherInput,
+  closeLauncherWindow,
   activatePanelSession,
 }: AppsLauncherPanelProps) {
   const panelRegistry = usePanelRegistry();
@@ -459,6 +463,8 @@ export function AppsLauncherPanel({
 
       try {
         if (actionId === "open") {
+          clearLauncherInput?.();
+          closeLauncherWindow?.();
           await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app", {
             appId: app.id,
           });
@@ -501,7 +507,7 @@ export function AppsLauncherPanel({
         setBusyActionId(null);
       }
     },
-    [],
+    [clearLauncherInput, closeLauncherWindow],
   );
 
   const focusListItemById = React.useCallback((id: string) => {

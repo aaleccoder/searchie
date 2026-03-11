@@ -105,6 +105,15 @@ export function LauncherPanel({
     inputRef.current?.focus();
   }, []);
 
+  const clearLauncherInput = React.useCallback(() => {
+    setQuery("");
+  }, []);
+
+  const closeLauncherWindow = React.useCallback(() => {
+    onExpandedChange(false);
+    void getCurrentWindow().hide();
+  }, [onExpandedChange]);
+
   const activatePanelSession = React.useCallback(
     (panel: ShortcutPanelDescriptor, nextQuery: string) => {
       setActivePanelSession({ panel });
@@ -119,12 +128,13 @@ export function LauncherPanel({
   const handleInputValueChange = React.useCallback(
     (next: string) => {
       setQuery(next);
-      const shouldExpand = next.trim().length > 0;
+      // Keep panel sessions visible even when their internal filter query is cleared.
+      const shouldExpand = !!activePanelSession || next.trim().length > 0;
       if (shouldExpand !== expanded) {
         onExpandedChange(shouldExpand);
       }
     },
-    [expanded, onExpandedChange],
+    [activePanelSession, expanded, onExpandedChange],
   );
 
   const openSettingsPanel = React.useCallback(() => {
@@ -310,8 +320,7 @@ export function LauncherPanel({
       if (query) {
         setQuery("");
       } else {
-        onExpandedChange(false);
-        void getCurrentWindow().hide();
+        closeLauncherWindow();
       }
     }
   };
@@ -390,6 +399,8 @@ export function LauncherPanel({
               registerInputArrowDownHandler={registerInputArrowDownHandler}
               registerInputEnterHandler={registerInputEnterHandler}
               focusLauncherInput={focusLauncherInput}
+              clearLauncherInput={clearLauncherInput}
+              closeLauncherWindow={closeLauncherWindow}
               activatePanelSession={activatePanelSession}
             />
           ) : (

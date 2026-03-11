@@ -170,4 +170,29 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
 
     expect(focusLauncherInput).toHaveBeenCalledTimes(1);
   });
+
+  it("clears input and closes launcher immediately when clicking an app", async () => {
+    const user = userEvent.setup();
+    const clearLauncherInput = vi.fn();
+    const closeLauncherWindow = vi.fn();
+
+    renderPanel({
+      clearLauncherInput,
+      closeLauncherWindow,
+    });
+
+    const appButton = await screen.findByRole("button", { name: /Notepad/i });
+    await user.click(appButton);
+
+    expect(clearLauncherInput).toHaveBeenCalledTimes(1);
+    expect(closeLauncherWindow).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(invokePanelCommandMock).toHaveBeenCalledWith(
+        expect.anything(),
+        "launch_installed_app",
+        { appId: "app-1" },
+      );
+    });
+  });
 });
