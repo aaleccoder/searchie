@@ -13,6 +13,8 @@ export type GlyphPickerQuery = {
   searchTerm: string;
 };
 
+let emojiEntriesCache: GlyphEntry[] | null = null;
+
 const CATEGORY_ALIASES: Record<string, GlyphPickerQuery["category"]> = {
   emoji: "emoji",
   emoticon: "emoticon",
@@ -51,6 +53,41 @@ export const GLYPH_ENTRIES: GlyphEntry[] = [
   { id: "symbol-emdash", value: "--", label: "Em Dash ASCII", kind: "symbol", tags: ["dash", "separator"] },
   { id: "symbol-copyright", value: "(c)", label: "Copyright", kind: "symbol", tags: ["copyright", "legal"] },
 ];
+
+function toEmojiGlyphEntry(value: string, label: string, tags: string[], index: number): GlyphEntry {
+  return {
+    id: `emoji-rgi-${index}-${value.codePointAt(0)?.toString(16) ?? "x"}`,
+    value,
+    label,
+    kind: "emoji",
+    tags,
+  };
+}
+
+export async function loadEmojiEntriesFromUnicodeData(): Promise<GlyphEntry[]> {
+  if (emojiEntriesCache) {
+    return emojiEntriesCache;
+  }
+
+  try {
+    const module = await import("@/lib/utilities/emoji-test-parser");
+    const response = await fetch("/emoji-test.txt");
+    if (!response.ok) {
+      return [];
+    }
+
+    const raw = await response.text();
+    const parsed = module.parseEmojiTestData(raw);
+    const entries = parsed.map((entry, index) =>
+      toEmojiGlyphEntry(entry.value, entry.label, entry.tags, index),
+    );
+    emojiEntriesCache = entries;
+    return entries;
+  } catch (error) {
+    console.error("[glyph-picker] failed to load emoji-test.txt", error);
+    return [];
+  }
+}
 
 function resolveCategory(token: string): GlyphPickerQuery["category"] | null {
   return CATEGORY_ALIASES[token] ?? null;

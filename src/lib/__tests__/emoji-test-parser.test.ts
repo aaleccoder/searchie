@@ -15,7 +15,7 @@ describe("parseEmojiTestData", () => {
 
     expect(parsed.map((entry) => entry.value)).toEqual(["😀", "😃"]);
     expect(parsed[0]?.label).toBe("grinning face");
-    expect(parsed[0]?.tags).toContain("smiling");
+    expect(parsed[0]?.tags).toContain("grinning");
     expect(parsed[1]?.tags).toContain("big");
   });
 

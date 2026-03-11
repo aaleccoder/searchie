@@ -10,6 +10,7 @@ import { registerGlyphPickerInputController } from "@/components/panels/utilitie
 import {
   filterGlyphEntries,
   GLYPH_ENTRIES,
+  loadEmojiEntriesFromUnicodeData,
   parseGlyphPickerQuery,
   type GlyphEntry,
   type GlyphPickerQuery,
@@ -41,13 +42,38 @@ export function GlyphPickerUtilityPanel({
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [focusArea, setFocusArea] = React.useState<"list" | "actions">("list");
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
+  const [loadedEmojiEntries, setLoadedEmojiEntries] = React.useState<GlyphEntry[]>([]);
   const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const entries = await loadEmojiEntriesFromUnicodeData();
+      if (!cancelled && entries.length > 0) {
+        setLoadedEmojiEntries(entries);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sourceEntries = React.useMemo(() => {
+    const nonEmoji = GLYPH_ENTRIES.filter((entry) => entry.kind !== "emoji");
+    if (loadedEmojiEntries.length === 0) {
+      return GLYPH_ENTRIES;
+    }
+    return [...loadedEmojiEntries, ...nonEmoji];
+  }, [loadedEmojiEntries]);
+
   const parsedQuery = React.useMemo(() => parseGlyphPickerQuery(commandQuery), [commandQuery]);
   const filtered = React.useMemo(
-    () => filterGlyphEntries(GLYPH_ENTRIES, parsedQuery),
-    [parsedQuery],
+    () => filterGlyphEntries(sourceEntries, parsedQuery),
+    [parsedQuery, sourceEntries],
   );
 
   React.useEffect(() => {
