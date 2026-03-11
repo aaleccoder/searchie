@@ -474,39 +474,6 @@ export function GlyphPickerUtilityPanel({
               <Badge variant="secondary">{categoryLabel(selected.kind)}</Badge>
             </div>
             <div className="text-xs text-muted-foreground">Tags: {selected.tags.join(", ")}</div>
-            <Button
-              type="button"
-              ref={(el) => {
-                actionRefs.current[0] = el;
-              }}
-              variant={focusArea === "actions" && selectedActionIndex === 0 ? "default" : "secondary"}
-              className="w-full"
-              onMouseEnter={() => {
-                setFocusArea("actions");
-                setSelectedActionIndex(0);
-              }}
-              onClick={() => void copyEntry(selected)}
-            >
-              <Copy className="size-4" />
-              Copy Selected
-            </Button>
-            <Button
-              type="button"
-              ref={(el) => {
-                actionRefs.current[1] = el;
-              }}
-              variant={focusArea === "actions" && selectedActionIndex === 1 ? "default" : "outline"}
-              className="w-full"
-              onMouseEnter={() => {
-                setFocusArea("actions");
-                setSelectedActionIndex(1);
-              }}
-              onClick={() => {
-                focusLauncherInput?.();
-              }}
-            >
-              Back To Input
-            </Button>
           </>
         ) : (
           <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">

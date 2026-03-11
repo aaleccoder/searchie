@@ -962,42 +962,7 @@ export function AppsLauncherPanel({
               </div>
 
               <div className="mt-auto space-y-2 min-w-0">
-                {appActions.map((action, index) => {
-                  const active = selectedActionIndex === index;
-                  const pending = busy && busyActionId === action.id;
-                  return (
-                    <Button
-                      key={action.id}
-                      ref={(el) => {
-                        actionRefs.current[index] = el;
-                      }}
-                      variant={active ? "default" : "outline"}
-                      className="w-full justify-between gap-3 min-w-0 outline-none focus-visible:outline-none focus-visible:ring-0"
-                      onMouseEnter={() => {
-                        setNavigationMode("actions");
-                        setSelectedActionIndex(index);
-                      }}
-                      onFocus={() => {
-                        setNavigationMode("actions");
-                        setSelectedActionIndex(index);
-                      }}
-                      onClick={() => {
-                        setNavigationMode("actions");
-                        setSelectedActionIndex(index);
-                        if (!action.disabled) {
-                          void executeAppAction(action.id, selectedApp);
-                        }
-                      }}
-                      disabled={busy || action.disabled}
-                    >
-                      <SingleLineTooltipText text={pending ? "Running..." : action.label} className="min-w-0" />
-                      <SingleLineTooltipText
-                        text={action.hint}
-                        className="min-w-0 text-[11px] text-muted-foreground text-right"
-                      />
-                    </Button>
-                  );
-                })}
+                
                 <div className="text-xs text-muted-foreground flex items-center justify-between">
                   <span>List to Actions</span>
                   <span className="font-mono">Right Arrow</span>
