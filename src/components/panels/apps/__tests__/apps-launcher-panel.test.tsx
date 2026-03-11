@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppsLauncherPanel } from "@/components/panels/apps/apps-launcher-panel";
@@ -142,8 +142,7 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     renderPanel();
 
     await screen.findByRole("button", { name: /Notepad/i });
-    const openAction = screen.getByRole("button", { name: /Open App/i });
-    fireEvent.mouseEnter(openAction);
+    await user.keyboard("{ArrowRight}");
     document.body.focus();
 
     await user.keyboard("{ArrowDown}{Enter}");
@@ -229,5 +228,17 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
 
     expect(clearLauncherInput).toHaveBeenCalledTimes(1);
     expect(activatePanelSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers footer with panel title metadata", async () => {
+    const registerPanelFooter = vi.fn();
+
+    renderPanel({
+      registerPanelFooter,
+    });
+
+    await screen.findByRole("button", { name: /Notepad/i });
+    const footer = registerPanelFooter.mock.calls[registerPanelFooter.mock.calls.length - 1]?.[0];
+    expect(footer?.panel?.title).toBe("Apps");
   });
 });

@@ -76,6 +76,7 @@ Optional but strongly recommended:
 
 Panels can publish a dynamic footer with:
 
+- panel metadata (`panel.title`, optional `panel.icon`) used as the footer label
 - one `primaryAction`
 - multiple `extraActions` (dropdown)
 - per-action icon, disabled/loading states, destructive style, and shortcut hint
@@ -88,6 +89,7 @@ This lets each panel fully control footer behavior without hardcoding feature lo
 See `src/lib/panel-contract.ts`:
 
 - `PanelFooterAction`
+- `PanelFooterMeta`
 - `PanelFooterConfig`
 - `PanelFooterControls`
 - `PanelRenderProps.registerPanelFooter`
@@ -122,7 +124,10 @@ function ExamplePanel({
 		}
 
 		return {
-			helperText: "Item actions (Alt+K)",
+			panel: {
+				title: "Example",
+				icon: FolderOpen,
+			},
 			registerControls: (controls) => {
 				footerControlsRef.current = controls;
 			},

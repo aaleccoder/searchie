@@ -218,4 +218,13 @@ describe("ClipboardPanel hotkeys", () => {
 
     expect(clearLauncherInput).toHaveBeenCalledTimes(1);
   });
+
+  it("registers footer with panel title metadata", async () => {
+    const registerPanelFooter = vi.fn();
+    render(<ClipboardPanel commandQuery="" registerPanelFooter={registerPanelFooter} />);
+
+    await screen.findByText("Second entry");
+    const footer = registerPanelFooter.mock.calls[registerPanelFooter.mock.calls.length - 1]?.[0];
+    expect(footer?.panel?.title).toBe("Clipboard");
+  });
 });

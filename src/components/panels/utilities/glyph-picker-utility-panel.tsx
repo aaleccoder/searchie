@@ -149,7 +149,10 @@ export function GlyphPickerUtilityPanel({
     }
 
     return {
-      helperText: "Glyph actions (Alt+K)",
+      panel: {
+        title: "Glyph Picker",
+        icon: Shapes,
+      },
       registerControls: registerFooterControls,
       primaryAction: {
         id: "copy-glyph",

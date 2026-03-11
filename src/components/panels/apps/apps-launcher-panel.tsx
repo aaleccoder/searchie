@@ -551,7 +551,10 @@ export function AppsLauncherPanel({
 
     if (selectedItem.kind === "panel-command") {
       return {
-        helperText: "Panel command",
+        panel: {
+          title: "Apps",
+          icon: Rocket,
+        },
         registerControls: registerFooterControls,
         primaryAction: {
           id: "open-panel-command",
@@ -597,7 +600,10 @@ export function AppsLauncherPanel({
       }));
 
     return {
-      helperText: "App actions (Alt+K)",
+      panel: {
+        title: "Apps",
+        icon: Rocket,
+      },
       registerControls: registerFooterControls,
       primaryAction: {
         id: "open-app",

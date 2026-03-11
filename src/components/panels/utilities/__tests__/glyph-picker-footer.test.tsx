@@ -35,6 +35,7 @@ describe("GlyphPickerUtilityPanel footer", () => {
     );
 
     const footer = registerPanelFooter.mock.calls[registerPanelFooter.mock.calls.length - 1]?.[0];
+    expect(footer?.panel?.title).toBe("Glyph Picker");
     expect(footer?.primaryAction?.id).toBe("copy-glyph");
 
     await footer?.primaryAction?.onSelect();

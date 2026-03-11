@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CornerDownLeft } from "lucide-react";
 import type { PanelFooterConfig, PanelFooterControls } from "@/lib/panel-contract";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ type PanelActionsFooterProps = {
 };
 
 export function PanelActionsFooter({ footer }: PanelActionsFooterProps) {
+  const PanelIcon = footer.panel?.icon;
   const primaryAction = footer.primaryAction;
   const extraActions = footer.extraActions ?? [];
   const [extrasOpen, setExtrasOpen] = React.useState(false);
@@ -176,7 +177,10 @@ export function PanelActionsFooter({ footer }: PanelActionsFooterProps) {
 
   return (
     <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-card/70 px-3 py-2 backdrop-blur-sm">
-      <p className="min-w-0 truncate text-xs text-muted-foreground">{footer.helperText ?? "Actions"}</p>
+      <p className="min-w-0 truncate text-xs text-muted-foreground inline-flex items-center gap-1.5">
+        {PanelIcon ? <PanelIcon data-testid="footer-panel-icon" className="size-3.5" /> : null}
+        <span>{footer.panel?.title ?? footer.helperText ?? "Actions"}</span>
+      </p>
       <div className="flex shrink-0 items-center gap-2">
         {primaryAction ? (
           <Button
@@ -186,6 +190,7 @@ export function PanelActionsFooter({ footer }: PanelActionsFooterProps) {
           >
             {primaryAction.icon ? <primaryAction.icon className="size-4" /> : null}
             {primaryAction.loading ? "Working..." : primaryAction.label}
+            <CornerDownLeft data-testid="primary-enter-icon" className="size-3.5 text-muted-foreground" />
           </Button>
         ) : null}
 
@@ -195,6 +200,7 @@ export function PanelActionsFooter({ footer }: PanelActionsFooterProps) {
               render={
                 <Button ref={triggerRef} variant="outline" size="sm">
                   <span>More</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">Alt+K</span>
                   <ChevronDown className="size-3.5" />
                 </Button>
               }

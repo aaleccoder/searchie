@@ -49,6 +49,11 @@ export type PanelFooterAction = {
   shortcutHint?: string;
 };
 
+export type PanelFooterMeta = {
+  title: string;
+  icon?: React.ComponentType<{ className?: string }>;
+};
+
 export type PanelFooterControls = {
   openExtraActions: () => void;
   closeExtraActions: () => void;
@@ -58,6 +63,7 @@ export type PanelFooterControls = {
 };
 
 export type PanelFooterConfig = {
+  panel?: PanelFooterMeta;
   primaryAction?: PanelFooterAction;
   extraActions?: PanelFooterAction[];
   helperText?: string;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Copy, ExternalLink, Pin, PinOff, Trash2, Trash } from "lucide-react";
+import { ClipboardList, Copy, ExternalLink, Pin, PinOff, Trash2, Trash } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useHotkey } from "@tanstack/react-hotkeys";
@@ -345,7 +345,10 @@ export function ClipboardPanel({
     }
 
     return {
-      helperText: "Clipboard actions (Alt+K)",
+      panel: {
+        title: "Clipboard",
+        icon: ClipboardList,
+      },
       registerControls: registerFooterControls,
       primaryAction: {
         id: "copy",
