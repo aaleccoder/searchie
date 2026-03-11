@@ -5,15 +5,15 @@ import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
   id: "clipboard",
   name: "Clipboard",
-  aliases: ["cl", "clipboard"],
+  aliases: ["cl", "clip", "clipboard"],
   capabilities: ["clipboard.search", "clipboard.clear"],
   priority: 10,
   searchIntegration: {
-    activateOnEnter: true,
+    activationMode: "result-item",
     placeholder: "Search clipboard history...",
     exitOnEscape: true,
   },
-  matcher: createPrefixAliasMatcher(["cl", "clipboard"]),
+  matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
   component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
     <ClipboardPanel
       commandQuery={commandQuery}

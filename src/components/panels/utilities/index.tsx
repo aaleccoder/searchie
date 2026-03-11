@@ -13,7 +13,7 @@ function createCalcPanel(): ShortcutPanelDescriptor {
     capabilities: [],
     priority: 25,
     searchIntegration: {
-      activateOnEnter: true,
+      activationMode: "immediate",
       placeholder: "Search calculator...",
       exitOnEscape: true,
     },
@@ -31,7 +31,7 @@ function createConversionPanel(): ShortcutPanelDescriptor {
     capabilities: [],
     priority: 24,
     searchIntegration: {
-      activateOnEnter: true,
+      activationMode: "immediate",
       placeholder: "Search converter...",
       exitOnEscape: true,
     },

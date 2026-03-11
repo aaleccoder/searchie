@@ -53,7 +53,7 @@ describe("LauncherPanel with panel registry", () => {
     });
   });
 
-  it("activates panel mode on Enter and uses launcher input as panel query", async () => {
+  it("activates immediate panel mode while typing and uses launcher input as panel query", async () => {
     const customPanel: ShortcutPanelDescriptor = {
       id: "test-panel",
       name: "Test Panel",
@@ -61,6 +61,7 @@ describe("LauncherPanel with panel registry", () => {
       capabilities: [],
       matcher: createPrefixAliasMatcher(["tp"]),
       searchIntegration: {
+        activationMode: "immediate",
         placeholder: "Search test panel...",
       },
       component: ({ commandQuery }) => <div>Panel query: {commandQuery}</div>,
@@ -71,17 +72,13 @@ describe("LauncherPanel with panel registry", () => {
     renderLauncherWithRegistry(createTestRegistry(customPanel));
 
     const input = screen.getByPlaceholderText("Search apps...");
-    await user.type(input, "tp");
-    await user.keyboard("{Enter}");
+    await user.type(input, "tp hello");
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
     });
 
-    expect(await screen.findByText("Panel query:")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Search test panel...")).toBeInTheDocument();
-
-    await user.type(input, "hello");
     expect(await screen.findByText("Panel query: hello")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search test panel...")).toBeInTheDocument();
   });
 
   it("falls back to default launcher when no panel matches", async () => {
@@ -109,7 +106,6 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
-    await user.keyboard("{Enter}");
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
     });
@@ -140,14 +136,12 @@ describe("LauncherPanel with panel registry", () => {
     renderLauncherWithRegistry(createTestRegistry(customPanel));
 
     const input = screen.getByPlaceholderText("Search apps...");
-    await user.type(input, "tp");
-    await user.keyboard("{Enter}");
-    await user.type(input, "hello");
+    await user.type(input, "tp hello");
     await user.keyboard("{Escape}");
 
     expect(consumeEscape).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Keyboard Panel")).toBeInTheDocument();
-    expect((input as HTMLInputElement).value).toBe("hello");
+    expect((input as HTMLInputElement).value).toBe("tp hello");
   });
 
   it("hands ArrowDown focus to the active panel target", async () => {
@@ -182,7 +176,6 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
-    await user.keyboard("{Enter}");
     await user.keyboard("{ArrowDown}");
 
     expect(screen.getByText("Panel Focus Target")).toHaveFocus();
@@ -232,7 +225,6 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
-    await user.keyboard("{Enter}");
     await user.keyboard("{ArrowDown}");
     expect(screen.getByText("Panel Focus Target")).toHaveFocus();
 
@@ -257,7 +249,6 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
-    await user.keyboard("{Enter}");
     expect(screen.getByText("Test Panel Content")).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
@@ -265,5 +256,57 @@ describe("LauncherPanel with panel registry", () => {
     expect(screen.getByText("No apps found.")).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe("");
     expect(input).toHaveFocus();
+  });
+
+  it("shows result-item panel command and Enter on selected app still launches app", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "list_installed_apps") return [];
+      if (command === "search_installed_apps") {
+        return [
+          {
+            id: "app-1",
+            name: "Clip Studio",
+            launchPath: "C:/ClipStudio.exe",
+            launchArgs: [],
+            source: "test",
+          },
+        ];
+      }
+      if (command === "launch_installed_app") return null;
+      if (command === "get_app_icon") return null;
+      return null;
+    });
+
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "clipboard",
+      name: "Clipboard",
+      aliases: ["cl", "clip", "clipboard"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
+      searchIntegration: {
+        activationMode: "result-item",
+        placeholder: "Search clipboard...",
+      },
+      component: () => <div>Clipboard Panel</div>,
+      priority: 5,
+    };
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "clip");
+
+    const clipStudioNodes = await screen.findAllByText("Clip Studio");
+    expect(clipStudioNodes.length).toBeGreaterThan(0);
+    expect(screen.getByText("Open Clipboard")).toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+
+    const launched = invokeMock.mock.calls.some(
+      (call) => call[0] === "launch_installed_app" && call[1]?.appId === "app-1",
+    );
+    expect(launched).toBe(true);
+    expect(screen.queryByText("Clipboard Panel")).not.toBeInTheDocument();
   });
 });

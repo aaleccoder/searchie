@@ -35,6 +35,7 @@ export type PanelInputKeyDownHandler = (
 
 export type PanelSearchIntegration = {
   activateOnEnter?: boolean;
+  activationMode?: "immediate" | "result-item";
   placeholder?: string;
   exitOnEscape?: boolean;
 };
