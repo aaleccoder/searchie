@@ -510,6 +510,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                         const active = selectedItem?.id === item.id;
 
                         if (item.kind === "panel-command") {
+                          const CommandIcon = item.command.panel.commandIcon ?? Rocket;
                           return (
                             <button
                               key={item.id}
@@ -529,7 +530,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
-                                  <Rocket className="size-3.5 text-muted-foreground" />
+                                  <CommandIcon className="size-3.5 text-muted-foreground" />
                                 </div>
                                 <span className="text-sm line-clamp-1">Open {item.command.panel.name}</span>
                               </div>

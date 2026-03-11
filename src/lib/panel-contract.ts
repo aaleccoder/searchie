@@ -47,6 +47,7 @@ export type ShortcutPanelDescriptor = {
   capabilities: PanelCapability[];
   matcher: PanelMatcher;
   component: React.ComponentType<PanelRenderProps>;
+  commandIcon?: React.ComponentType<{ className?: string }>;
   onInputKeyDown?: PanelInputKeyDownHandler;
   searchIntegration?: PanelSearchIntegration;
   priority?: number;

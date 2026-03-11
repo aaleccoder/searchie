@@ -1,4 +1,5 @@
 import { ClipboardPanel } from "@/components/clipboard-panel";
+import { Clipboard } from "lucide-react";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 
@@ -6,6 +7,7 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
   id: "clipboard",
   name: "Clipboard",
   aliases: ["cl", "clip", "clipboard"],
+  commandIcon: Clipboard,
   capabilities: ["clipboard.search", "clipboard.clear"],
   priority: 10,
   searchIntegration: {

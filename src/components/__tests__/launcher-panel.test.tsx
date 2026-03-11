@@ -281,6 +281,7 @@ describe("LauncherPanel with panel registry", () => {
       id: "clipboard",
       name: "Clipboard",
       aliases: ["cl", "clip", "clipboard"],
+      commandIcon: ({ className }) => <svg data-testid="clipboard-command-icon" className={className} />,
       capabilities: [],
       matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
       searchIntegration: {
@@ -300,6 +301,7 @@ describe("LauncherPanel with panel registry", () => {
     const clipStudioNodes = await screen.findAllByText("Clip Studio");
     expect(clipStudioNodes.length).toBeGreaterThan(0);
     expect(screen.getByText("Open Clipboard")).toBeInTheDocument();
+    expect(screen.getByTestId("clipboard-command-icon")).toBeInTheDocument();
 
     await user.keyboard("{Enter}");
 
