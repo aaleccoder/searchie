@@ -18,6 +18,15 @@ export const CONVERSION_ALIASES: LocalizedAliasMap = {
   pt: ["converter"],
 };
 
+export const FILE_SEARCH_ALIASES: LocalizedAliasMap = {
+  en: ["files", "find", "fsearch"],
+  es: ["buscar"],
+  fr: ["fichiers"],
+  de: ["dateien"],
+  it: ["file"],
+  pt: ["arquivos"],
+};
+
 export function flattenAliases(map: LocalizedAliasMap): string[] {
   const merged = new Set<string>();
   for (const aliases of Object.values(map)) {

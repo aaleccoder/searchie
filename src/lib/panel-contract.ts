@@ -11,6 +11,8 @@ export type PanelCapability =
   | "apps.icon"
   | "clipboard.search"
   | "clipboard.clear"
+  | "files.search"
+  | "files.open"
   | "settings.read"
   | "settings.write"
   | "window.mode";

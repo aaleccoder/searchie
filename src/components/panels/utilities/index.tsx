@@ -1,8 +1,16 @@
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
+import { FolderSearch } from "lucide-react";
 import { CalcUtilityPanel } from "@/components/panels/utilities/calc-utility-panel";
 import { ConversionUtilityPanel } from "@/components/panels/utilities/conversion-utility-panel";
-import { CALC_ALIASES, CONVERSION_ALIASES, flattenAliases } from "@/components/panels/utilities/aliases";
+import { onFileSearchInputKeyDown } from "@/components/panels/utilities/file-search-keybindings";
+import { FileSearchUtilityPanel } from "@/components/panels/utilities/file-search-utility-panel";
+import {
+  CALC_ALIASES,
+  CONVERSION_ALIASES,
+  FILE_SEARCH_ALIASES,
+  flattenAliases,
+} from "@/components/panels/utilities/aliases";
 
 function createCalcPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(CALC_ALIASES);
@@ -40,6 +48,32 @@ function createConversionPanel(): ShortcutPanelDescriptor {
   };
 }
 
+function createFileSearchPanel(): ShortcutPanelDescriptor {
+  const aliases = flattenAliases(FILE_SEARCH_ALIASES);
+  return {
+    id: "utilities-file-search",
+    name: "File Search",
+    aliases,
+    capabilities: ["files.search", "files.open"],
+    commandIcon: FolderSearch,
+    priority: 26,
+    searchIntegration: {
+      activationMode: "immediate",
+      placeholder: "Search files...",
+      exitOnEscape: true,
+    },
+    matcher: createPrefixAliasMatcher(aliases),
+    onInputKeyDown: onFileSearchInputKeyDown,
+    component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
+      <FileSearchUtilityPanel
+        commandQuery={commandQuery}
+        registerInputArrowDownHandler={registerInputArrowDownHandler}
+        focusLauncherInput={focusLauncherInput}
+      />
+    ),
+  };
+}
+
 export function buildUtilityPanels(): ShortcutPanelDescriptor[] {
-  return [createCalcPanel(), createConversionPanel()];
+  return [createFileSearchPanel(), createCalcPanel(), createConversionPanel()];
 }

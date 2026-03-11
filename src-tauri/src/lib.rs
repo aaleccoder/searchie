@@ -3,6 +3,7 @@ pub mod apps;
 pub mod clipboard;
 pub mod db;
 pub mod features;
+pub mod file_search;
 pub mod icons;
 
 use crate::apps::{
@@ -13,6 +14,7 @@ use crate::apps::{
 use crate::clipboard::{
     clear_clipboard_history, search_clipboard_history, start_clipboard_watcher, ClipboardState,
 };
+use crate::file_search::{open_file_path, search_files, FileIndexState};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -135,6 +137,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(AppIndexState::default())
         .manage(ClipboardState::default())
+        .manage(FileIndexState::default())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 // Don't restore position for the main bar — we always position it ourselves.
@@ -261,6 +264,8 @@ pub fn run() {
             set_main_window_mode,
             search_clipboard_history,
             clear_clipboard_history,
+            search_files,
+            open_file_path,
             list_installed_apps,
             search_installed_apps,
             launch_installed_app,
