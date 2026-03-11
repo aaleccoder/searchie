@@ -47,7 +47,7 @@ export function ConversionUtilityPanel({ commandQuery }: ConversionUtilityPanelP
   }, [query]);
 
   return (
-    <div className="h-full rounded-xl border border-border/70 bg-card/92 p-4 flex flex-col gap-4">
+    <div className="h-full rounded-xl p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Converter</h3>
         <Badge variant="secondary">Utilities</Badge>
