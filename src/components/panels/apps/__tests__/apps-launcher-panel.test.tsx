@@ -230,6 +230,37 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     expect(activatePanelSession).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a back-to-apps button when a panel command item is selected", async () => {
+    const user = userEvent.setup();
+    const registry = createPanelRegistry();
+    const clipboardPanel: ShortcutPanelDescriptor = {
+      id: "clipboard",
+      name: "Clipboard",
+      aliases: ["cl", "clip", "clipboard"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
+      searchIntegration: { activationMode: "result-item" as const },
+      component: () => null,
+    };
+    registry.register(clipboardPanel);
+
+    render(
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel commandQuery="cl" />
+      </PanelRegistryContext.Provider>,
+    );
+
+    const panelCommand = await screen.findByRole("button", { name: /Open Clipboard/i });
+    await user.click(panelCommand);
+
+    expect(screen.getByRole("button", { name: /Back to Apps/i })).toBeInTheDocument();
+    expect(screen.getByText("Press Enter to open Clipboard.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Back to Apps/i }));
+
+    expect(screen.getByText("Selected App")).toBeInTheDocument();
+  });
+
   it("registers footer with panel title metadata", async () => {
     const registerPanelFooter = vi.fn();
 

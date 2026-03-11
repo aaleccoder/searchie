@@ -24,6 +24,7 @@
     "@tanstack/react-hotkeys": "^0.4.1",
     "@tanstack/react-hotkeys-devtools": "^0.4.1",
     "@tanstack/react-router": "^1.166.2",
+    "@tanstack/react-virtual": "^3.13.21",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "~2",
     "@tauri-apps/plugin-global-shortcut": "~2",

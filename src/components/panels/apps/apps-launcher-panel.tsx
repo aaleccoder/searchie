@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -529,6 +529,18 @@ export function AppsLauncherPanel({
     actionRefs.current[index]?.focus();
   }, []);
 
+  const selectFirstAppItem = React.useCallback(() => {
+    const firstAppItem = navigationList.find((item) => item.kind === "app");
+    if (!firstAppItem || firstAppItem.kind !== "app") {
+      return false;
+    }
+
+    setNavigationMode("list");
+    setSelectedId(firstAppItem.id);
+    focusListItemById(firstAppItem.id);
+    return true;
+  }, [focusListItemById, navigationList]);
+
   const activateSelectedItem = React.useCallback(() => {
     if (!selectedItem) {
       return false;
@@ -807,6 +819,11 @@ export function AppsLauncherPanel({
   useHotkey(
     "ArrowLeft",
     () => {
+      if (selectedItem?.kind === "panel-command") {
+        selectFirstAppItem();
+        return;
+      }
+
       if (navigationMode !== "actions" || !selectedApp) {
         return;
       }
@@ -815,7 +832,11 @@ export function AppsLauncherPanel({
       setSelectedId(selectedApp.id);
       focusListItemById(selectedApp.id);
     },
-    { enabled: navigationMode === "actions" && !!selectedApp, preventDefault: true },
+    {
+      enabled:
+        (navigationMode === "actions" && !!selectedApp) || selectedItem?.kind === "panel-command",
+      preventDefault: true,
+    },
   );
 
   useHotkey(
@@ -943,8 +964,25 @@ export function AppsLauncherPanel({
 
         <aside className="flex flex-col gap-3.5 overflow-hidden">
           {selectedItem?.kind === "panel-command" ? (
-            <div className="h-full grid place-items-center text-muted-foreground text-sm text-center px-2">
-              Press Enter to open {selectedItem.command.panel.name}.
+            <div className="h-full flex flex-col justify-between text-muted-foreground text-sm text-center px-2 py-1">
+              <div className="flex-1 grid place-items-center">
+                Press Enter to open {selectedItem.command.panel.name}.
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full justify-between"
+                onClick={() => {
+                  selectFirstAppItem();
+                }}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <ArrowLeft className="size-3.5" />
+                  Back to Apps
+                </span>
+                <span className="font-mono text-[11px] text-muted-foreground">Left Arrow</span>
+              </Button>
             </div>
           ) : selectedApp ? (
             <>

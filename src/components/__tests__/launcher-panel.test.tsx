@@ -323,6 +323,42 @@ describe("LauncherPanel with panel registry", () => {
     expect(input).toHaveFocus();
   });
 
+  it("shows a back button in non-default panel mode and returns to default launcher on click", async () => {
+    const user = userEvent.setup();
+
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      component: ({ commandQuery }) => <div>Panel query: {commandQuery}</div>,
+      searchIntegration: {
+        activationMode: "immediate",
+      },
+      priority: 5,
+    };
+
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp hello");
+
+    expect(screen.getByText("Panel query: hello")).toBeInTheDocument();
+    const backButton = screen.getByLabelText("Go back to default panel");
+    await user.click(backButton);
+
+    expect(screen.queryByText("Panel query: hello")).not.toBeInTheDocument();
+    expect(screen.getByText("Command Panels")).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe("");
+    expect(input).toHaveFocus();
+  });
+
+  it("does not show the back button in default launcher mode", () => {
+    renderLauncherWithRegistry();
+    expect(screen.queryByLabelText("Go back to default panel")).not.toBeInTheDocument();
+  });
+
   it("exits panel mode on Escape and returns to launcher search", async () => {
     const user = userEvent.setup();
 

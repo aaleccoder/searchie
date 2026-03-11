@@ -66,6 +66,40 @@ function AppInit() {
     return installWebviewInputGuard();
   }, []);
 
+  React.useEffect(() => {
+    let disposed = false;
+
+    const showWindow = async () => {
+      if (disposed) {
+        return;
+      }
+
+      try {
+        await getCurrentWindow().show();
+      } catch {
+        // No-op for non-Tauri or unavailable window contexts.
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      const onReady = () => {
+        void showWindow();
+      };
+
+      window.addEventListener('DOMContentLoaded', onReady, { once: true });
+      return () => {
+        disposed = true;
+        window.removeEventListener('DOMContentLoaded', onReady);
+      };
+    }
+
+    void showWindow();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
   return null;
 }
 

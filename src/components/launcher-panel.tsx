@@ -75,6 +75,7 @@ export function LauncherPanel({
   }, [activePanelSession, immediatePanelResolution, registeredPanels]);
 
   const activePanel = activePanelSession?.panel ?? immediatePanelResolution?.panel ?? defaultPanel;
+  const isNonDefaultPanel = !!activePanel && !activePanel.isDefault;
   const activePanelQuery = activePanelSession
     ? query
     : immediatePanelResolution
@@ -161,6 +162,16 @@ export function LauncherPanel({
     const contextPanelId = activePanel?.id ?? "launcher";
     activatePanelSession(hotkeysPanel, contextPanelId);
   }, [activatePanelSession, activePanel?.id, hotkeysPanel]);
+
+  const returnToDefaultPanel = React.useCallback(() => {
+    if (!isNonDefaultPanel) {
+      return;
+    }
+
+    setActivePanelSession(null);
+    setQuery("");
+    focusLauncherInput();
+  }, [focusLauncherInput, isNonDefaultPanel]);
 
   React.useEffect(() => {
     if (openSettingsRequestKey <= 0) {
@@ -390,6 +401,8 @@ export function LauncherPanel({
         inputRef={inputRef}
         onValueChange={handleInputValueChange}
         onKeyDown={handleKeyDown}
+        showBackButton={isNonDefaultPanel}
+        onBackToDefault={returnToDefaultPanel}
         onOpenSettings={openSettingsPanel}
         onOpenHotkeysHelp={openHotkeysPanel}
       />

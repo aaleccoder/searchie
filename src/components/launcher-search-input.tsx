@@ -1,6 +1,7 @@
 import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { InformationCircleIcon, MoreHorizontalCircle01Icon, SearchIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -10,6 +11,8 @@ type LauncherSearchInputProps = {
   inputRef: React.RefObject<HTMLInputElement | null>;
   onValueChange: (next: string) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  showBackButton?: boolean;
+  onBackToDefault?: () => void;
   onOpenSettings: () => void;
   onOpenHotkeysHelp: () => void;
 };
@@ -20,6 +23,8 @@ export function LauncherSearchInput({
   inputRef,
   onValueChange,
   onKeyDown,
+  showBackButton = false,
+  onBackToDefault,
   onOpenSettings,
   onOpenHotkeysHelp,
 }: LauncherSearchInputProps) {
@@ -34,12 +39,25 @@ export function LauncherSearchInput({
         onChange={(event) => onValueChange(event.target.value)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        className="h-full flex-1 rounded-none border-0 bg-transparent pl-0 pr-0 shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent"
+        className="h-full flex-1 rounded-none border-0 bg-t ransparent pl-0 pr-0 shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
         spellCheck={false}
       />
+      {showBackButton ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 shrink-0 rounded-none text-muted-foreground bg-transparent! hover:bg-transparent! focus-visible:bg-transparent! dark:bg-transparent! dark:hover:bg-transparent! dark:focus-visible:bg-transparent! hover:text-foreground"
+          onClick={onBackToDefault}
+          aria-label="Go back to default panel"
+          title="Go back (Left Arrow)"
+        >
+          <ArrowLeft className="size-4" />
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         size="icon"
