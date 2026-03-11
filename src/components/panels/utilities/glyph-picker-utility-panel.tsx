@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { registerGlyphPickerInputController } from "@/components/panels/utilities/glyph-picker-keybindings";
+import type { PanelFooterConfig, PanelFooterControls } from "@/lib/panel-contract";
 import {
   filterGlyphEntries,
   GLYPH_ENTRIES,
@@ -21,8 +22,20 @@ type GlyphPickerUtilityPanelProps = {
   commandQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerPanelFooter?: ((footer: PanelFooterConfig | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
 };
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = React.useState(value);
+
+  React.useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [value, delayMs]);
+
+  return debounced;
+}
 
 const CATEGORY_ORDER: Array<GlyphPickerQuery["category"]> = ["all", "emoji", "emoticon", "symbol"];
 
@@ -37,14 +50,17 @@ export function GlyphPickerUtilityPanel({
   commandQuery,
   registerInputArrowDownHandler,
   registerInputEnterHandler,
+  registerPanelFooter,
   focusLauncherInput,
 }: GlyphPickerUtilityPanelProps) {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [focusArea, setFocusArea] = React.useState<"list" | "actions">("list");
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [loadedEmojiEntries, setLoadedEmojiEntries] = React.useState<GlyphEntry[]>([]);
+  const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
   const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const debouncedQuery = useDebouncedValue(commandQuery, 80);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -70,7 +86,7 @@ export function GlyphPickerUtilityPanel({
     return [...loadedEmojiEntries, ...nonEmoji];
   }, [loadedEmojiEntries]);
 
-  const parsedQuery = React.useMemo(() => parseGlyphPickerQuery(commandQuery), [commandQuery]);
+  const parsedQuery = React.useMemo(() => parseGlyphPickerQuery(debouncedQuery), [debouncedQuery]);
   const filtered = React.useMemo(
     () => filterGlyphEntries(sourceEntries, parsedQuery),
     [parsedQuery, sourceEntries],
@@ -88,7 +104,10 @@ export function GlyphPickerUtilityPanel({
   const selected = filtered[selectedIndex] ?? null;
 
   React.useEffect(() => {
-    itemRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest" });
+    const item = itemRefs.current[selectedIndex];
+    if (item && typeof item.scrollIntoView === "function") {
+      item.scrollIntoView({ block: "nearest" });
+    }
   }, [selectedIndex]);
 
   React.useEffect(() => {
@@ -119,6 +138,55 @@ export function GlyphPickerUtilityPanel({
       });
     }
   }, []);
+
+  const registerFooterControls = React.useCallback((controls: PanelFooterControls | null) => {
+    footerControlsRef.current = controls;
+  }, []);
+
+  const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
+    if (!selected) {
+      return null;
+    }
+
+    return {
+      helperText: "Glyph actions (Alt+K)",
+      registerControls: registerFooterControls,
+      primaryAction: {
+        id: "copy-glyph",
+        label: "Copy Glyph",
+        icon: Copy,
+        onSelect: () => {
+          void copyEntry(selected);
+        },
+        shortcutHint: "Enter",
+      },
+      extraActions: [
+        {
+          id: "copy-label",
+          label: "Copy Label",
+          onSelect: () => {
+            void navigator.clipboard.writeText(selected.label);
+          },
+          shortcutHint: "Alt+L",
+        },
+        {
+          id: "focus-input",
+          label: "Back To Input",
+          onSelect: () => {
+            focusLauncherInput?.();
+          },
+          shortcutHint: "Alt+I",
+        },
+      ],
+    };
+  }, [copyEntry, focusLauncherInput, registerFooterControls, selected]);
+
+  React.useEffect(() => {
+    registerPanelFooter?.(footerConfig);
+    return () => {
+      registerPanelFooter?.(null);
+    };
+  }, [footerConfig, registerPanelFooter]);
 
   const activateCurrentAction = React.useCallback(() => {
     if (!selected) {
@@ -207,52 +275,6 @@ export function GlyphPickerUtilityPanel({
     };
   }, [activateCurrentAction, registerInputEnterHandler]);
 
-  const onListKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        void moveSelection(1);
-        return;
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        if (selectedIndex === 0) {
-          focusLauncherInput?.();
-          return;
-        }
-        void moveSelection(-1);
-        return;
-      }
-
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        void focusActions();
-        return;
-      }
-
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        void focusList();
-        return;
-      }
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        void activateCurrentAction();
-      }
-    },
-    [
-      activateCurrentAction,
-      filtered.length,
-      focusActions,
-      focusLauncherInput,
-      focusList,
-      moveSelection,
-      selectedIndex,
-    ],
-  );
-
   useHotkey(
     "ArrowDown",
     () => {
@@ -320,6 +342,36 @@ export function GlyphPickerUtilityPanel({
     { enabled: !!selected, preventDefault: true },
   );
 
+  useHotkey(
+    "Alt+K",
+    () => {
+      footerControlsRef.current?.openExtraActions();
+    },
+    { enabled: !!selected, preventDefault: true },
+  );
+
+  useHotkey(
+    "Alt+L",
+    () => {
+      const handled = footerControlsRef.current?.runExtraActionById("copy-label") ?? false;
+      if (!handled && selected) {
+        void navigator.clipboard.writeText(selected.label);
+      }
+    },
+    { enabled: !!selected, preventDefault: true },
+  );
+
+  useHotkey(
+    "Alt+I",
+    () => {
+      const handled = footerControlsRef.current?.runExtraActionById("focus-input") ?? false;
+      if (!handled) {
+        focusLauncherInput?.();
+      }
+    },
+    { enabled: !!selected, preventDefault: true },
+  );
+
   return (
     <div className="grid h-full grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2.5 items-stretch">
       <section className="min-w-0 overflow-hidden h-full">
@@ -351,7 +403,7 @@ export function GlyphPickerUtilityPanel({
         </div>
 
         <ScrollArea className="h-[calc(100%-4.5rem)]">
-          <div tabIndex={0} onKeyDown={onListKeyDown} className="p-3.5 space-y-2 outline-none">
+          <div tabIndex={0} className="p-3.5 space-y-2 outline-none">
             {filtered.map((entry, index) => {
               const active = index === selectedIndex;
               return (

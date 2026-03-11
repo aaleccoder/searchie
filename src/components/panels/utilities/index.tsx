@@ -114,11 +114,18 @@ function createGlyphPickerPanel(): ShortcutPanelDescriptor {
     ],
     matcher: createPrefixAliasMatcher(aliases),
     onInputKeyDown: onGlyphPickerInputKeyDown,
-    component: ({ commandQuery, registerInputArrowDownHandler, registerInputEnterHandler, focusLauncherInput }) => (
+    component: ({
+      commandQuery,
+      registerInputArrowDownHandler,
+      registerInputEnterHandler,
+      registerPanelFooter,
+      focusLauncherInput,
+    }) => (
       <GlyphPickerUtilityPanel
         commandQuery={commandQuery}
         registerInputArrowDownHandler={registerInputArrowDownHandler}
         registerInputEnterHandler={registerInputEnterHandler}
+        registerPanelFooter={registerPanelFooter}
         focusLauncherInput={focusLauncherInput}
       />
     ),

@@ -7,6 +7,7 @@ export type BackendCommand =
   | "list_installed_apps"
   | "search_installed_apps"
   | "launch_installed_app"
+  | "launch_installed_app_new_instance"
   | "launch_installed_app_as_admin"
   | "uninstall_installed_app"
   | "open_installed_app_properties"
@@ -26,6 +27,7 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   list_installed_apps: "apps.list",
   search_installed_apps: "apps.search",
   launch_installed_app: "apps.launch",
+  launch_installed_app_new_instance: "apps.launch",
   launch_installed_app_as_admin: "apps.launchAdmin",
   uninstall_installed_app: "apps.uninstall",
   open_installed_app_properties: "apps.properties",
