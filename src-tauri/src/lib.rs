@@ -2,6 +2,7 @@
 pub mod apps;
 pub mod clipboard;
 pub mod db;
+pub mod features;
 pub mod icons;
 
 use crate::apps::{
@@ -69,7 +70,7 @@ fn open_settings_panel(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
         let _ = win.set_focus();
-        let _ = win.emit("searchie://open-settings", ());
+        let _ = win.emit(features::events::OPEN_SETTINGS, ());
     }
 }
 
@@ -182,6 +183,10 @@ pub fn run() {
             app.global_shortcut().register(shortcut.as_str()).ok();
 
             // Open DB and bootstrap app index asynchronously so setup isn't blocked.
+            if let Err(error) = features::build_builtin_feature_registry() {
+                eprintln!("[features] registry initialization failed: {error}");
+            }
+
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 bootstrap_app_index(&app_handle).await;

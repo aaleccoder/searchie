@@ -11,7 +11,7 @@ use std::{
 };
 use tauri::{AppHandle, Emitter, State};
 
-use crate::db;
+use crate::{db, features};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -397,7 +397,7 @@ pub fn start_clipboard_watcher(app: &AppHandle, state: ClipboardState) {
             }
 
             state.set_current_signature(signature);
-            let _ = handle.emit("searchie://clipboard-updated", ());
+            let _ = handle.emit(features::events::CLIPBOARD_UPDATED, ());
         }
     });
 }

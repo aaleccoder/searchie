@@ -108,4 +108,34 @@ describe("LauncherPanel with panel registry", () => {
     const launched = invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app");
     expect(launched).toBe(false);
   });
+
+  it("lets the active panel consume keyboard events", async () => {
+    const consumeEscape = vi.fn(() => true);
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      component: () => <div>Keyboard Panel</div>,
+      onInputKeyDown: (event) => {
+        if (event.key === "Escape") {
+          return consumeEscape();
+        }
+        return false;
+      },
+      priority: 5,
+    };
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp hello");
+    await user.keyboard("{Escape}");
+
+    expect(consumeEscape).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Keyboard Panel")).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe("tp hello");
+  });
 });

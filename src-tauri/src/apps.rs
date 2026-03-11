@@ -15,7 +15,7 @@ use winreg::{
     RegKey,
 };
 
-use crate::{db, icons};
+use crate::{db, features, icons};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -941,7 +941,7 @@ pub async fn bootstrap_app_index(app: &AppHandle) {
     }
 
     // Notify frontend that the app list is ready.
-    let _ = app.emit("searchie://apps-updated", ());
+    let _ = app.emit(features::events::APPS_UPDATED, ());
 
     // Start the incremental watch loop.
     let app_handle = app.clone();
@@ -974,7 +974,7 @@ pub async fn bootstrap_app_index(app: &AppHandle) {
                     .collect();
 
                 state.set_apps(latest);
-                let _ = app_handle.emit("searchie://apps-updated", ());
+                let _ = app_handle.emit(features::events::APPS_UPDATED, ());
             }
         }
     });

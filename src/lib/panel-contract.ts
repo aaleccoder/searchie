@@ -23,6 +23,14 @@ export type PanelRenderProps = {
   rawQuery: string;
 };
 
+export type PanelInputKeyDownHandler = (
+  event: React.KeyboardEvent<HTMLInputElement>,
+  context: {
+    rawQuery: string;
+    commandQuery: string;
+  },
+) => boolean | void;
+
 export type ShortcutPanelDescriptor = {
   id: string;
   name: string;
@@ -30,6 +38,7 @@ export type ShortcutPanelDescriptor = {
   capabilities: PanelCapability[];
   matcher: PanelMatcher;
   component: React.ComponentType<PanelRenderProps>;
+  onInputKeyDown?: PanelInputKeyDownHandler;
   priority?: number;
 };
 

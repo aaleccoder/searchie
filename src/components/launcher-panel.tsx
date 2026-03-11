@@ -244,6 +244,17 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   );
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (activePanel?.onInputKeyDown) {
+      const consumed = activePanel.onInputKeyDown(event, {
+        rawQuery: query,
+        commandQuery: activePanelQuery,
+      });
+      if (consumed) {
+        event.preventDefault();
+        return;
+      }
+    }
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
       moveSelection(1);
