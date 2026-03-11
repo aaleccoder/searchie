@@ -12,6 +12,11 @@ function createCalcPanel(): ShortcutPanelDescriptor {
     aliases,
     capabilities: [],
     priority: 25,
+    searchIntegration: {
+      activateOnEnter: true,
+      placeholder: "Search calculator...",
+      exitOnEscape: true,
+    },
     matcher: createPrefixAliasMatcher(aliases),
     component: ({ commandQuery }) => <CalcUtilityPanel commandQuery={commandQuery} />,
   };
@@ -25,6 +30,11 @@ function createConversionPanel(): ShortcutPanelDescriptor {
     aliases,
     capabilities: [],
     priority: 24,
+    searchIntegration: {
+      activateOnEnter: true,
+      placeholder: "Search converter...",
+      exitOnEscape: true,
+    },
     matcher: createPrefixAliasMatcher(aliases),
     component: ({ commandQuery }) => <ConversionUtilityPanel commandQuery={commandQuery} />,
   };

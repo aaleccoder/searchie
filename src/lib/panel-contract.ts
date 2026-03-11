@@ -33,6 +33,12 @@ export type PanelInputKeyDownHandler = (
   },
 ) => boolean | void;
 
+export type PanelSearchIntegration = {
+  activateOnEnter?: boolean;
+  placeholder?: string;
+  exitOnEscape?: boolean;
+};
+
 export type ShortcutPanelDescriptor = {
   id: string;
   name: string;
@@ -41,6 +47,7 @@ export type ShortcutPanelDescriptor = {
   matcher: PanelMatcher;
   component: React.ComponentType<PanelRenderProps>;
   onInputKeyDown?: PanelInputKeyDownHandler;
+  searchIntegration?: PanelSearchIntegration;
   priority?: number;
 };
 

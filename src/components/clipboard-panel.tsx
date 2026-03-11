@@ -3,7 +3,6 @@ import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { invokePanelCommand } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
@@ -51,7 +50,6 @@ export function ClipboardPanel({
   focusLauncherInput,
 }: ClipboardPanelProps) {
   const [filter, setFilter] = React.useState<ClipboardKind | "all">("all");
-  const [search, setSearch] = React.useState("");
   const [items, setItems] = React.useState<ClipboardEntry[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -82,9 +80,9 @@ export function ClipboardPanel({
         clipboardCommandScope,
         "search_clipboard_history",
         {
-        query: [commandQuery, search].filter(Boolean).join(" "),
-        kind: filter,
-        limit: 120,
+          query: commandQuery,
+          kind: filter,
+          limit: 120,
         },
       );
       setItems(rows);
@@ -94,7 +92,7 @@ export function ClipboardPanel({
     } finally {
       setBusy(false);
     }
-  }, [commandQuery, search, filter]);
+  }, [commandQuery, filter]);
 
   React.useEffect(() => {
     void loadItems();
@@ -208,12 +206,9 @@ export function ClipboardPanel({
               {f.label}
             </Button>
           ))}
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter clipboard history..."
-            className="ml-auto w-64 h-8"
-          />
+          <span className="ml-auto text-xs text-muted-foreground truncate max-w-64">
+            {commandQuery ? `Query: ${commandQuery}` : "Type in top search to filter"}
+          </span>
         </div>
 
         <ScrollArea className="h-[calc(100%-3.25rem)]">

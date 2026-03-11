@@ -8,6 +8,11 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
   aliases: ["cl", "clipboard"],
   capabilities: ["clipboard.search", "clipboard.clear"],
   priority: 10,
+  searchIntegration: {
+    activateOnEnter: true,
+    placeholder: "Search clipboard history...",
+    exitOnEscape: true,
+  },
   matcher: createPrefixAliasMatcher(["cl", "clipboard"]),
   component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
     <ClipboardPanel

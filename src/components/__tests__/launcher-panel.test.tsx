@@ -53,13 +53,16 @@ describe("LauncherPanel with panel registry", () => {
     });
   });
 
-  it("renders injected panel when command alias matches", async () => {
+  it("activates panel mode on Enter and uses launcher input as panel query", async () => {
     const customPanel: ShortcutPanelDescriptor = {
       id: "test-panel",
       name: "Test Panel",
       aliases: ["tp"],
       capabilities: [],
       matcher: createPrefixAliasMatcher(["tp"]),
+      searchIntegration: {
+        placeholder: "Search test panel...",
+      },
       component: ({ commandQuery }) => <div>Panel query: {commandQuery}</div>,
       priority: 5,
     };
@@ -68,11 +71,16 @@ describe("LauncherPanel with panel registry", () => {
     renderLauncherWithRegistry(createTestRegistry(customPanel));
 
     const input = screen.getByPlaceholderText("Search apps...");
-    await user.type(input, "tp hello");
+    await user.type(input, "tp");
+    await user.keyboard("{Enter}");
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
     });
 
+    expect(await screen.findByText("Panel query:")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search test panel...")).toBeInTheDocument();
+
+    await user.type(input, "hello");
     expect(await screen.findByText("Panel query: hello")).toBeInTheDocument();
   });
 
@@ -132,12 +140,14 @@ describe("LauncherPanel with panel registry", () => {
     renderLauncherWithRegistry(createTestRegistry(customPanel));
 
     const input = screen.getByPlaceholderText("Search apps...");
-    await user.type(input, "tp hello");
+    await user.type(input, "tp");
+    await user.keyboard("{Enter}");
+    await user.type(input, "hello");
     await user.keyboard("{Escape}");
 
     expect(consumeEscape).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Keyboard Panel")).toBeInTheDocument();
-    expect((input as HTMLInputElement).value).toBe("tp hello");
+    expect((input as HTMLInputElement).value).toBe("hello");
   });
 
   it("hands ArrowDown focus to the active panel target", async () => {
@@ -172,6 +182,7 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
+    await user.keyboard("{Enter}");
     await user.keyboard("{ArrowDown}");
 
     expect(screen.getByText("Panel Focus Target")).toHaveFocus();
@@ -221,10 +232,38 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
+    await user.keyboard("{Enter}");
     await user.keyboard("{ArrowDown}");
     expect(screen.getByText("Panel Focus Target")).toHaveFocus();
 
     await user.keyboard("{ArrowUp}");
+    expect(input).toHaveFocus();
+  });
+
+  it("exits panel mode on Escape and returns to launcher search", async () => {
+    const user = userEvent.setup();
+
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      component: () => <div>Test Panel Content</div>,
+      priority: 5,
+    };
+
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp");
+    await user.keyboard("{Enter}");
+    expect(screen.getByText("Test Panel Content")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Test Panel Content")).not.toBeInTheDocument();
+    expect(screen.getByText("No apps found.")).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe("");
     expect(input).toHaveFocus();
   });
 });

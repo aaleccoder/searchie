@@ -1,13 +1,14 @@
 import * as React from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Rocket, Search, Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Rocket } from "lucide-react";
+import { LauncherSearchInput } from "@/components/launcher-search-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
 
 type InstalledApp = {
   id: string;
@@ -109,9 +110,12 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
-  const activePanelResolution = React.useMemo(() => panelRegistry.find(query), [panelRegistry, query]);
-  const activePanel = activePanelResolution?.panel ?? null;
-  const activePanelQuery = activePanelResolution?.match.commandQuery ?? "";
+  const [activePanelSession, setActivePanelSession] = React.useState<{
+    panel: ShortcutPanelDescriptor;
+  } | null>(null);
+  const activePanel = activePanelSession?.panel ?? null;
+  const activePanelQuery = activePanel ? query : "";
+  const searchPlaceholder = activePanel?.searchIntegration?.placeholder ?? "Search apps...";
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -124,6 +128,36 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const focusLauncherInput = React.useCallback(() => {
     inputRef.current?.focus();
   }, []);
+
+  const activatePanelFromInput = React.useCallback(() => {
+    const resolution = panelRegistry.find(query);
+    if (!resolution) {
+      return false;
+    }
+
+    const canActivate = resolution.panel.searchIntegration?.activateOnEnter ?? true;
+    if (!canActivate) {
+      return false;
+    }
+
+    setActivePanelSession({ panel: resolution.panel });
+    setQuery(resolution.match.commandQuery);
+    if (!expanded) {
+      onExpandedChange(true);
+    }
+    return true;
+  }, [expanded, onExpandedChange, panelRegistry, query]);
+
+  const handleInputValueChange = React.useCallback(
+    (next: string) => {
+      setQuery(next);
+      const shouldExpand = activePanel ? true : next.trim().length > 0;
+      if (shouldExpand !== expanded) {
+        onExpandedChange(shouldExpand);
+      }
+    },
+    [activePanel, expanded, onExpandedChange],
+  );
 
   React.useEffect(() => {
     if (!activePanel) {
@@ -183,14 +217,13 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     let cancelled = false;
 
     const run = async () => {
-      const q = debouncedQuery.trim();
-      const panelMode = panelRegistry.find(q) !== null;
-
-      if (panelMode) {
+      if (activePanel) {
         setSearchResults([]);
         setSelectedId(null);
         return;
       }
+
+      const q = debouncedQuery.trim();
 
       if (!q) {
         setSearchResults(allApps.slice(0, 120));
@@ -224,7 +257,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, allApps, panelRegistry]);
+  }, [activePanel, debouncedQuery, allApps]);
 
   const navigationList = React.useMemo(() => {
     if (activePanel) {
@@ -322,14 +355,29 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       return;
     }
     if (event.key === "Enter") {
+      if (!activePanel && activatePanelFromInput()) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
       if (activePanel) {
         return;
       }
       void launchSelected();
       return;
-    } 
+    }
     if (event.key === "Escape") {
+      if (activePanel) {
+        const shouldExitPanel = activePanel.searchIntegration?.exitOnEscape ?? true;
+        if (shouldExitPanel) {
+          event.preventDefault();
+          setActivePanelSession(null);
+          setQuery("");
+          focusLauncherInput();
+        }
+        return;
+      }
+
       if (query) {
         setQuery("");
       } else {
@@ -343,35 +391,14 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     <div className="relative h-screen w-200 max-w-200 text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_52%),radial-gradient(circle_at_bottom_right,hsl(var(--ring)/0.12),transparent_55%)]" />
 
-      <div className="relative h-10 w-full backdrop-blur-md" data-tauri-drag-region>
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            const next = e.target.value;
-            setQuery(next);
-            const shouldExpand = next.trim().length > 0;
-            if (shouldExpand !== expanded) onExpandedChange(shouldExpand);
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Search apps..."
-          className="h-full rounded-none border-0 bg-transparent pl-10 pr-11 shadow-none focus-visible:ring-0"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute right-0 top-0 h-10 w-10 rounded-none text-muted-foreground hover:text-foreground"
-          onClick={onOpenSettings}
-          aria-label="Open settings"
-        >
-          <Settings2 className="size-4" />
-        </Button>
-      </div>
+      <LauncherSearchInput
+        value={query}
+        placeholder={searchPlaceholder}
+        inputRef={inputRef}
+        onValueChange={handleInputValueChange}
+        onKeyDown={handleKeyDown}
+        onOpenSettings={onOpenSettings}
+      />
 
       {expanded && (
         <div className="relative h-[calc(100%-2.5rem)] p-2.5">
