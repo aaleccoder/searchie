@@ -41,6 +41,7 @@ type ClipboardPanelProps = {
   commandQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
+  clearLauncherInput?: (() => void) | undefined;
 };
 
 const FILTERS: Array<{ label: string; value: ClipboardKind | "all" }> = [
@@ -91,6 +92,7 @@ export function ClipboardPanel({
   commandQuery,
   registerInputArrowDownHandler,
   focusLauncherInput,
+  clearLauncherInput,
 }: ClipboardPanelProps) {
   const [filter, setFilter] = React.useState<ClipboardKind | "all">("all");
   const [items, setItems] = React.useState<ClipboardEntry[]>([]);
@@ -350,6 +352,14 @@ export function ClipboardPanel({
   );
 
   useHotkey(
+    "Escape",
+    () => {
+      focusLauncherInput?.();
+    },
+    { preventDefault: true },
+  );
+
+  useHotkey(
     "Enter",
     () => {
       if (selectedItem) {
@@ -442,12 +452,14 @@ export function ClipboardPanel({
                 aria-selected={selectedIndex === idx}
                 onClick={() => {
                   setSelectedIndex(idx);
+                  clearLauncherInput?.();
                   void copyEntry(item);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
                     setSelectedIndex(idx);
+                    clearLauncherInput?.();
                     void copyEntry(item);
                   }
                 }}

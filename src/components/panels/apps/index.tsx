@@ -40,6 +40,8 @@ function createAppsPanel(): ShortcutPanelDescriptor {
       registerInputArrowDownHandler,
       registerInputEnterHandler,
       focusLauncherInput,
+      clearLauncherInput,
+      closeLauncherWindow,
       activatePanelSession,
     }) => (
       <AppsLauncherPanel
@@ -47,6 +49,8 @@ function createAppsPanel(): ShortcutPanelDescriptor {
         registerInputArrowDownHandler={registerInputArrowDownHandler}
         registerInputEnterHandler={registerInputEnterHandler}
         focusLauncherInput={focusLauncherInput}
+        clearLauncherInput={clearLauncherInput}
+        closeLauncherWindow={closeLauncherWindow}
         activatePanelSession={activatePanelSession}
       />
     ),

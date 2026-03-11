@@ -206,4 +206,16 @@ describe("ClipboardPanel hotkeys", () => {
     const secondItem = screen.getByRole("button", { name: /Second entry/i });
     expect(secondItem).toHaveAttribute("aria-selected", "true");
   });
+
+  it("clears launcher input when clicking a clipboard item", async () => {
+    const clearLauncherInput = vi.fn();
+    render(<ClipboardPanel commandQuery="cl test" clearLauncherInput={clearLauncherInput} />);
+
+    const firstItem = await screen.findByRole("button", {
+      name: /Read this https:\/\/example\.com/i,
+    });
+    fireEvent.click(firstItem);
+
+    expect(clearLauncherInput).toHaveBeenCalledTimes(1);
+  });
 });

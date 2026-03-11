@@ -524,13 +524,14 @@ export function AppsLauncherPanel({
     }
 
     if (selectedItem.kind === "panel-command") {
+      clearLauncherInput?.();
       activatePanelSession?.(selectedItem.command.panel, selectedItem.command.commandQuery);
       return true;
     }
 
     void executeAppAction("open", selectedItem.app);
     return true;
-  }, [activatePanelSession, executeAppAction, selectedItem]);
+  }, [activatePanelSession, clearLauncherInput, executeAppAction, selectedItem]);
 
   const onInputArrowDown = React.useCallback(() => {
     if (!navigationList.length) {
@@ -728,6 +729,7 @@ export function AppsLauncherPanel({
                         onClick={() => {
                           setNavigationMode("list");
                           setSelectedId(item.id);
+                          clearLauncherInput?.();
                           activatePanelSession?.(item.command.panel, item.command.commandQuery);
                         }}
                         className={cn(

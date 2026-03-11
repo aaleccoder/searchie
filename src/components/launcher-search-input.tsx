@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CircleHelp, Search, Settings2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { InformationCircleIcon, MoreHorizontalCircle01Icon, SearchIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -24,7 +25,11 @@ export function LauncherSearchInput({
 }: LauncherSearchInputProps) {
   return (
     <div className="relative h-10 w-full backdrop-blur-md" data-tauri-drag-region>
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <HugeiconsIcon
+        icon={SearchIcon}
+        strokeWidth={2}
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+      />
       <Input
         ref={inputRef}
         value={value}
@@ -44,7 +49,7 @@ export function LauncherSearchInput({
         onClick={onOpenHotkeysHelp}
         aria-label="Show keyboard shortcuts"
       >
-        <CircleHelp className="size-4" />
+        <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={2} className="size-4" />
       </Button>
       <Button
         variant="ghost"
@@ -53,7 +58,7 @@ export function LauncherSearchInput({
         onClick={onOpenSettings}
         aria-label="Open settings"
       >
-        <Settings2 className="size-4" />
+        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} className="size-4" />
       </Button>
     </div>
   );

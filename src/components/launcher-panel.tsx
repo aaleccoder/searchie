@@ -110,6 +110,8 @@ export function LauncherPanel({
   }, []);
 
   const closeLauncherWindow = React.useCallback(() => {
+    setQuery("");
+    setActivePanelSession(null);
     onExpandedChange(false);
     void getCurrentWindow().hide();
   }, [onExpandedChange]);

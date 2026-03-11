@@ -24,11 +24,12 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
     { keys: "Control+Shift+X", description: "Clear all history" },
   ],
   matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
-  component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
+  component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput, clearLauncherInput }) => (
     <ClipboardPanel
       commandQuery={commandQuery}
       registerInputArrowDownHandler={registerInputArrowDownHandler}
       focusLauncherInput={focusLauncherInput}
+      clearLauncherInput={clearLauncherInput}
     />
   ),
 };

@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppsLauncherPanel } from "@/components/panels/apps/apps-launcher-panel";
+import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
 
 const { invokePanelCommandMock } = vi.hoisted(() => ({
@@ -194,5 +196,38 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
         { appId: "app-1" },
       );
     });
+  });
+
+  it("clears input when opening a panel command item", async () => {
+    const user = userEvent.setup();
+    const clearLauncherInput = vi.fn();
+    const activatePanelSession = vi.fn();
+    const registry = createPanelRegistry();
+    const clipboardPanel: ShortcutPanelDescriptor = {
+      id: "clipboard",
+      name: "Clipboard",
+      aliases: ["cl", "clip", "clipboard"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
+      searchIntegration: { activationMode: "result-item" as const },
+      component: () => null,
+    };
+    registry.register(clipboardPanel);
+
+    render(
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel
+          commandQuery="cl"
+          clearLauncherInput={clearLauncherInput}
+          activatePanelSession={activatePanelSession}
+        />
+      </PanelRegistryContext.Provider>,
+    );
+
+    const panelCommand = await screen.findByRole("button", { name: /Open Clipboard/i });
+    await user.click(panelCommand);
+
+    expect(clearLauncherInput).toHaveBeenCalledTimes(1);
+    expect(activatePanelSession).toHaveBeenCalledTimes(1);
   });
 });
