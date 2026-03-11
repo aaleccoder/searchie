@@ -27,8 +27,56 @@ const WEIGHT_FACTORS: Record<string, number> = {
 
 const TEMPERATURE_UNITS = new Set(["c", "f", "k"]);
 
+const UNIT_ALIASES: Record<string, string> = {
+  // Length
+  millimeter: "mm",
+  millimeters: "mm",
+  millimetre: "mm",
+  millimetres: "mm",
+  centimeter: "cm",
+  centimeters: "cm",
+  centimetre: "cm",
+  centimetres: "cm",
+  meter: "m",
+  meters: "m",
+  metre: "m",
+  metres: "m",
+  kilometer: "km",
+  kilometers: "km",
+  kilometre: "km",
+  kilometres: "km",
+  mile: "mi",
+  miles: "mi",
+  inch: "in",
+  inches: "in",
+  foot: "ft",
+  feet: "ft",
+  yard: "yd",
+  yards: "yd",
+
+  // Weight
+  milligram: "mg",
+  milligrams: "mg",
+  gram: "g",
+  grams: "g",
+  kilogram: "kg",
+  kilograms: "kg",
+  pound: "lb",
+  pounds: "lb",
+  lbs: "lb",
+  ounce: "oz",
+  ounces: "oz",
+
+  // Temperature
+  celsius: "c",
+  centigrade: "c",
+  fahrenheit: "f",
+  kelvin: "k",
+};
+
 function normalizeUnit(unit: string): string {
-  return unit.trim().toLowerCase();
+  const normalized = unit.trim().toLowerCase();
+  return UNIT_ALIASES[normalized] ?? normalized;
 }
 
 export function parseConversionQuery(query: string): ConversionRequest | null {
