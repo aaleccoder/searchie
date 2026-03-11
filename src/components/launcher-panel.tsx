@@ -5,7 +5,6 @@ import { LauncherSearchInput } from "@/components/launcher-search-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
-import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import { cn } from "@/lib/utils";
 
 type PanelCommandSuggestion = {
@@ -19,6 +18,7 @@ type LauncherPanelProps = {
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   onOpenSettings: () => void;
+  openSettingsRequestKey?: number;
 };
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -32,7 +32,12 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: LauncherPanelProps) {
+export function LauncherPanel({
+  expanded,
+  onExpandedChange,
+  onOpenSettings,
+  openSettingsRequestKey = 0,
+}: LauncherPanelProps) {
   const panelRegistry = usePanelRegistry();
   const registeredPanels = React.useMemo(() => panelRegistry.list(), [panelRegistry]);
   const [query, setQuery] = React.useState("");
@@ -73,8 +78,15 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     : immediatePanelResolution
       ? immediatePanelResolution.match.commandQuery
       : query;
-  const shortcutHints = React.useMemo(() => resolveLauncherShortcutHints(activePanel), [activePanel]);
   const searchPlaceholder = activePanel?.searchIntegration?.placeholder ?? "Search apps...";
+  const settingsPanel = React.useMemo(
+    () => registeredPanels.find((panel) => panel.id === "settings") ?? null,
+    [registeredPanels],
+  );
+  const hotkeysPanel = React.useMemo(
+    () => registeredPanels.find((panel) => panel.id === "hotkeys") ?? null,
+    [registeredPanels],
+  );
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -115,6 +127,31 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     [expanded, onExpandedChange],
   );
 
+  const openSettingsPanel = React.useCallback(() => {
+    if (settingsPanel) {
+      activatePanelSession(settingsPanel, "");
+      return;
+    }
+    onOpenSettings();
+  }, [activatePanelSession, onOpenSettings, settingsPanel]);
+
+  const openHotkeysPanel = React.useCallback(() => {
+    if (!hotkeysPanel) {
+      return;
+    }
+
+    const contextPanelId = activePanel?.id ?? "launcher";
+    activatePanelSession(hotkeysPanel, contextPanelId);
+  }, [activatePanelSession, activePanel?.id, hotkeysPanel]);
+
+  React.useEffect(() => {
+    if (openSettingsRequestKey <= 0) {
+      return;
+    }
+
+    openSettingsPanel();
+  }, [openSettingsPanel, openSettingsRequestKey]);
+
   React.useEffect(() => {
     if (!activePanel) {
       activePanelArrowDownHandlerRef.current = null;
@@ -149,7 +186,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     });
 
     if (!trimmed) {
-      return allPanels.slice(0, 8).map((panel) => toSuggestion(panel, "", panel.aliases[0]));
+      return allPanels.map((panel) => toSuggestion(panel, "", panel.aliases[0]));
     }
 
     const exactMatches: PanelCommandSuggestion[] = [];
@@ -333,9 +370,8 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
         inputRef={inputRef}
         onValueChange={handleInputValueChange}
         onKeyDown={handleKeyDown}
-        onOpenSettings={onOpenSettings}
-        shortcutHints={shortcutHints}
-        shortcutContextLabel={activePanel?.name ?? "Launcher"}
+        onOpenSettings={openSettingsPanel}
+        onOpenHotkeysHelp={openHotkeysPanel}
       />
 
       <div

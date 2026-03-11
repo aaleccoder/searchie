@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Settings } from "@/lib/settings-schema";
 import { useSettingsStore } from "@/lib/settings-store";
+import { cn } from "@/lib/utils";
 
 // Maps a KeyboardEvent to a Tauri-compatible accelerator string.
 function buildShortcut(e: KeyboardEvent): string | null {
@@ -93,7 +94,11 @@ function ShortcutRecorder({
   );
 }
 
-export function SettingsPanel() {
+type SettingsPanelProps = {
+  className?: string;
+};
+
+export function SettingsPanel({ className }: SettingsPanelProps) {
   const { settings, loading, updateSettings } = useSettingsStore();
   const { setTheme } = useTheme();
   const [autostart, setAutostart] = useState<boolean | null>(null);
@@ -127,7 +132,7 @@ export function SettingsPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", className)}>
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
         <p className="text-sm text-muted-foreground mt-1">Tune Searchie to your workflow.</p>

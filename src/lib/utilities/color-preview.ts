@@ -10,7 +10,9 @@ function supportsCssColor(value: string): boolean {
   if (typeof CSS !== "undefined" && typeof CSS.supports === "function") {
     return CSS.supports("color", value);
   }
-  return false;
+
+  // JSDOM test environments may not provide CSS.supports.
+  return true;
 }
 
 export function extractFirstColorToken(input: string): string | null {

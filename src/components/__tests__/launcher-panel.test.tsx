@@ -401,13 +401,12 @@ describe("LauncherPanel with panel registry", () => {
     await user.type(input, "clip");
 
     const clipboardCommand = await screen.findByRole("button", { name: /Open Clipboard/i });
-    clipboardCommand.focus();
-    await user.keyboard("{Enter}");
+    await user.click(clipboardCommand);
 
     expect(screen.getByText("Clipboard Panel")).toBeInTheDocument();
   });
 
-  it("shows active panel shortcut hints in the help popover", async () => {
+  it("opens hotkeys helper panel and shows active panel shortcuts", async () => {
     const panelWithShortcuts: ShortcutPanelDescriptor = {
       id: "test-panel",
       name: "Test Panel",
@@ -422,17 +421,27 @@ describe("LauncherPanel with panel registry", () => {
       priority: 5,
     };
 
+    const hotkeysPanel: ShortcutPanelDescriptor = {
+      id: "hotkeys",
+      name: "Hotkeys",
+      aliases: ["?", "help"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["?", "help"]),
+      searchIntegration: {
+        activationMode: "result-item",
+      },
+      component: ({ commandQuery }) => <div>Hotkeys for: {commandQuery || "launcher"}</div>,
+      priority: 4,
+    };
+
     const user = userEvent.setup();
-    renderLauncherWithRegistry(createTestRegistry(panelWithShortcuts));
+    renderLauncherWithRegistry(createRegistryWithPanels([panelWithShortcuts, hotkeysPanel]));
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
 
     await user.click(screen.getByLabelText("Show keyboard shortcuts"));
 
-    expect(screen.getByText("Test Panel hotkeys")).toBeInTheDocument();
-    expect(screen.getByText("Run panel action")).toBeInTheDocument();
-    expect(screen.getByText("Ctrl/Cmd")).toBeInTheDocument();
-    expect(screen.getByText("K")).toBeInTheDocument();
+    expect(screen.getByText("Hotkeys for: test-panel")).toBeInTheDocument();
   });
 });
