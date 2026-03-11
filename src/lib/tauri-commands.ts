@@ -1,0 +1,76 @@
+import { invoke } from "@tauri-apps/api/core";
+import type { PanelCapability, ShortcutPanelDescriptor } from "@/lib/panel-contract";
+
+export type BackendCommand =
+  | "list_installed_apps"
+  | "search_installed_apps"
+  | "launch_installed_app"
+  | "get_app_icon"
+  | "search_clipboard_history"
+  | "clear_clipboard_history"
+  | "set_main_window_mode"
+  | "show_settings"
+  | "update_shortcut";
+
+const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
+  list_installed_apps: "apps.list",
+  search_installed_apps: "apps.search",
+  launch_installed_app: "apps.launch",
+  get_app_icon: "apps.icon",
+  search_clipboard_history: "clipboard.search",
+  clear_clipboard_history: "clipboard.clear",
+  set_main_window_mode: "window.mode",
+  show_settings: "settings.read",
+  update_shortcut: "settings.write",
+};
+
+export class PanelCommandError extends Error {
+  readonly code: "CAPABILITY_DENIED" | "COMMAND_FAILED";
+  readonly panelId: string;
+  readonly command: BackendCommand;
+
+  constructor(
+    code: "CAPABILITY_DENIED" | "COMMAND_FAILED",
+    panelId: string,
+    command: BackendCommand,
+    message: string,
+  ) {
+    super(message);
+    this.name = "PanelCommandError";
+    this.code = code;
+    this.panelId = panelId;
+    this.command = command;
+  }
+}
+
+function assertCapability(panel: ShortcutPanelDescriptor, command: BackendCommand): void {
+  const requiredCapability = COMMAND_CAPABILITIES[command];
+  const allowed = panel.capabilities.includes(requiredCapability);
+  if (!allowed) {
+    throw new PanelCommandError(
+      "CAPABILITY_DENIED",
+      panel.id,
+      command,
+      `Panel \"${panel.id}\" is not allowed to invoke \"${command}\".`,
+    );
+  }
+}
+
+export async function invokePanelCommand<T>(
+  panel: ShortcutPanelDescriptor,
+  command: BackendCommand,
+  params: Record<string, unknown>,
+): Promise<T> {
+  assertCapability(panel, command);
+
+  try {
+    return await invoke<T>(command, params);
+  } catch (error) {
+    throw new PanelCommandError(
+      "COMMAND_FAILED",
+      panel.id,
+      command,
+      `Command \"${command}\" failed for panel \"${panel.id}\": ${String(error)}`,
+    );
+  }
+}

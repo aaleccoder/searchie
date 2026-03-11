@@ -1,0 +1,60 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { invokePanelCommand, PanelCommandError } from "@/lib/tauri-commands";
+
+const { invokeMock } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: invokeMock,
+}));
+
+const launcherPanel: ShortcutPanelDescriptor = {
+  id: "launcher",
+  name: "Launcher",
+  aliases: [],
+  capabilities: ["apps.list", "apps.search", "apps.launch", "apps.icon"],
+  matcher: () => ({ matches: false, commandQuery: "" }),
+  component: () => null,
+};
+
+describe("invokePanelCommand", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("invokes allowed commands", async () => {
+    invokeMock.mockResolvedValueOnce([{ id: "a" }]);
+
+    const result = await invokePanelCommand<{ id: string }[]>(
+      launcherPanel,
+      "list_installed_apps",
+      {},
+    );
+
+    expect(result).toEqual([{ id: "a" }]);
+    expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
+  });
+
+  it("rejects disallowed commands", async () => {
+    await expect(
+      invokePanelCommand(launcherPanel, "search_clipboard_history", { query: "x" }),
+    ).rejects.toBeInstanceOf(PanelCommandError);
+
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("wraps invoke failures", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(
+      invokePanelCommand(launcherPanel, "search_installed_apps", { query: "abc" }),
+    ).rejects.toMatchObject({
+      name: "PanelCommandError",
+      code: "COMMAND_FAILED",
+      panelId: "launcher",
+      command: "search_installed_apps",
+    });
+  });
+});

@@ -3,10 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Rocket, Search, Settings2 } from "lucide-react";
-import { ClipboardPanel } from "@/components/clipboard-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { usePanelRegistry } from "@/lib/panel-registry";
 import { cn } from "@/lib/utils";
 
 type InstalledApp = {
@@ -28,26 +28,6 @@ type LauncherPanelProps = {
 };
 
 const iconCache = new Map<string, string | null>();
-
-function parseClipboardCommand(raw: string) {
-  const q = raw.trim();
-  if (!q) {
-    return { active: false, query: "" };
-  }
-
-  const lower = q.toLowerCase();
-  if (lower === "cl" || lower === "clipboard") {
-    return { active: true, query: "" };
-  }
-  if (lower.startsWith("cl ")) {
-    return { active: true, query: q.slice(3).trim() };
-  }
-  if (lower.startsWith("clipboard ")) {
-    return { active: true, query: q.slice("clipboard ".length).trim() };
-  }
-
-  return { active: false, query: "" };
-}
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -114,14 +94,16 @@ function AppIcon({ appId, className }: { appId: string; className?: string }) {
 }
 
 export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: LauncherPanelProps) {
+  const panelRegistry = usePanelRegistry();
   const [query, setQuery] = React.useState("");
   const debouncedQuery = useDebouncedValue(query, 120);
   const [allApps, setAllApps] = React.useState<InstalledApp[]>([]);
   const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
-  const clipboardCommand = React.useMemo(() => parseClipboardCommand(query), [query]);
-
+  const activePanelResolution = React.useMemo(() => panelRegistry.find(query), [panelRegistry, query]);
+  const activePanel = activePanelResolution?.panel ?? null;
+  const activePanelQuery = activePanelResolution?.match.commandQuery ?? "";
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -168,9 +150,9 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
     const run = async () => {
       const q = debouncedQuery.trim();
-      const clipboardMode = parseClipboardCommand(q).active;
+      const panelMode = panelRegistry.find(q) !== null;
 
-      if (clipboardMode) {
+      if (panelMode) {
         setSearchResults([]);
         setSelectedId(null);
         return;
@@ -199,15 +181,15 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, allApps]);
+  }, [debouncedQuery, allApps, panelRegistry]);
 
   const navigationList = React.useMemo(() => {
-    if (clipboardCommand.active) {
+    if (activePanel) {
       return [];
     }
     const source = debouncedQuery.trim() ? searchResults : allApps;
     return source.slice(0, 72);
-  }, [clipboardCommand.active, debouncedQuery, searchResults, allApps]);
+  }, [activePanel, debouncedQuery, searchResults, allApps]);
 
   const selectedApp = React.useMemo(() => {
     if (!selectedId) return navigationList[0] ?? null;
@@ -274,7 +256,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     }
     if (event.key === "Enter") {
       event.preventDefault();
-      if (clipboardCommand.active) {
+      if (activePanel) {
         return;
       }
       void launchSelected();
@@ -326,8 +308,8 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
       {expanded && (
         <div className="relative h-[calc(100%-2.5rem)] p-2.5">
-          {clipboardCommand.active ? (
-            <ClipboardPanel commandQuery={clipboardCommand.query} />
+          {activePanel ? (
+            <activePanel.component commandQuery={activePanelQuery} rawQuery={query} />
           ) : (
             <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
               <div className="overflow-hidden h-full">

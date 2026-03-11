@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Outlet, createRootRoute, useRouter } from '@tanstack/react-router'
 import "../App.css"
 import { ThemeProvider, useTheme } from '@/components/theme-provider';
+import { PanelRegistryProvider } from '@/components/providers/panel-registry-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { useSettingsStore } from '@/lib/settings-store';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -13,10 +14,12 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="searchie-theme">
-      <AppInit />
-      <div className="w-[800px] max-w-[800px]">
-        <Outlet />
-      </div>
+      <PanelRegistryProvider>
+        <AppInit />
+        <div className="w-200 max-w-200">
+          <Outlet />
+        </div>
+      </PanelRegistryProvider>
       <Toaster position="top-right" richColors />
     </ThemeProvider>
   )
