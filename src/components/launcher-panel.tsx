@@ -1,5 +1,4 @@
 import * as React from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Rocket, Search, Settings2 } from "lucide-react";
@@ -7,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePanelRegistry } from "@/lib/panel-registry";
-import { invokePanelCommand } from "@/lib/tauri-commands";
+import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
 type InstalledApp = {
@@ -29,9 +28,9 @@ type LauncherPanelProps = {
 };
 
 const iconCache = new Map<string, string | null>();
-const launcherCommandScope = {
+const launcherCommandScope: PanelCommandScope = {
   id: "launcher",
-  capabilities: ["apps.list", "apps.search", "apps.launch", "apps.icon"] as const,
+  capabilities: ["apps.list", "apps.search", "apps.launch", "apps.icon"],
 };
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -116,6 +115,21 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
+  const activePanelArrowDownHandlerRef = React.useRef<(() => boolean | void) | null>(null);
+
+  const registerInputArrowDownHandler = React.useCallback((handler: (() => boolean | void) | null) => {
+    activePanelArrowDownHandlerRef.current = handler;
+  }, []);
+
+  const focusLauncherInput = React.useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  React.useEffect(() => {
+    if (!activePanel) {
+      activePanelArrowDownHandlerRef.current = null;
+    }
+  }, [activePanel]);
 
   React.useEffect(() => {
     inputRef.current?.focus();
@@ -291,6 +305,13 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     }
 
     if (event.key === "ArrowDown") {
+      if (activePanel) {
+        const consumed = activePanelArrowDownHandlerRef.current?.();
+        if (consumed !== false) {
+          event.preventDefault();
+          return;
+        }
+      }
       event.preventDefault();
       moveSelection(1);
       return;
@@ -355,7 +376,12 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       {expanded && (
         <div className="relative h-[calc(100%-2.5rem)] p-2.5">
           {activePanel ? (
-            <activePanel.component commandQuery={activePanelQuery} rawQuery={query} />
+            <activePanel.component
+              commandQuery={activePanelQuery}
+              rawQuery={query}
+              registerInputArrowDownHandler={registerInputArrowDownHandler}
+              focusLauncherInput={focusLauncherInput}
+            />
           ) : (
             <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
               <div className="overflow-hidden h-full">

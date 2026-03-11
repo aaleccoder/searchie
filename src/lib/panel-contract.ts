@@ -21,6 +21,8 @@ export type PanelMatcher = (query: string) => PanelMatcherResult;
 export type PanelRenderProps = {
   commandQuery: string;
   rawQuery: string;
+  registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  focusLauncherInput?: (() => void) | undefined;
 };
 
 export type PanelInputKeyDownHandler = (

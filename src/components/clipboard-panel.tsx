@@ -23,6 +23,8 @@ type ClipboardEntry = {
 
 type ClipboardPanelProps = {
   commandQuery: string;
+  registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  focusLauncherInput?: (() => void) | undefined;
 };
 
 const FILTERS: Array<{ label: string; value: ClipboardKind | "all" }> = [
@@ -43,7 +45,11 @@ function formatWhen(ts: number) {
   return date.toLocaleString();
 }
 
-export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
+export function ClipboardPanel({
+  commandQuery,
+  registerInputArrowDownHandler,
+  focusLauncherInput,
+}: ClipboardPanelProps) {
   const [filter, setFilter] = React.useState<ClipboardKind | "all">("all");
   const [search, setSearch] = React.useState("");
   const [items, setItems] = React.useState<ClipboardEntry[]>([]);
@@ -51,6 +57,23 @@ export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
+  const listContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!registerInputArrowDownHandler) return;
+
+    registerInputArrowDownHandler(() => {
+      if (!listContainerRef.current) {
+        return false;
+      }
+      listContainerRef.current.focus();
+      return true;
+    });
+
+    return () => {
+      registerInputArrowDownHandler(null);
+    };
+  }, [registerInputArrowDownHandler]);
 
   const loadItems = React.useCallback(async () => {
     try {
@@ -154,7 +177,11 @@ export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
         setSelectedIndex((prev) => (prev + 1) % items.length);
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + items.length) % items.length);
+        if (selectedIndex === 0) {
+          focusLauncherInput?.();
+          return;
+        }
+        setSelectedIndex((prev) => prev - 1);
       } else if (event.key === "Enter") {
         event.preventDefault();
         const selected = items[selectedIndex];
@@ -163,7 +190,7 @@ export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
         }
       }
     },
-    [copyEntry, items, selectedIndex],
+    [copyEntry, focusLauncherInput, items, selectedIndex],
   );
 
   return (
@@ -190,7 +217,12 @@ export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
         </div>
 
         <ScrollArea className="h-[calc(100%-3.25rem)]">
-          <div className="p-3.5 space-y-2.5" tabIndex={0} onKeyDown={onListKeyDown}>
+          <div
+            ref={listContainerRef}
+            className="p-3.5 space-y-2.5"
+            tabIndex={0}
+            onKeyDown={onListKeyDown}
+          >
             {items.map((item, idx) => (
               <article
                 key={item.id}

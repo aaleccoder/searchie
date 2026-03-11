@@ -1,3 +1,4 @@
+import * as React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -137,5 +138,93 @@ describe("LauncherPanel with panel registry", () => {
     expect(consumeEscape).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Keyboard Panel")).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe("tp hello");
+  });
+
+  it("hands ArrowDown focus to the active panel target", async () => {
+    const user = userEvent.setup();
+
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      component: ({ registerInputArrowDownHandler }) => {
+        const targetRef = React.useRef<HTMLButtonElement>(null);
+
+        React.useEffect(() => {
+          registerInputArrowDownHandler?.(() => {
+            targetRef.current?.focus();
+            return true;
+          });
+
+          return () => {
+            registerInputArrowDownHandler?.(null);
+          };
+        }, [registerInputArrowDownHandler]);
+
+        return <button ref={targetRef}>Panel Focus Target</button>;
+      },
+      priority: 5,
+    };
+
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp");
+    await user.keyboard("{ArrowDown}");
+
+    expect(screen.getByText("Panel Focus Target")).toHaveFocus();
+  });
+
+  it("lets a panel return focus to the launcher input", async () => {
+    const user = userEvent.setup();
+
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      component: ({ registerInputArrowDownHandler, focusLauncherInput }) => {
+        const targetRef = React.useRef<HTMLButtonElement>(null);
+
+        React.useEffect(() => {
+          registerInputArrowDownHandler?.(() => {
+            targetRef.current?.focus();
+            return true;
+          });
+
+          return () => {
+            registerInputArrowDownHandler?.(null);
+          };
+        }, [registerInputArrowDownHandler]);
+
+        return (
+          <button
+            ref={targetRef}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                focusLauncherInput?.();
+              }
+            }}
+          >
+            Panel Focus Target
+          </button>
+        );
+      },
+      priority: 5,
+    };
+
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp");
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByText("Panel Focus Target")).toHaveFocus();
+
+    await user.keyboard("{ArrowUp}");
+    expect(input).toHaveFocus();
   });
 });

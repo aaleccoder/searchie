@@ -9,5 +9,11 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = {
   capabilities: ["clipboard.search", "clipboard.clear"],
   priority: 10,
   matcher: createPrefixAliasMatcher(["cl", "clipboard"]),
-  component: ({ commandQuery }) => <ClipboardPanel commandQuery={commandQuery} />,
+  component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
+    <ClipboardPanel
+      commandQuery={commandQuery}
+      registerInputArrowDownHandler={registerInputArrowDownHandler}
+      focusLauncherInput={focusLauncherInput}
+    />
+  ),
 };
