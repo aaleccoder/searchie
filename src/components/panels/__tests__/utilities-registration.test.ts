@@ -3,7 +3,7 @@ import { buildUtilityPanels } from "@/components/panels/utilities";
 import { createPanelRegistry } from "@/lib/panel-registry";
 
 describe("utility panel registration", () => {
-  it("registers calc, convert, and file-search panels with multilingual aliases", () => {
+  it("registers utility panels with multilingual aliases", () => {
     const registry = createPanelRegistry();
     for (const panel of buildUtilityPanels()) {
       registry.register(panel);
@@ -20,5 +20,9 @@ describe("utility panel registration", () => {
     expect(registry.find("files readme")?.panel.id).toBe("utilities-file-search");
     expect(registry.find("find report")?.panel.id).toBe("utilities-file-search");
     expect(registry.find("buscar factura")?.panel.id).toBe("utilities-file-search");
+
+    expect(registry.find("emoji smile")?.panel.id).toBe("utilities-glyph-picker");
+    expect(registry.find("emoticon shrug")?.panel.id).toBe("utilities-glyph-picker");
+    expect(registry.find("else arrow")?.panel.id).toBe("utilities-glyph-picker");
   });
 });

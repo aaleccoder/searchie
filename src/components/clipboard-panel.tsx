@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Copy, ExternalLink, Pin, PinOff, Trash2, Trash } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useHotkey } from "@tanstack/react-hotkeys";
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { PanelFooterConfig, PanelFooterControls } from "@/lib/panel-contract";
 import { extractFirstColorToken } from "@/lib/utilities/color-preview";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,7 @@ type ClipboardEntry = {
 type ClipboardPanelProps = {
   commandQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerPanelFooter?: ((footer: PanelFooterConfig | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
   clearLauncherInput?: (() => void) | undefined;
 };
@@ -91,6 +94,7 @@ function collectUrls(input: string): string[] {
 export function ClipboardPanel({
   commandQuery,
   registerInputArrowDownHandler,
+  registerPanelFooter,
   focusLauncherInput,
   clearLauncherInput,
 }: ClipboardPanelProps) {
@@ -101,6 +105,11 @@ export function ClipboardPanel({
 
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
+
+  const registerFooterControls = React.useCallback((controls: PanelFooterControls | null) => {
+    footerControlsRef.current = controls;
+  }, []);
 
   React.useEffect(() => {
     if (!registerInputArrowDownHandler) return;
@@ -197,6 +206,14 @@ export function ClipboardPanel({
   const selectedItem = items[selectedIndex] ?? null;
   const selectedItemText = selectedItem?.text?.trim() || selectedItem?.preview || "";
   const selectedItemColorPreview = selectedItem ? colorPreviewById.get(selectedItem.id) ?? null : null;
+  const selectedItemLinksCount = React.useMemo(() => {
+    if (!selectedItem) {
+      return 0;
+    }
+
+    const sourceText = [selectedItem.text, selectedItem.preview].filter(Boolean).join("\n");
+    return collectUrls(sourceText).length;
+  }, [selectedItem]);
 
   const copyEntry = React.useCallback(async (item: ClipboardEntry) => {
     try {
@@ -322,6 +339,83 @@ export function ClipboardPanel({
     }
   }, [loadItems]);
 
+  const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
+    if (!selectedItem) {
+      return null;
+    }
+
+    return {
+      helperText: "Clipboard actions (Alt+K)",
+      registerControls: registerFooterControls,
+      primaryAction: {
+        id: "copy",
+        label: "Copy",
+        icon: Copy,
+        onSelect: () => {
+          void copyEntry(selectedItem);
+        },
+        shortcutHint: "Enter",
+      },
+      extraActions: [
+        {
+          id: "open-links",
+          label: "Open Links",
+          icon: ExternalLink,
+          onSelect: () => {
+            void openSelectedLinks();
+          },
+          disabled: selectedItemLinksCount === 0,
+          shortcutHint: "Mod+O",
+        },
+        {
+          id: "toggle-pin",
+          label: selectedItem.pinned ? "Unpin Item" : "Pin Item",
+          icon: selectedItem.pinned ? PinOff : Pin,
+          onSelect: () => {
+            void togglePinSelected();
+          },
+          shortcutHint: "Mod+Shift+P",
+        },
+        {
+          id: "delete-item",
+          label: "Delete Item",
+          icon: Trash2,
+          onSelect: () => {
+            void deleteSelected();
+          },
+          destructive: true,
+          shortcutHint: "Ctrl+X",
+        },
+        {
+          id: "clear-all",
+          label: "Clear History",
+          icon: Trash,
+          onSelect: () => {
+            void clearAll();
+          },
+          disabled: items.length === 0,
+          destructive: true,
+          shortcutHint: "Ctrl+Shift+X",
+        },
+      ],
+    };
+  }, [clearAll, copyEntry, deleteSelected, items.length, openSelectedLinks, registerFooterControls, selectedItem, selectedItemLinksCount, togglePinSelected]);
+
+  React.useEffect(() => {
+    registerPanelFooter?.(footerConfig);
+    return () => {
+      registerPanelFooter?.(null);
+    };
+  }, [footerConfig, registerPanelFooter]);
+
+  useHotkey(
+    "Alt+K",
+    () => {
+      footerControlsRef.current?.openExtraActions();
+    },
+    { enabled: !!selectedItem && (footerConfig?.extraActions?.length ?? 0) > 0, preventDefault: true },
+  );
+
   useHotkey(
     "ArrowDown",
     () => {
@@ -372,7 +466,9 @@ export function ClipboardPanel({
   useHotkey(
     "Mod+O",
     () => {
-      void openSelectedLinks();
+      if (!footerControlsRef.current?.runExtraActionById("open-links")) {
+        void openSelectedLinks();
+      }
     },
     { enabled: !!selectedItem, preventDefault: true },
   );
@@ -380,7 +476,9 @@ export function ClipboardPanel({
   useHotkey(
     "Mod+Shift+P",
     () => {
-      void togglePinSelected();
+      if (!footerControlsRef.current?.runExtraActionById("toggle-pin")) {
+        void togglePinSelected();
+      }
     },
     { enabled: !!selectedItem, preventDefault: true },
   );
@@ -396,7 +494,9 @@ export function ClipboardPanel({
   useHotkey(
     "Control+X",
     () => {
-      void deleteSelected();
+      if (!footerControlsRef.current?.runExtraActionById("delete-item")) {
+        void deleteSelected();
+      }
     },
     { enabled: !!selectedItem, preventDefault: true },
   );
@@ -404,7 +504,9 @@ export function ClipboardPanel({
   useHotkey(
     "Control+Shift+X",
     () => {
-      void clearAll();
+      if (!footerControlsRef.current?.runExtraActionById("clear-all")) {
+        void clearAll();
+      }
     },
     { enabled: items.length > 0, preventDefault: true },
   );

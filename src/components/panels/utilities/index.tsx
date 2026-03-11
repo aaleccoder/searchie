@@ -1,14 +1,17 @@
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
-import { FolderSearch } from "lucide-react";
+import { FolderSearch, SmilePlus } from "lucide-react";
 import { CalcUtilityPanel } from "@/components/panels/utilities/calc-utility-panel";
 import { ConversionUtilityPanel } from "@/components/panels/utilities/conversion-utility-panel";
 import { onFileSearchInputKeyDown } from "@/components/panels/utilities/file-search-keybindings";
 import { FileSearchUtilityPanel } from "@/components/panels/utilities/file-search-utility-panel";
+import { onGlyphPickerInputKeyDown } from "@/components/panels/utilities/glyph-picker-keybindings";
+import { GlyphPickerUtilityPanel } from "@/components/panels/utilities/glyph-picker-utility-panel";
 import {
   CALC_ALIASES,
   CONVERSION_ALIASES,
   FILE_SEARCH_ALIASES,
+  GLYPH_PICKER_ALIASES,
   flattenAliases,
 } from "@/components/panels/utilities/aliases";
 
@@ -88,6 +91,40 @@ function createFileSearchPanel(): ShortcutPanelDescriptor {
   };
 }
 
+function createGlyphPickerPanel(): ShortcutPanelDescriptor {
+  const aliases = flattenAliases(GLYPH_PICKER_ALIASES);
+  return {
+    id: "utilities-glyph-picker",
+    name: "Glyph Picker",
+    aliases,
+    capabilities: [],
+    commandIcon: SmilePlus,
+    priority: 23,
+    searchIntegration: {
+      activationMode: "immediate",
+      placeholder: "Search emoji, emoticons, and symbols...",
+      exitOnEscape: true,
+    },
+    shortcuts: [
+      { keys: "ArrowUp/ArrowDown", description: "Move glyph selection" },
+      { keys: "ArrowRight", description: "Focus actions" },
+      { keys: "ArrowLeft", description: "Back to list/input" },
+      { keys: "Enter", description: "Copy selected glyph" },
+      { keys: "Escape", description: "Back to launcher commands" },
+    ],
+    matcher: createPrefixAliasMatcher(aliases),
+    onInputKeyDown: onGlyphPickerInputKeyDown,
+    component: ({ commandQuery, registerInputArrowDownHandler, registerInputEnterHandler, focusLauncherInput }) => (
+      <GlyphPickerUtilityPanel
+        commandQuery={commandQuery}
+        registerInputArrowDownHandler={registerInputArrowDownHandler}
+        registerInputEnterHandler={registerInputEnterHandler}
+        focusLauncherInput={focusLauncherInput}
+      />
+    ),
+  };
+}
+
 export function buildUtilityPanels(): ShortcutPanelDescriptor[] {
-  return [createFileSearchPanel(), createCalcPanel(), createConversionPanel()];
+  return [createFileSearchPanel(), createCalcPanel(), createConversionPanel(), createGlyphPickerPanel()];
 }

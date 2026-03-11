@@ -27,6 +27,15 @@ export const FILE_SEARCH_ALIASES: LocalizedAliasMap = {
   pt: ["arquivos"],
 };
 
+export const GLYPH_PICKER_ALIASES: LocalizedAliasMap = {
+  en: ["emoji", "emoticon", "else", "symbols", "symbol", "picker"],
+  es: ["emoji", "emoticono", "simbolos"],
+  fr: ["emoji", "emoticone", "symboles"],
+  de: ["emoji", "emoticon", "symbole"],
+  it: ["emoji", "emoticon", "simboli"],
+  pt: ["emoji", "emoticon", "simbolos"],
+};
+
 export function flattenAliases(map: LocalizedAliasMap): string[] {
   const merged = new Set<string>();
   for (const aliases of Object.values(map)) {

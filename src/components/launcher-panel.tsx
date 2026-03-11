@@ -2,8 +2,9 @@ import * as React from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Rocket } from "lucide-react";
 import { LauncherSearchInput } from "@/components/launcher-search-input";
+import { PanelActionsFooter } from "@/components/panel-actions-footer";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ export function LauncherPanel({
   const [activePanelSession, setActivePanelSession] = React.useState<{
     panel: ShortcutPanelDescriptor;
   } | null>(null);
+  const [panelFooter, setPanelFooter] = React.useState<PanelFooterConfig | null>(null);
   const immediatePanelResolution = React.useMemo(() => {
     if (activePanelSession) {
       return null;
@@ -99,6 +101,10 @@ export function LauncherPanel({
 
   const registerInputEnterHandler = React.useCallback((handler: (() => boolean | void) | null) => {
     activePanelEnterHandlerRef.current = handler;
+  }, []);
+
+  const registerPanelFooter = React.useCallback((footer: PanelFooterConfig | null) => {
+    setPanelFooter(footer);
   }, []);
 
   const focusLauncherInput = React.useCallback(() => {
@@ -168,6 +174,7 @@ export function LauncherPanel({
     if (!activePanel) {
       activePanelArrowDownHandlerRef.current = null;
       activePanelEnterHandlerRef.current = null;
+      setPanelFooter(null);
     }
   }, [activePanel]);
 
@@ -371,6 +378,8 @@ export function LauncherPanel({
     );
   }, [panelCommandSuggestions, selectedCommandId]);
 
+  const shouldShowPanelFooter = expanded && !!activePanel && !!panelFooter;
+
   return (
     <div className="relative h-screen w-200 max-w-200 text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_52%),radial-gradient(circle_at_bottom_right,hsl(var(--ring)/0.12),transparent_55%)]" />
@@ -395,16 +404,21 @@ export function LauncherPanel({
       >
         {expanded ? (
           activePanel ? (
-            <activePanel.component
-              commandQuery={activePanelQuery}
-              rawQuery={query}
-              registerInputArrowDownHandler={registerInputArrowDownHandler}
-              registerInputEnterHandler={registerInputEnterHandler}
-              focusLauncherInput={focusLauncherInput}
-              clearLauncherInput={clearLauncherInput}
-              closeLauncherWindow={closeLauncherWindow}
-              activatePanelSession={activatePanelSession}
-            />
+            <div className="h-full overflow-hidden flex flex-col">
+              <div className={cn("min-h-0 flex-1", shouldShowPanelFooter ? "pb-14" : "") }>
+                <activePanel.component
+                  commandQuery={activePanelQuery}
+                  rawQuery={query}
+                  registerInputArrowDownHandler={registerInputArrowDownHandler}
+                  registerInputEnterHandler={registerInputEnterHandler}
+                  registerPanelFooter={registerPanelFooter}
+                  focusLauncherInput={focusLauncherInput}
+                  clearLauncherInput={clearLauncherInput}
+                  closeLauncherWindow={closeLauncherWindow}
+                  activatePanelSession={activatePanelSession}
+                />
+              </div>
+            </div>
           ) : (
             <div className="h-full rounded-xl border border-border/70 bg-card/92 shadow-lg overflow-hidden">
               <ScrollArea className="h-full">
@@ -476,6 +490,12 @@ export function LauncherPanel({
           )
         ) : null}
       </div>
+
+      {shouldShowPanelFooter && panelFooter ? (
+        <div className="absolute inset-x-0 bottom-0 z-30">
+          <PanelActionsFooter footer={panelFooter} />
+        </div>
+      ) : null}
     </div>
   );
 }

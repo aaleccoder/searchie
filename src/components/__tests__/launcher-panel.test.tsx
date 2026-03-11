@@ -480,4 +480,59 @@ describe("LauncherPanel with panel registry", () => {
     expect(screen.getByText("Clipboard query:")).toBeInTheDocument();
     expect(onExpandedChange).not.toHaveBeenCalledWith(false);
   });
+
+  it("renders panel-controlled footer actions and runs both primary and dropdown actions", async () => {
+    const runPrimary = vi.fn();
+    const runExtra = vi.fn();
+
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      searchIntegration: {
+        activationMode: "immediate",
+      },
+      component: ({ registerPanelFooter }) => {
+        React.useEffect(() => {
+          registerPanelFooter?.({
+            helperText: "Footer actions",
+            primaryAction: {
+              id: "primary",
+              label: "Run Primary",
+              onSelect: runPrimary,
+            },
+            extraActions: [
+              {
+                id: "extra",
+                label: "Run Extra",
+                onSelect: runExtra,
+              },
+            ],
+          });
+
+          return () => {
+            registerPanelFooter?.(null);
+          };
+        }, [registerPanelFooter, runExtra, runPrimary]);
+
+        return <div>Footer Test Panel</div>;
+      },
+      priority: 5,
+    };
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "tp");
+
+    await user.click(screen.getByRole("button", { name: "Run Primary" }));
+    expect(runPrimary).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: /More/i }));
+    await user.click(await screen.findByText("Run Extra"));
+    expect(runExtra).toHaveBeenCalledTimes(1);
+  });
 });

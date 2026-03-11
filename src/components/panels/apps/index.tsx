@@ -32,6 +32,8 @@ function createAppsPanel(): ShortcutPanelDescriptor {
       { keys: "ArrowUp/ArrowDown", description: "Navigate app list" },
       { keys: "ArrowRight", description: "Open app actions" },
       { keys: "ArrowLeft", description: "Back to app list" },
+      { keys: "Alt+K", description: "Open footer extra actions" },
+      { keys: "Alt+R/Alt+U/Alt+P/Alt+L", description: "Run app extra action directly" },
       { keys: "Escape", description: "Focus launcher input" },
     ],
     matcher: createPrefixAliasMatcher(aliases),
@@ -39,6 +41,7 @@ function createAppsPanel(): ShortcutPanelDescriptor {
       commandQuery,
       registerInputArrowDownHandler,
       registerInputEnterHandler,
+      registerPanelFooter,
       focusLauncherInput,
       clearLauncherInput,
       closeLauncherWindow,
@@ -48,6 +51,7 @@ function createAppsPanel(): ShortcutPanelDescriptor {
         commandQuery={commandQuery}
         registerInputArrowDownHandler={registerInputArrowDownHandler}
         registerInputEnterHandler={registerInputEnterHandler}
+        registerPanelFooter={registerPanelFooter}
         focusLauncherInput={focusLauncherInput}
         clearLauncherInput={clearLauncherInput}
         closeLauncherWindow={closeLauncherWindow}

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Rocket } from "lucide-react";
+import { FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type {
+  PanelFooterConfig,
+  PanelFooterControls,
+  ShortcutPanelDescriptor,
+} from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
@@ -38,6 +42,7 @@ type AppsLauncherPanelProps = {
   commandQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerPanelFooter?: ((footer: PanelFooterConfig | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
   clearLauncherInput?: (() => void) | undefined;
   closeLauncherWindow?: (() => void) | undefined;
@@ -233,6 +238,7 @@ export function AppsLauncherPanel({
   commandQuery,
   registerInputArrowDownHandler,
   registerInputEnterHandler,
+  registerPanelFooter,
   focusLauncherInput,
   clearLauncherInput,
   closeLauncherWindow,
@@ -250,6 +256,11 @@ export function AppsLauncherPanel({
 
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
+
+  const registerFooterControls = React.useCallback((controls: PanelFooterControls | null) => {
+    footerControlsRef.current = controls;
+  }, []);
 
   const refreshAllApps = React.useCallback(async () => {
     try {
@@ -533,6 +544,83 @@ export function AppsLauncherPanel({
     return true;
   }, [activatePanelSession, clearLauncherInput, executeAppAction, selectedItem]);
 
+  const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
+    if (!selectedItem) {
+      return null;
+    }
+
+    if (selectedItem.kind === "panel-command") {
+      return {
+        helperText: "Panel command",
+        registerControls: registerFooterControls,
+        primaryAction: {
+          id: "open-panel-command",
+          label: `Open ${selectedItem.command.panel.name}`,
+          icon: Rocket,
+          onSelect: () => {
+            clearLauncherInput?.();
+            activatePanelSession?.(selectedItem.command.panel, selectedItem.command.commandQuery);
+          },
+          shortcutHint: "Enter",
+        },
+      };
+    }
+
+    const currentApp = selectedItem.app;
+    const extraActions = appActions
+      .filter((action) => action.id !== "open")
+      .map((action) => ({
+        id: action.id,
+        label: action.label,
+        icon:
+          action.id === "run-as-admin"
+            ? Shield
+            : action.id === "uninstall"
+              ? Trash2
+              : action.id === "properties"
+                ? Wrench
+                : FolderOpen,
+        shortcutHint:
+          action.id === "run-as-admin"
+            ? "Alt+R"
+            : action.id === "uninstall"
+              ? "Alt+U"
+              : action.id === "properties"
+                ? "Alt+P"
+                : "Alt+L",
+        onSelect: () => {
+          if (!action.disabled) {
+            void executeAppAction(action.id, currentApp);
+          }
+        },
+        disabled: busy || action.disabled,
+      }));
+
+    return {
+      helperText: "App actions (Alt+K)",
+      registerControls: registerFooterControls,
+      primaryAction: {
+        id: "open-app",
+        label: "Open App",
+        icon: Rocket,
+        onSelect: () => {
+          void executeAppAction("open", currentApp);
+        },
+        disabled: busy,
+        loading: busy && busyActionId === "open",
+        shortcutHint: "Enter",
+      },
+      extraActions,
+    };
+  }, [activatePanelSession, appActions, busy, busyActionId, clearLauncherInput, executeAppAction, registerFooterControls, selectedItem]);
+
+  React.useEffect(() => {
+    registerPanelFooter?.(footerConfig);
+    return () => {
+      registerPanelFooter?.(null);
+    };
+  }, [footerConfig, registerPanelFooter]);
+
   const onInputArrowDown = React.useCallback(() => {
     if (!navigationList.length) {
       return false;
@@ -567,6 +655,61 @@ export function AppsLauncherPanel({
       registerInputEnterHandler?.(null);
     };
   }, [activateSelectedItem, registerInputEnterHandler]);
+
+  useHotkey(
+    "Alt+K",
+    () => {
+      footerControlsRef.current?.openExtraActions();
+    },
+    {
+      enabled: !!selectedItem && (footerConfig?.extraActions?.length ?? 0) > 0,
+      preventDefault: true,
+    },
+  );
+
+  useHotkey(
+    "Alt+R",
+    () => {
+      if (!selectedApp) {
+        return;
+      }
+      footerControlsRef.current?.runExtraActionById("run-as-admin");
+    },
+    { enabled: !!selectedApp, preventDefault: true },
+  );
+
+  useHotkey(
+    "Alt+U",
+    () => {
+      if (!selectedApp) {
+        return;
+      }
+      footerControlsRef.current?.runExtraActionById("uninstall");
+    },
+    { enabled: !!selectedApp, preventDefault: true },
+  );
+
+  useHotkey(
+    "Alt+P",
+    () => {
+      if (!selectedApp) {
+        return;
+      }
+      footerControlsRef.current?.runExtraActionById("properties");
+    },
+    { enabled: !!selectedApp, preventDefault: true },
+  );
+
+  useHotkey(
+    "Alt+L",
+    () => {
+      if (!selectedApp) {
+        return;
+      }
+      footerControlsRef.current?.runExtraActionById("open-location");
+    },
+    { enabled: !!selectedApp, preventDefault: true },
+  );
 
   useHotkey(
     "ArrowDown",

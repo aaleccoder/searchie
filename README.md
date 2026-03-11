@@ -72,6 +72,134 @@ Optional but strongly recommended:
 - `shortcuts`: visible key hint metadata.
 - `onInputKeyDown`: advanced key interception only when necessary.
 
+### Panel Actions Footer API (Raycast-style)
+
+Panels can publish a dynamic footer with:
+
+- one `primaryAction`
+- multiple `extraActions` (dropdown)
+- per-action icon, disabled/loading states, destructive style, and shortcut hint
+- panel-owned imperative controls (`openExtraActions`, `runExtraActionById`, etc.)
+
+This lets each panel fully control footer behavior without hardcoding feature logic in the launcher.
+
+#### Contract Types
+
+See `src/lib/panel-contract.ts`:
+
+- `PanelFooterAction`
+- `PanelFooterConfig`
+- `PanelFooterControls`
+- `PanelRenderProps.registerPanelFooter`
+
+#### How To Use In A Panel
+
+1. Build your footer config in `useMemo` based on currently selected item.
+2. Register it via `registerPanelFooter(footerConfig)` in `useEffect`.
+3. Register footer controls (`registerControls`) into a local ref.
+4. Wire panel hotkeys (for example `Alt+K`) to call `footerControlsRef.current?.openExtraActions()`.
+5. Keep action execution item-scoped so actions always apply to the current selection.
+
+Example:
+
+```tsx
+import * as React from "react";
+import { FolderOpen, Rocket, Trash2 } from "lucide-react";
+import { useHotkey } from "@tanstack/react-hotkeys";
+import type { PanelFooterConfig, PanelFooterControls } from "@/lib/panel-contract";
+
+function ExamplePanel({
+	registerPanelFooter,
+}: {
+	registerPanelFooter?: (footer: PanelFooterConfig | null) => void;
+}) {
+	const [selectedItem, setSelectedItem] = React.useState<{ id: string; name: string } | null>(null);
+	const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
+
+	const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
+		if (!selectedItem) {
+			return null;
+		}
+
+		return {
+			helperText: "Item actions (Alt+K)",
+			registerControls: (controls) => {
+				footerControlsRef.current = controls;
+			},
+			primaryAction: {
+				id: "open",
+				label: "Open",
+				icon: FolderOpen,
+				onSelect: () => {
+					// Run open for selectedItem.id
+				},
+				shortcutHint: "Enter",
+			},
+			extraActions: [
+				{
+					id: "run",
+					label: "Run",
+					icon: Rocket,
+					onSelect: () => {
+						// Run action for selectedItem.id
+					},
+					shortcutHint: "Alt+R",
+				},
+				{
+					id: "delete",
+					label: "Delete",
+					icon: Trash2,
+					destructive: true,
+					onSelect: () => {
+						// Delete selectedItem.id
+					},
+					shortcutHint: "Alt+D",
+				},
+			],
+		};
+	}, [selectedItem]);
+
+	React.useEffect(() => {
+		registerPanelFooter?.(footerConfig);
+		return () => {
+			registerPanelFooter?.(null);
+		};
+	}, [footerConfig, registerPanelFooter]);
+
+	useHotkey(
+		"Alt+K",
+		() => {
+			footerControlsRef.current?.openExtraActions();
+		},
+		{ enabled: !!selectedItem, preventDefault: true },
+	);
+
+	useHotkey(
+		"Alt+D",
+		() => {
+			footerControlsRef.current?.runExtraActionById("delete");
+		},
+		{ enabled: !!selectedItem, preventDefault: true },
+	);
+
+	return <div>{/* panel UI */}</div>;
+}
+```
+
+#### Keyboard + Focus Rules For Footer Actions
+
+- `Alt+K` (or any panel-defined hotkey) should be handled by the panel, not the footer.
+- Footer dropdown keyboard navigation is handled by the dropdown component.
+- Closing dropdown with `Escape` returns focus to the previously focused element automatically.
+- Direct extra-action hotkeys should call `runExtraActionById(actionId)` to preserve item context.
+
+#### Do / Don't
+
+- Do define action ids and shortcuts in the panel itself.
+- Do keep action handlers bound to selected item state.
+- Do expose these shortcuts in descriptor `shortcuts` metadata.
+- Don't put panel-specific footer logic in `launcher-panel.tsx`.
+
 ### Architecture Rules
 
 Follow these workspace rules consistently:
@@ -83,6 +211,10 @@ Follow these workspace rules consistently:
 - Keep logic and UI separated for utility-style features:
 	- Core logic in `src/lib/utilities/<module>-engine.ts`
 	- Panel UI in `src/components/panels/utilities/<module>-utility-panel.tsx`
+- Utility panels must reuse the launcher input as the single query input source.
+	- Do not add a second, panel-local search field.
+	- Parse and react to `commandQuery` from `PanelRenderProps`.
+- Do not wrap panel root panes with heavy card wrappers by default (for example: `rounded-xl border border-border/70 bg-card/92 shadow-lg`) unless the existing panel family already uses that exact wrapper pattern.
 
 ### Step-By-Step: Add A New Panel
 
@@ -196,6 +328,14 @@ Keyboard-first is mandatory.
 - `ArrowRight/ArrowLeft`: switch between list and action column when applicable.
 - `Escape`: return focus to launcher input or exit panel session based on `searchIntegration.exitOnEscape`.
 
+Required parity with `src/components/panels/apps/apps-launcher-panel.tsx` behavior:
+
+- Wire panel-level hotkeys so navigation works even when focus shifts inside panel regions.
+- Implement both input-level interception (`onInputKeyDown` + input handler registration) and in-panel key handling when needed.
+- `ArrowUp` from first list item should return focus to launcher input.
+- `ArrowLeft` should move from actions back to list, and from list back to launcher input when appropriate.
+- `Escape` should consistently return focus to launcher input for in-panel contexts.
+
 Focus behavior requirements:
 
 - Track current selection id/index in state.
@@ -290,6 +430,8 @@ Also add integration coverage when panel behavior affects launcher flow.
 
 - Adding panel-specific branching logic in `launcher-panel.tsx`.
 - Calling raw Tauri `invoke(...)` inside panel features.
+- Adding a second search input inside a panel when launcher input already exists.
+- Repeating heavyweight shell wrappers (`rounded-xl border border-border/70 bg-card/92 shadow-lg`) across panel sections without a deliberate design reason.
 - Hiding unavailable actions without feedback when user intent exists.
 - Breaking keyboard flow by relying on mouse-only interactions.
 - Returning huge unbounded result lists.
