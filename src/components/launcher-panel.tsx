@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePanelRegistry } from "@/lib/panel-registry";
+import { invokePanelCommand } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
 type InstalledApp = {
@@ -28,6 +29,10 @@ type LauncherPanelProps = {
 };
 
 const iconCache = new Map<string, string | null>();
+const launcherCommandScope = {
+  id: "launcher",
+  capabilities: ["apps.list", "apps.search", "apps.launch", "apps.icon"] as const,
+};
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -56,7 +61,11 @@ function AppIcon({ appId, className }: { appId: string; className?: string }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const base64 = await invoke<string | null>("get_app_icon", { appId });
+        const base64 = await invokePanelCommand<string | null>(
+          launcherCommandScope,
+          "get_app_icon",
+          { appId },
+        );
         if (cancelled) return;
         const next = base64 ? `data:image/png;base64,${base64}` : null;
         iconCache.set(appId, next);
@@ -121,12 +130,23 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   }, []);
 
   const refreshAllApps = React.useCallback(async () => {
-    const apps = await invoke<InstalledApp[]>("list_installed_apps");
-    setAllApps(apps);
-    if (!query.trim()) {
-      setSearchResults(apps.slice(0, 120));
+    try {
+      const apps = await invokePanelCommand<InstalledApp[]>(
+        launcherCommandScope,
+        "list_installed_apps",
+        {},
+      );
+      setAllApps(apps);
+      if (!query.trim()) {
+        setSearchResults(apps.slice(0, 120));
+      }
+      setSelectedId((prev) => prev ?? apps[0]?.id ?? null);
+    } catch (error) {
+      console.error("[launcher] failed to refresh apps", error);
+      setAllApps([]);
+      setSearchResults([]);
+      setSelectedId(null);
     }
-    setSelectedId((prev) => prev ?? apps[0]?.id ?? null);
   }, [query]);
 
   React.useEffect(() => {
@@ -164,10 +184,19 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
         return;
       }
 
-      const results = await invoke<InstalledApp[]>("search_installed_apps", {
-        query: q,
-        limit: 160,
-      });
+      let results: InstalledApp[] = [];
+      try {
+        results = await invokePanelCommand<InstalledApp[]>(
+          launcherCommandScope,
+          "search_installed_apps",
+          {
+            query: q,
+            limit: 160,
+          },
+        );
+      } catch (error) {
+        console.error("[launcher] search failed", error);
+      }
 
       if (cancelled) return;
       setSearchResults(results);
@@ -212,7 +241,11 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     if (!selectedApp) return;
     try {
       setBusy(true);
-      await invoke("launch_installed_app", { appId: selectedApp.id });
+      await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app", {
+        appId: selectedApp.id,
+      });
+    } catch (error) {
+      console.error("[launcher] launch failed", error);
     } finally {
       setBusy(false);
     }
@@ -222,7 +255,9 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     async (appId: string) => {
       try {
         setBusy(true);
-        await invoke("launch_installed_app", { appId });
+        await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app", { appId });
+      } catch (error) {
+        console.error("[launcher] launch by id failed", error);
       } finally {
         setBusy(false);
       }

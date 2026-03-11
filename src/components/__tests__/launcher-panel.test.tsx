@@ -69,7 +69,7 @@ describe("LauncherPanel with panel registry", () => {
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp hello");
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps");
+      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
     });
 
     expect(await screen.findByText("Panel query: hello")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("LauncherPanel with panel registry", () => {
   it("falls back to default launcher when no panel matches", async () => {
     renderLauncherWithRegistry();
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps");
+      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
     });
 
     expect(screen.getByText("No apps found.")).toBeInTheDocument();
@@ -102,7 +102,7 @@ describe("LauncherPanel with panel registry", () => {
     await user.type(input, "tp");
     await user.keyboard("{Enter}");
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps");
+      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
     });
 
     const launched = invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app");

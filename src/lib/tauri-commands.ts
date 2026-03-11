@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PanelCapability, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 
+export type PanelCommandScope = Pick<ShortcutPanelDescriptor, "id" | "capabilities">;
+
 export type BackendCommand =
   | "list_installed_apps"
   | "search_installed_apps"
@@ -43,7 +45,7 @@ export class PanelCommandError extends Error {
   }
 }
 
-function assertCapability(panel: ShortcutPanelDescriptor, command: BackendCommand): void {
+function assertCapability(panel: PanelCommandScope, command: BackendCommand): void {
   const requiredCapability = COMMAND_CAPABILITIES[command];
   const allowed = panel.capabilities.includes(requiredCapability);
   if (!allowed) {
@@ -57,7 +59,7 @@ function assertCapability(panel: ShortcutPanelDescriptor, command: BackendComman
 }
 
 export async function invokePanelCommand<T>(
-  panel: ShortcutPanelDescriptor,
+  panel: PanelCommandScope,
   command: BackendCommand,
   params: Record<string, unknown>,
 ): Promise<T> {

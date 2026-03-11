@@ -1,11 +1,11 @@
 import * as React from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { invokePanelCommand } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
 type ClipboardKind = "text" | "image" | "files" | "other";
@@ -33,6 +33,11 @@ const FILTERS: Array<{ label: string; value: ClipboardKind | "all" }> = [
   { label: "Other", value: "other" },
 ];
 
+const clipboardCommandScope = {
+  id: "clipboard",
+  capabilities: ["clipboard.search", "clipboard.clear"] as const,
+};
+
 function formatWhen(ts: number) {
   const date = new Date(ts);
   return date.toLocaleString();
@@ -50,12 +55,19 @@ export function ClipboardPanel({ commandQuery }: ClipboardPanelProps) {
   const loadItems = React.useCallback(async () => {
     try {
       setBusy(true);
-      const rows = await invoke<ClipboardEntry[]>("search_clipboard_history", {
+      const rows = await invokePanelCommand<ClipboardEntry[]>(
+        clipboardCommandScope,
+        "search_clipboard_history",
+        {
         query: [commandQuery, search].filter(Boolean).join(" "),
         kind: filter,
         limit: 120,
-      });
+        },
+      );
       setItems(rows);
+    } catch (error) {
+      console.error("[clipboard] failed to load history", error);
+      setItems([]);
     } finally {
       setBusy(false);
     }
