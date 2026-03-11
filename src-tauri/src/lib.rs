@@ -25,15 +25,15 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_store::StoreExt;
 
 #[cfg(target_os = "windows")]
-use window_vibrancy::{apply_acrylic, apply_blur, apply_mica};
+use window_vibrancy::{apply_mica};
 
 const DEFAULT_SHORTCUT: &str = "Alt+Space";
-const COMPACT_WIDTH: f64 = 800.0;
-const COMPACT_HEIGHT: f64 = 40.0;
-const LAUNCHER_WIDTH: f64 = 800.0;
-const LAUNCHER_HEIGHT: f64 = 600.0;
-const SETTINGS_WIDTH: f64 = 800.0;
-const SETTINGS_HEIGHT: f64 = 620.0;
+const COMPACT_WIDTH: f64 = 680.0;
+const COMPACT_HEIGHT: f64 = 45.0;
+const LAUNCHER_WIDTH: f64 = 680.0;
+const LAUNCHER_HEIGHT: f64 = 500.0;
+const SETTINGS_WIDTH: f64 = 680.0;
+const SETTINGS_HEIGHT: f64 = 500.0;
 
 #[derive(Clone, Copy)]
 enum MainWindowMode {

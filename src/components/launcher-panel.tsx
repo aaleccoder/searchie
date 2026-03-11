@@ -381,7 +381,7 @@ export function LauncherPanel({
   const shouldShowPanelFooter = expanded && !!activePanel && !!panelFooter;
 
   return (
-    <div className="relative h-screen w-200 max-w-200 text-foreground overflow-hidden">
+    <div className="relative h-screen w-170 max-w-170 text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.1),transparent_52%),radial-gradient(circle_at_bottom_right,hsl(var(--ring)/0.12),transparent_55%)]" />
 
       <LauncherSearchInput

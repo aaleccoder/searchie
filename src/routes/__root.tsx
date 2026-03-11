@@ -5,6 +5,7 @@ import { ThemeProvider, useTheme } from '@/components/theme-provider';
 import { PanelRegistryProvider } from '@/components/providers/panel-registry-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { useSettingsStore } from '@/lib/settings-store';
+import { installWebviewInputGuard } from '@/lib/webview-input-guard';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export const Route = createRootRoute({
@@ -16,11 +17,11 @@ function RootComponent() {
     <ThemeProvider defaultTheme="dark" storageKey="searchie-theme">
       <PanelRegistryProvider>
         <AppInit />
-        <div className="w-200 max-w-200">
+        <div className="w-170 max-w-170">
           <Outlet />
         </div>
       </PanelRegistryProvider>
-      <Toaster position="top-right" richColors />
+      <Toaster position="bottom-right" />
     </ThemeProvider>
   )
 }
@@ -60,6 +61,10 @@ function AppInit() {
       setTheme(theme);
     }
   }, [theme, loading, setTheme]);
+
+  React.useEffect(() => {
+    return installWebviewInputGuard();
+  }, []);
 
   return null;
 }
