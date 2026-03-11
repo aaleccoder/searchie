@@ -1,5 +1,6 @@
 import * as React from "react";
 import { clipboardShortcutPanel } from "@/components/panels/clipboard-shortcut-panel";
+import { buildUtilityPanels } from "@/components/panels/utilities";
 import { createPanelRegistry, PanelRegistryContext } from "@/lib/panel-registry";
 
 type PanelRegistryProviderProps = {
@@ -15,6 +16,9 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
     });
 
     nextRegistry.register(clipboardShortcutPanel);
+    for (const utilityPanel of buildUtilityPanels()) {
+      nextRegistry.register(utilityPanel);
+    }
     return nextRegistry;
   });
 
