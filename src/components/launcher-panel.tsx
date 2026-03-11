@@ -77,9 +77,14 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const inputRef = React.useRef<HTMLInputElement>(null);
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const activePanelArrowDownHandlerRef = React.useRef<(() => boolean | void) | null>(null);
+  const activePanelEnterHandlerRef = React.useRef<(() => boolean | void) | null>(null);
 
   const registerInputArrowDownHandler = React.useCallback((handler: (() => boolean | void) | null) => {
     activePanelArrowDownHandlerRef.current = handler;
+  }, []);
+
+  const registerInputEnterHandler = React.useCallback((handler: (() => boolean | void) | null) => {
+    activePanelEnterHandlerRef.current = handler;
   }, []);
 
   const focusLauncherInput = React.useCallback(() => {
@@ -111,6 +116,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   React.useEffect(() => {
     if (!activePanel) {
       activePanelArrowDownHandlerRef.current = null;
+      activePanelEnterHandlerRef.current = null;
     }
   }, [activePanel]);
 
@@ -239,10 +245,14 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       return;
     }
     if (event.key === "Enter") {
-      event.preventDefault();
       if (activePanel) {
+        const consumed = activePanelEnterHandlerRef.current?.();
+        if (consumed !== false) {
+          event.preventDefault();
+        }
         return;
       }
+      event.preventDefault();
       activateSelectedCommand();
       return;
     }
@@ -299,7 +309,9 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
               commandQuery={activePanelQuery}
               rawQuery={query}
               registerInputArrowDownHandler={registerInputArrowDownHandler}
+              registerInputEnterHandler={registerInputEnterHandler}
               focusLauncherInput={focusLauncherInput}
+              activatePanelSession={activatePanelSession}
             />
           ) : (
             <div className="h-full rounded-xl border border-border/70 bg-card/92 shadow-lg overflow-hidden">

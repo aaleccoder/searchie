@@ -1,11 +1,20 @@
 import * as React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LauncherPanel } from "@/components/launcher-panel";
+import { buildAppsPanels } from "@/components/panels/apps";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
+
+const { invokeMock } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: invokeMock,
+}));
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -21,6 +30,14 @@ function createTestRegistry(panel?: ShortcutPanelDescriptor) {
   return registry;
 }
 
+function createRegistryWithPanels(panels: ShortcutPanelDescriptor[]) {
+  const registry = createPanelRegistry();
+  for (const panel of panels) {
+    registry.register(panel);
+  }
+  return registry;
+}
+
 function renderLauncherWithRegistry(registry = createTestRegistry()) {
   return render(
     <PanelRegistryContext.Provider value={registry}>
@@ -30,6 +47,17 @@ function renderLauncherWithRegistry(registry = createTestRegistry()) {
 }
 
 describe("LauncherPanel with panel registry", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "list_installed_apps") return [];
+      if (command === "search_installed_apps") return [];
+      if (command === "launch_installed_app") return null;
+      if (command === "get_app_icon") return null;
+      return null;
+    });
+  });
+
   it("activates immediate panel mode while typing and uses launcher input as panel query", async () => {
     const customPanel: ShortcutPanelDescriptor = {
       id: "test-panel",
@@ -274,5 +302,65 @@ describe("LauncherPanel with panel registry", () => {
     expect(screen.getByText("Command Panels")).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe("");
     expect(input).toHaveFocus();
+  });
+
+  it("injects result-item panel into apps results and activates it with Enter", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "list_installed_apps") {
+        return [
+          {
+            id: "app-1",
+            name: "Clip Studio",
+            launchPath: "C:/ClipStudio.exe",
+            launchArgs: [],
+            source: "test",
+          },
+        ];
+      }
+
+      if (command === "search_installed_apps") {
+        return [
+          {
+            id: "app-1",
+            name: "Clip Studio",
+            launchPath: "C:/ClipStudio.exe",
+            launchArgs: [],
+            source: "test",
+          },
+        ];
+      }
+
+      if (command === "launch_installed_app") return null;
+      if (command === "get_app_icon") return null;
+      return null;
+    });
+
+    const clipboardPanel: ShortcutPanelDescriptor = {
+      id: "clipboard",
+      name: "Clipboard",
+      aliases: ["cl", "clip", "clipboard"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
+      searchIntegration: {
+        activationMode: "result-item",
+      },
+      component: () => <div>Clipboard Panel</div>,
+      priority: 30,
+    };
+
+    const registry = createRegistryWithPanels([...buildAppsPanels(), clipboardPanel]);
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(registry);
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "clip");
+
+    expect(await screen.findByText("Open Clipboard")).toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("Clipboard Panel")).toBeInTheDocument();
   });
 });

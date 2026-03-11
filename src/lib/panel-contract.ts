@@ -28,7 +28,9 @@ export type PanelRenderProps = {
   commandQuery: string;
   rawQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
+  activatePanelSession?: ((panel: ShortcutPanelDescriptor, nextQuery: string) => void) | undefined;
 };
 
 export type PanelInputKeyDownHandler = (

@@ -28,11 +28,19 @@ function createAppsPanel(): ShortcutPanelDescriptor {
       exitOnEscape: true,
     },
     matcher: createPrefixAliasMatcher(aliases),
-    component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
+    component: ({
+      commandQuery,
+      registerInputArrowDownHandler,
+      registerInputEnterHandler,
+      focusLauncherInput,
+      activatePanelSession,
+    }) => (
       <AppsLauncherPanel
         commandQuery={commandQuery}
         registerInputArrowDownHandler={registerInputArrowDownHandler}
+        registerInputEnterHandler={registerInputEnterHandler}
         focusLauncherInput={focusLauncherInput}
+        activatePanelSession={activatePanelSession}
       />
     ),
   };

@@ -8,6 +8,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { usePanelRegistry } from "@/lib/panel-registry";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
@@ -34,8 +36,28 @@ type AppActionItem = {
 type AppsLauncherPanelProps = {
   commandQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
+  activatePanelSession?: ((panel: ShortcutPanelDescriptor, nextQuery: string) => void) | undefined;
 };
+
+type PanelCommandSuggestion = {
+  id: string;
+  panel: ShortcutPanelDescriptor;
+  commandQuery: string;
+};
+
+type NavigationItem =
+  | {
+      id: string;
+      kind: "app";
+      app: InstalledApp;
+    }
+  | {
+      id: string;
+      kind: "panel-command";
+      command: PanelCommandSuggestion;
+    };
 
 const iconCache = new Map<string, string | null>();
 
@@ -184,8 +206,11 @@ function DetailRow({ label, value }: DetailRowProps) {
 export function AppsLauncherPanel({
   commandQuery,
   registerInputArrowDownHandler,
+  registerInputEnterHandler,
   focusLauncherInput,
+  activatePanelSession,
 }: AppsLauncherPanelProps) {
+  const panelRegistry = usePanelRegistry();
   const debouncedQuery = useDebouncedValue(commandQuery, 120);
   const [allApps, setAllApps] = React.useState<InstalledApp[]>([]);
   const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
@@ -261,17 +286,78 @@ export function AppsLauncherPanel({
     };
   }, [allApps, debouncedQuery]);
 
-  const navigationList = React.useMemo(() => {
-    const source = (debouncedQuery.trim() ? searchResults : allApps).slice(0, 72);
-    return source;
-  }, [allApps, debouncedQuery, searchResults]);
+  const panelCommandSuggestion = React.useMemo<PanelCommandSuggestion | null>(() => {
+    const trimmed = commandQuery.trim().toLowerCase();
+    if (!trimmed) {
+      return null;
+    }
 
-  const selectedApp = React.useMemo(() => {
+    for (const panel of panelRegistry.list()) {
+      if (panel.isDefault) {
+        continue;
+      }
+
+      const mode = panel.searchIntegration?.activationMode ?? "immediate";
+      if (mode !== "result-item") {
+        continue;
+      }
+
+      const match = panel.matcher(commandQuery);
+      if (match.matches) {
+        return {
+          id: `panel-command:${panel.id}`,
+          panel,
+          commandQuery: match.commandQuery,
+        };
+      }
+
+      const aliasMatch = panel.aliases.some((alias) => alias.toLowerCase().includes(trimmed));
+      const nameMatch = panel.name.toLowerCase().includes(trimmed);
+      if (aliasMatch || nameMatch) {
+        return {
+          id: `panel-command:${panel.id}`,
+          panel,
+          commandQuery,
+        };
+      }
+    }
+
+    return null;
+  }, [commandQuery, panelRegistry]);
+
+  const navigationList = React.useMemo<NavigationItem[]>(() => {
+    const source = (debouncedQuery.trim() ? searchResults : allApps).slice(0, 72);
+    const items: NavigationItem[] = source.map((app) => ({
+      id: app.id,
+      kind: "app",
+      app,
+    }));
+
+    if (panelCommandSuggestion) {
+      const commandItem: NavigationItem = {
+        id: panelCommandSuggestion.id,
+        kind: "panel-command",
+        command: panelCommandSuggestion,
+      };
+
+      if (items.length > 0) {
+        items.splice(1, 0, commandItem);
+      } else {
+        items.unshift(commandItem);
+      }
+    }
+
+    return items;
+  }, [allApps, debouncedQuery, panelCommandSuggestion, searchResults]);
+
+  const selectedItem = React.useMemo<NavigationItem | null>(() => {
     if (!selectedId) {
       return navigationList[0] ?? null;
     }
-    return navigationList.find((app) => app.id === selectedId) ?? navigationList[0] ?? null;
+    return navigationList.find((item) => item.id === selectedId) ?? navigationList[0] ?? null;
   }, [navigationList, selectedId]);
+
+  const selectedApp = selectedItem?.kind === "app" ? selectedItem.app : null;
 
   const appActions = React.useMemo<AppActionItem[]>(() => {
     if (!selectedApp) {
@@ -380,6 +466,20 @@ export function AppsLauncherPanel({
     [],
   );
 
+  const activateSelectedItem = React.useCallback(() => {
+    if (!selectedItem) {
+      return false;
+    }
+
+    if (selectedItem.kind === "panel-command") {
+      activatePanelSession?.(selectedItem.command.panel, selectedItem.command.commandQuery);
+      return true;
+    }
+
+    void executeAppAction("open", selectedItem.app);
+    return true;
+  }, [activatePanelSession, executeAppAction, selectedItem]);
+
   const onInputArrowDown = React.useCallback(() => {
     if (!navigationList.length) {
       return false;
@@ -407,17 +507,24 @@ export function AppsLauncherPanel({
     };
   }, [onInputArrowDown, registerInputArrowDownHandler]);
 
+  React.useEffect(() => {
+    registerInputEnterHandler?.(activateSelectedItem);
+    return () => {
+      registerInputEnterHandler?.(null);
+    };
+  }, [activateSelectedItem, registerInputEnterHandler]);
+
   const handleListItemKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, app: InstalledApp, index: number) => {
+    (event: React.KeyboardEvent<HTMLButtonElement>, item: NavigationItem, index: number) => {
       if (event.key === "ArrowDown") {
         event.preventDefault();
         const next = Math.min(navigationList.length - 1, index + 1);
-        const nextApp = navigationList[next];
-        if (!nextApp) {
+        const nextItem = navigationList[next];
+        if (!nextItem) {
           return;
         }
-        setSelectedId(nextApp.id);
-        itemRefs.current.get(nextApp.id)?.focus();
+        setSelectedId(nextItem.id);
+        itemRefs.current.get(nextItem.id)?.focus();
         return;
       }
 
@@ -428,16 +535,19 @@ export function AppsLauncherPanel({
           focusLauncherInput?.();
           return;
         }
-        const prevApp = navigationList[prev];
-        if (!prevApp) {
+        const prevItem = navigationList[prev];
+        if (!prevItem) {
           return;
         }
-        setSelectedId(prevApp.id);
-        itemRefs.current.get(prevApp.id)?.focus();
+        setSelectedId(prevItem.id);
+        itemRefs.current.get(prevItem.id)?.focus();
         return;
       }
 
       if (event.key === "ArrowRight") {
+        if (!selectedApp) {
+          return;
+        }
         event.preventDefault();
         if (!appActions.length) {
           return;
@@ -449,10 +559,14 @@ export function AppsLauncherPanel({
 
       if (event.key === "Enter") {
         event.preventDefault();
-        void executeAppAction("open", app);
+        if (item.kind === "panel-command") {
+          activatePanelSession?.(item.command.panel, item.command.commandQuery);
+          return;
+        }
+        void executeAppAction("open", item.app);
       }
     },
-    [appActions.length, executeAppAction, focusLauncherInput, navigationList],
+    [activatePanelSession, appActions.length, executeAppAction, focusLauncherInput, navigationList, selectedApp],
   );
 
   const handleActionKeyDown = React.useCallback(
@@ -508,24 +622,65 @@ export function AppsLauncherPanel({
           <ScrollArea className="h-full">
             <div className="p-3.5">
               <div className="flex flex-col gap-1">
-                {navigationList.map((app, index) => {
-                  const active = selectedApp?.id === app.id;
+                {navigationList.map((item, index) => {
+                  const active = selectedItem?.id === item.id;
+
+                  if (item.kind === "panel-command") {
+                    const CommandIcon = item.command.panel.commandIcon ?? Rocket;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        ref={(el) => {
+                          if (el) itemRefs.current.set(item.id, el);
+                          else itemRefs.current.delete(item.id);
+                        }}
+                        onMouseEnter={() => {
+                          setSelectedId(item.id);
+                        }}
+                        onClick={() => {
+                          setSelectedId(item.id);
+                          activatePanelSession?.(item.command.panel, item.command.commandQuery);
+                        }}
+                        onKeyDown={(event) => handleListItemKeyDown(event, item, index)}
+                        className={cn(
+                          "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
+                          active
+                            ? "border-primary/70 bg-primary/10"
+                            : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
+                            <CommandIcon className="size-3.5 text-muted-foreground" />
+                          </div>
+                          <SingleLineTooltipText
+                            text={`Open ${item.command.panel.name}`}
+                            className="text-sm"
+                          />
+                        </div>
+                        <span className="text-[11px] text-muted-foreground font-mono">Command</span>
+                      </button>
+                    );
+                  }
+
+                  const app = item.app;
                   return (
                     <button
-                      key={app.id}
+                      key={item.id}
                       type="button"
                       ref={(el) => {
-                        if (el) itemRefs.current.set(app.id, el);
-                        else itemRefs.current.delete(app.id);
+                        if (el) itemRefs.current.set(item.id, el);
+                        else itemRefs.current.delete(item.id);
                       }}
                       onMouseEnter={() => {
-                        setSelectedId(app.id);
+                        setSelectedId(item.id);
                       }}
                       onClick={() => {
-                        setSelectedId(app.id);
+                        setSelectedId(item.id);
                         void executeAppAction("open", app);
                       }}
-                      onKeyDown={(event) => handleListItemKeyDown(event, app, index)}
+                      onKeyDown={(event) => handleListItemKeyDown(event, item, index)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
                         active
@@ -544,7 +699,11 @@ export function AppsLauncherPanel({
         </div>
 
         <aside className="rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5 overflow-hidden">
-          {selectedApp ? (
+          {selectedItem?.kind === "panel-command" ? (
+            <div className="h-full grid place-items-center text-muted-foreground text-sm text-center px-2">
+              Press Enter to open {selectedItem.command.panel.name}.
+            </div>
+          ) : selectedApp ? (
             <>
               <div className="space-y-2 min-w-0">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected App</p>
