@@ -129,6 +129,21 @@ fn resolve_existing_openable_dir(raw: &str) -> Option<PathBuf> {
     None
 }
 
+fn resolve_existing_file_path(raw: &str) -> Option<PathBuf> {
+    let cleaned = clean_command_path(raw);
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    let expanded = expand_windows_env_vars(&cleaned);
+    let candidate = PathBuf::from(expanded.trim().trim_matches('"'));
+    if candidate.is_file() {
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
 #[derive(Clone)]
 pub struct AppIndexState {
     apps: Arc<RwLock<Vec<InstalledApp>>>,
@@ -1043,6 +1058,18 @@ pub fn open_installed_app_install_location(
     app_id: String,
 ) -> Result<(), String> {
     let app = app_by_id(state.inner(), &app_id)?;
+
+    if is_uwp_shell_app(&app) {
+        return Err("install location is not available for this app type".to_string());
+    }
+
+    if !app.launch_path.eq_ignore_ascii_case("explorer.exe") {
+        if let Some(launch_file) = resolve_existing_file_path(&app.launch_path) {
+            let select_flag = "/select,".to_string();
+            let file_path = launch_file.to_string_lossy().to_string();
+            return run_detached("explorer.exe", &[select_flag, file_path]);
+        }
+    }
 
     let open_target = app
         .install_location
