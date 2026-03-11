@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { PanelBadge, PanelInput } from "@/components/panels/framework";
 import { convertValue, parseConversionQuery } from "@/lib/utilities/conversion-engine";
 
 type ConversionUtilityPanelProps = {
@@ -50,10 +49,10 @@ export function ConversionUtilityPanel({ commandQuery }: ConversionUtilityPanelP
     <div className="h-full rounded-xl p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Converter</h3>
-        <Badge variant="secondary">Utilities</Badge>
+        <PanelBadge variant="secondary">Utilities</PanelBadge>
       </div>
 
-      <Input
+      <PanelInput
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="10 km to mi"

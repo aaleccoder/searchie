@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { definePanel } from "@/components/panels/framework";
 import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 
 function createPanel(overrides: Partial<ShortcutPanelDescriptor>): ShortcutPanelDescriptor {
-  return {
+  return definePanel({
     id: "test-panel",
     name: "Test Panel",
     aliases: ["tp"],
@@ -11,7 +12,7 @@ function createPanel(overrides: Partial<ShortcutPanelDescriptor>): ShortcutPanel
     matcher: () => ({ matches: true, commandQuery: "" }),
     component: () => null,
     ...overrides,
-  };
+  });
 }
 
 describe("resolveLauncherShortcutHints", () => {

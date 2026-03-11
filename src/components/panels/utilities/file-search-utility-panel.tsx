@@ -1,10 +1,16 @@
 import * as React from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { FolderSearch, Loader2, FolderOpen, FileSearch, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  PanelButton,
+  PanelEmpty,
+  PanelEmptyDescription,
+  PanelEmptyHeader,
+  PanelEmptyMedia,
+  PanelEmptyTitle,
+  PanelScrollArea,
+  usePanelArrowDownBridge,
+} from "@/components/panels/framework";
 import { registerFileSearchInputController } from "@/components/panels/utilities/file-search-keybindings";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { buildSearchRequest, rankFileSearchResults } from "@/lib/utilities/file-search-engine";
@@ -83,24 +89,16 @@ export function FileSearchUtilityPanel({
 
   const debouncedQuery = useDebouncedValue(commandQuery, 110);
 
-  React.useEffect(() => {
-    if (!registerInputArrowDownHandler) {
-      return;
+  const onArrowDownFromLauncher = React.useCallback(() => {
+    if (!listContainerRef.current || results.length === 0) {
+      return false;
     }
 
-    registerInputArrowDownHandler(() => {
-      if (!listContainerRef.current || results.length === 0) {
-        return false;
-      }
+    listContainerRef.current.focus();
+    return true;
+  }, [results.length]);
 
-      listContainerRef.current.focus();
-      return true;
-    });
-
-    return () => {
-      registerInputArrowDownHandler(null);
-    };
-  }, [registerInputArrowDownHandler, results.length]);
+  usePanelArrowDownBridge(registerInputArrowDownHandler, onArrowDownFromLauncher);
 
   React.useEffect(() => {
     const selected = itemRefs.current[selectedIndex];
@@ -345,7 +343,7 @@ export function FileSearchUtilityPanel({
     <div className="grid h-full grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2.5 items-stretch">
       <section className="min-w-0 overflow-hidden h-full">
 
-        <ScrollArea className="h-[calc(100%-3.25rem)]">
+        <PanelScrollArea className="h-[calc(100%-3.25rem)]">
           <div
             ref={listContainerRef}
             tabIndex={0}
@@ -386,31 +384,31 @@ export function FileSearchUtilityPanel({
             })}
 
             {!busy && !errorMessage && results.length === 0 && commandQuery.trim().length > 0 && (
-              <Empty className="border-border/60">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
+              <PanelEmpty className="border-border/60">
+                <PanelEmptyHeader>
+                  <PanelEmptyMedia variant="icon">
                     <FileSearch className="size-5" />
-                  </EmptyMedia>
-                  <EmptyTitle>No matching files</EmptyTitle>
-                  <EmptyDescription>
+                  </PanelEmptyMedia>
+                  <PanelEmptyTitle>No matching files</PanelEmptyTitle>
+                  <PanelEmptyDescription>
                     Try fewer words or include a root path using <code>in C:\\path</code>.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
+                  </PanelEmptyDescription>
+                </PanelEmptyHeader>
+              </PanelEmpty>
             )}
 
             {!busy && !errorMessage && results.length === 0 && commandQuery.trim().length === 0 && (
-              <Empty className="border-border/60">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
+              <PanelEmpty className="border-border/60">
+                <PanelEmptyHeader>
+                  <PanelEmptyMedia variant="icon">
                     <FolderSearch className="size-5" />
-                  </EmptyMedia>
-                  <EmptyTitle>Start typing a file query</EmptyTitle>
-                  <EmptyDescription>
+                  </PanelEmptyMedia>
+                  <PanelEmptyTitle>Start typing a file query</PanelEmptyTitle>
+                  <PanelEmptyDescription>
                     Example: <code>files invoice in C:\\Users\\ardev\\Documents</code>
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
+                  </PanelEmptyDescription>
+                </PanelEmptyHeader>
+              </PanelEmpty>
             )}
 
             {busy && (
@@ -419,7 +417,7 @@ export function FileSearchUtilityPanel({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </PanelScrollArea>
       </section>
 
       <aside className="min-w-0 rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5">
@@ -467,7 +465,7 @@ export function FileSearchUtilityPanel({
 
         {selectedResult && (
           <div className="space-y-2">
-            <Button
+            <PanelButton
               type="button"
               variant={focusArea === "actions" && selectedActionIndex === 0 ? "default" : "secondary"}
               className={cn("w-full", focusArea === "actions" && selectedActionIndex === 0 && "ring-2 ring-primary/40")}
@@ -479,8 +477,8 @@ export function FileSearchUtilityPanel({
             >
               <ExternalLink className="size-4" />
               Open File
-            </Button>
-            <Button
+            </PanelButton>
+            <PanelButton
               type="button"
               variant={focusArea === "actions" && selectedActionIndex === 1 ? "default" : "outline"}
               className={cn("w-full", focusArea === "actions" && selectedActionIndex === 1 && "ring-2 ring-primary/40")}
@@ -492,7 +490,7 @@ export function FileSearchUtilityPanel({
             >
               <FolderOpen className="size-4" />
               Reveal In Explorer
-            </Button>
+            </PanelButton>
           </div>
         )}
 

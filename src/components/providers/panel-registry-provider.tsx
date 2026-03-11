@@ -1,5 +1,6 @@
 import * as React from "react";
 import { CircleHelp, Settings2 } from "lucide-react";
+import { definePanel } from "@/components/panels/framework";
 import { buildAppsPanels } from "@/components/panels/apps";
 import { clipboardShortcutPanel } from "@/components/panels/clipboard-shortcut-panel";
 import { HotkeysShortcutPanel } from "@/components/panels/hotkeys-shortcut-panel";
@@ -13,7 +14,7 @@ type PanelRegistryProviderProps = {
   children: React.ReactNode;
 };
 
-const settingsShortcutPanel: ShortcutPanelDescriptor = {
+const settingsShortcutPanel: ShortcutPanelDescriptor = definePanel({
   id: "settings",
   name: "Settings",
   aliases: ["settings", "set", "prefs", "preferences"],
@@ -28,9 +29,9 @@ const settingsShortcutPanel: ShortcutPanelDescriptor = {
   shortcuts: [{ keys: "Escape", description: "Back to launcher commands" }],
   matcher: createPrefixAliasMatcher(["settings", "set", "prefs", "preferences"]),
   component: ({ commandQuery }) => <SettingsShortcutPanel commandQuery={commandQuery} />,
-};
+});
 
-const hotkeysShortcutPanel: ShortcutPanelDescriptor = {
+const hotkeysShortcutPanel: ShortcutPanelDescriptor = definePanel({
   id: "hotkeys",
   name: "Hotkeys",
   aliases: ["?", "help", "hotkeys", "keys", "shortcuts"],
@@ -45,7 +46,7 @@ const hotkeysShortcutPanel: ShortcutPanelDescriptor = {
   shortcuts: [{ keys: "Escape", description: "Back to launcher commands" }],
   matcher: createPrefixAliasMatcher(["?", "help", "hotkeys", "keys", "shortcuts"]),
   component: ({ commandQuery }) => <HotkeysShortcutPanel commandQuery={commandQuery} />,
-};
+});
 
 export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) {
   const [registry] = React.useState(() => {

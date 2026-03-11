@@ -2,12 +2,22 @@ import * as React from "react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { Copy, Shapes } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  PanelBadge,
+  PanelButton,
+  PanelEmpty,
+  PanelEmptyDescription,
+  PanelEmptyHeader,
+  PanelEmptyMedia,
+  PanelEmptyTitle,
+  PanelScrollArea,
+  usePanelArrowDownBridge,
+  usePanelEnterBridge,
+  usePanelFooter,
+  usePanelFooterControlsRef,
+} from "@/components/panels/framework";
 import { registerGlyphPickerInputController } from "@/components/panels/utilities/glyph-picker-keybindings";
-import type { PanelFooterConfig, PanelFooterControls } from "@/lib/panel-contract";
+import type { PanelFooterConfig } from "@/lib/panel-contract";
 import {
   filterGlyphEntries,
   GLYPH_ENTRIES,
@@ -57,7 +67,7 @@ export function GlyphPickerUtilityPanel({
   const [focusArea, setFocusArea] = React.useState<"list" | "actions">("list");
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [loadedEmojiEntries, setLoadedEmojiEntries] = React.useState<GlyphEntry[]>([]);
-  const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
+  const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
   const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const debouncedQuery = useDebouncedValue(commandQuery, 80);
@@ -139,10 +149,6 @@ export function GlyphPickerUtilityPanel({
     }
   }, []);
 
-  const registerFooterControls = React.useCallback((controls: PanelFooterControls | null) => {
-    footerControlsRef.current = controls;
-  }, []);
-
   const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
     if (!selected) {
       return null;
@@ -184,12 +190,7 @@ export function GlyphPickerUtilityPanel({
     };
   }, [copyEntry, focusLauncherInput, registerFooterControls, selected]);
 
-  React.useEffect(() => {
-    registerPanelFooter?.(footerConfig);
-    return () => {
-      registerPanelFooter?.(null);
-    };
-  }, [footerConfig, registerPanelFooter]);
+  usePanelFooter(registerPanelFooter, footerConfig);
 
   const activateCurrentAction = React.useCallback(() => {
     if (!selected) {
@@ -256,27 +257,8 @@ export function GlyphPickerUtilityPanel({
     };
   }, [activateCurrentAction, focusActions, focusLauncherInput, focusList, moveSelection]);
 
-  React.useEffect(() => {
-    if (!registerInputArrowDownHandler) {
-      return;
-    }
-
-    registerInputArrowDownHandler(() => moveSelection(1));
-    return () => {
-      registerInputArrowDownHandler(null);
-    };
-  }, [moveSelection, registerInputArrowDownHandler]);
-
-  React.useEffect(() => {
-    if (!registerInputEnterHandler) {
-      return;
-    }
-
-    registerInputEnterHandler(activateCurrentAction);
-    return () => {
-      registerInputEnterHandler(null);
-    };
-  }, [activateCurrentAction, registerInputEnterHandler]);
+  usePanelArrowDownBridge(registerInputArrowDownHandler, () => moveSelection(1));
+  usePanelEnterBridge(registerInputEnterHandler, activateCurrentAction);
 
   useHotkey(
     "ArrowDown",
@@ -387,7 +369,7 @@ export function GlyphPickerUtilityPanel({
               const active = parsedQuery.category === category;
               const count = counts[category];
               return (
-                <Button
+                <PanelButton
                   key={category}
                   type="button"
                   size="sm"
@@ -396,16 +378,16 @@ export function GlyphPickerUtilityPanel({
                   className="h-7"
                 >
                   {categoryLabel(category)}
-                  <Badge variant="secondary" className="ml-1 h-5">
+                  <PanelBadge variant="secondary" className="ml-1 h-5">
                     {count}
-                  </Badge>
-                </Button>
+                  </PanelBadge>
+                </PanelButton>
               );
             })}
           </div>
         </div>
 
-        <ScrollArea className="h-[calc(100%-4.5rem)]">
+        <PanelScrollArea className="h-[calc(100%-4.5rem)]">
           <div tabIndex={0} className="p-3.5 space-y-2 outline-none">
             {filtered.map((entry, index) => {
               const active = index === selectedIndex;
@@ -442,20 +424,20 @@ export function GlyphPickerUtilityPanel({
             })}
 
             {filtered.length === 0 && (
-              <Empty className="border-border/60">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
+              <PanelEmpty className="border-border/60">
+                <PanelEmptyHeader>
+                  <PanelEmptyMedia variant="icon">
                     <Shapes className="size-5" />
-                  </EmptyMedia>
-                  <EmptyTitle>No glyphs found</EmptyTitle>
-                  <EmptyDescription>
+                  </PanelEmptyMedia>
+                  <PanelEmptyTitle>No glyphs found</PanelEmptyTitle>
+                  <PanelEmptyDescription>
                     Try another term like <code>emoji laugh</code> or <code>else check</code>.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
+                  </PanelEmptyDescription>
+                </PanelEmptyHeader>
+              </PanelEmpty>
             )}
           </div>
-        </ScrollArea>
+        </PanelScrollArea>
       </section>
 
       <aside className="min-w-0 border-l border-border/40 pl-3.5 flex flex-col gap-3.5">
@@ -474,7 +456,7 @@ export function GlyphPickerUtilityPanel({
                 <p className="text-4xl leading-none">{selected.value}</p>
                 <p className="mt-2 text-sm font-medium">{selected.label}</p>
               </div>
-              <Badge variant="secondary">{categoryLabel(selected.kind)}</Badge>
+              <PanelBadge variant="secondary">{categoryLabel(selected.kind)}</PanelBadge>
             </div>
             <div className="text-xs text-muted-foreground">Tags: {selected.tags.join(", ")}</div>
           </>

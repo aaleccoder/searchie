@@ -1,4 +1,5 @@
 import * as React from "react";
+import { isPanelFrameworkComponent } from "@/components/panels/framework";
 import type { PanelResolution, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 
 type PanelRegistryOptions = {
@@ -21,6 +22,12 @@ export function createPanelRegistry(options?: PanelRegistryOptions): PanelRegist
 
   return {
     register(descriptor) {
+      if (!isPanelFrameworkComponent(descriptor.component)) {
+        throw new Error(
+          `Panel "${descriptor.id}" is not using the panel framework component contract. Use definePanel/createPanelComponent.`,
+        );
+      }
+
       const duplicate = entries.find((entry) => entry.descriptor.id === descriptor.id);
       if (duplicate) {
         throw new Error(`Panel with id \"${descriptor.id}\" is already registered.`);

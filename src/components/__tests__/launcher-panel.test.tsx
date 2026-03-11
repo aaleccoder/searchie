@@ -2,6 +2,7 @@ import * as React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { definePanel } from "@/components/panels/framework";
 import { LauncherPanel } from "@/components/launcher-panel";
 import { buildAppsPanels } from "@/components/panels/apps";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
@@ -25,7 +26,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 function createTestRegistry(panel?: ShortcutPanelDescriptor) {
   const registry = createPanelRegistry();
   if (panel) {
-    registry.register(panel);
+    registry.register(definePanel(panel));
   }
   return registry;
 }
@@ -33,7 +34,7 @@ function createTestRegistry(panel?: ShortcutPanelDescriptor) {
 function createRegistryWithPanels(panels: ShortcutPanelDescriptor[]) {
   const registry = createPanelRegistry();
   for (const panel of panels) {
-    registry.register(panel);
+    registry.register(definePanel(panel));
   }
   return registry;
 }

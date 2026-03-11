@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { definePanel } from "@/components/panels/framework";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { invokePanelCommand, PanelCommandError } from "@/lib/tauri-commands";
 
@@ -10,7 +11,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: invokeMock,
 }));
 
-const launcherPanel: ShortcutPanelDescriptor = {
+const launcherPanel: ShortcutPanelDescriptor = definePanel({
   id: "launcher",
   name: "Launcher",
   aliases: [],
@@ -26,7 +27,7 @@ const launcherPanel: ShortcutPanelDescriptor = {
   ],
   matcher: () => ({ matches: false, commandQuery: "" }),
   component: () => null,
-};
+});
 
 describe("invokePanelCommand", () => {
   beforeEach(() => {

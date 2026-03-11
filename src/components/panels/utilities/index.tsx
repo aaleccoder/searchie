@@ -1,12 +1,13 @@
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
-import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { FolderSearch, SmilePlus } from "lucide-react";
+import { definePanel } from "@/components/panels/framework";
 import { CalcUtilityPanel } from "@/components/panels/utilities/calc-utility-panel";
 import { ConversionUtilityPanel } from "@/components/panels/utilities/conversion-utility-panel";
 import { onFileSearchInputKeyDown } from "@/components/panels/utilities/file-search-keybindings";
 import { FileSearchUtilityPanel } from "@/components/panels/utilities/file-search-utility-panel";
 import { onGlyphPickerInputKeyDown } from "@/components/panels/utilities/glyph-picker-keybindings";
 import { GlyphPickerUtilityPanel } from "@/components/panels/utilities/glyph-picker-utility-panel";
+import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import {
   CALC_ALIASES,
   CONVERSION_ALIASES,
@@ -17,7 +18,7 @@ import {
 
 function createCalcPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(CALC_ALIASES);
-  return {
+  return definePanel({
     id: "utilities-calc",
     name: "Calculator",
     aliases,
@@ -34,12 +35,12 @@ function createCalcPanel(): ShortcutPanelDescriptor {
     ],
     matcher: createPrefixAliasMatcher(aliases),
     component: ({ commandQuery }) => <CalcUtilityPanel commandQuery={commandQuery} />,
-  };
+  });
 }
 
 function createConversionPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(CONVERSION_ALIASES);
-  return {
+  return definePanel({
     id: "utilities-convert",
     name: "Converter",
     aliases,
@@ -56,12 +57,12 @@ function createConversionPanel(): ShortcutPanelDescriptor {
     ],
     matcher: createPrefixAliasMatcher(aliases),
     component: ({ commandQuery }) => <ConversionUtilityPanel commandQuery={commandQuery} />,
-  };
+  });
 }
 
 function createFileSearchPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(FILE_SEARCH_ALIASES);
-  return {
+  return definePanel({
     id: "utilities-file-search",
     name: "File Search",
     aliases,
@@ -88,12 +89,12 @@ function createFileSearchPanel(): ShortcutPanelDescriptor {
         focusLauncherInput={focusLauncherInput}
       />
     ),
-  };
+  });
 }
 
 function createGlyphPickerPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(GLYPH_PICKER_ALIASES);
-  return {
+  return definePanel({
     id: "utilities-glyph-picker",
     name: "Glyph Picker",
     aliases,
@@ -129,7 +130,7 @@ function createGlyphPickerPanel(): ShortcutPanelDescriptor {
         focusLauncherInput={focusLauncherInput}
       />
     ),
-  };
+  });
 }
 
 export function buildUtilityPanels(): ShortcutPanelDescriptor[] {

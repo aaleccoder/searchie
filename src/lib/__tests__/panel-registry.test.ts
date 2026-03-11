@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { definePanel } from "@/components/panels/framework";
 import { createPanelRegistry } from "@/lib/panel-registry";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 
@@ -7,7 +8,7 @@ function makePanel(
   aliases: string[],
   priority = 0,
 ): ShortcutPanelDescriptor {
-  return {
+  return definePanel({
     id,
     name: id,
     aliases,
@@ -15,7 +16,7 @@ function makePanel(
     capabilities: [],
     matcher: () => ({ matches: false, commandQuery: "" }),
     component: () => null,
-  };
+  });
 }
 
 describe("createPanelRegistry", () => {
@@ -39,14 +40,14 @@ describe("createPanelRegistry", () => {
   it("finds the highest-priority matching panel", () => {
     const registry = createPanelRegistry();
 
-    registry.register({
+    registry.register(definePanel({
       ...makePanel("first", ["x"], 1),
       matcher: () => ({ matches: true, commandQuery: "a" }),
-    });
-    registry.register({
+    }));
+    registry.register(definePanel({
       ...makePanel("second", ["x"], 2),
       matcher: () => ({ matches: true, commandQuery: "b" }),
-    });
+    }));
 
     const result = registry.find("x");
     expect(result?.panel.id).toBe("second");

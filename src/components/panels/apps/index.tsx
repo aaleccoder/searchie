@@ -1,4 +1,5 @@
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { definePanel } from "@/components/panels/framework";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { AppsLauncherPanel } from "@/components/panels/apps/apps-launcher-panel";
 import { APPS_ALIASES, flattenAliases } from "@/components/panels/apps/aliases";
@@ -6,7 +7,7 @@ import { APPS_ALIASES, flattenAliases } from "@/components/panels/apps/aliases";
 function createAppsPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(APPS_ALIASES);
 
-  return {
+  return definePanel({
     id: "apps-launcher",
     name: "Apps",
     aliases,
@@ -58,7 +59,7 @@ function createAppsPanel(): ShortcutPanelDescriptor {
         activatePanelSession={activatePanelSession}
       />
     ),
-  };
+  });
 }
 
 export function buildAppsPanels(): ShortcutPanelDescriptor[] {

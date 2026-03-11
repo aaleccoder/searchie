@@ -11,16 +11,19 @@ import {
   MoreHorizontalCircle01Icon,
   TextIcon,
 } from "@hugeicons/core-free-icons";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { PanelFooterConfig, PanelFooterControls } from "@/lib/panel-contract";
+  PanelBadge,
+  PanelScrollArea,
+  PanelSelect,
+  PanelSelectContent,
+  PanelSelectItem,
+  PanelSelectTrigger,
+  PanelSelectValue,
+  usePanelArrowDownBridge,
+  usePanelFooter,
+  usePanelFooterControlsRef,
+} from "@/components/panels/framework";
+import type { PanelFooterConfig } from "@/lib/panel-contract";
 import { extractFirstColorToken } from "@/lib/utilities/color-preview";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
@@ -105,27 +108,17 @@ export function ClipboardPanel({
 
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
+  const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
 
-  const registerFooterControls = React.useCallback((controls: PanelFooterControls | null) => {
-    footerControlsRef.current = controls;
+  const onArrowDownFromLauncher = React.useCallback(() => {
+    if (!listContainerRef.current) {
+      return false;
+    }
+    listContainerRef.current.focus();
+    return true;
   }, []);
 
-  React.useEffect(() => {
-    if (!registerInputArrowDownHandler) return;
-
-    registerInputArrowDownHandler(() => {
-      if (!listContainerRef.current) {
-        return false;
-      }
-      listContainerRef.current.focus();
-      return true;
-    });
-
-    return () => {
-      registerInputArrowDownHandler(null);
-    };
-  }, [registerInputArrowDownHandler]);
+  usePanelArrowDownBridge(registerInputArrowDownHandler, onArrowDownFromLauncher);
 
   const loadItems = React.useCallback(async () => {
     try {
@@ -404,12 +397,7 @@ export function ClipboardPanel({
     };
   }, [clearAll, copyEntry, deleteSelected, items.length, openSelectedLinks, registerFooterControls, selectedItem, selectedItemLinksCount, togglePinSelected]);
 
-  React.useEffect(() => {
-    registerPanelFooter?.(footerConfig);
-    return () => {
-      registerPanelFooter?.(null);
-    };
-  }, [footerConfig, registerPanelFooter]);
+  usePanelFooter(registerPanelFooter, footerConfig);
 
   useHotkey(
     "Alt+K",
@@ -518,29 +506,29 @@ export function ClipboardPanel({
     <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
       <section className="flex h-full min-h-0 flex-col overflow-hidden outline-none border-none">
         <div className="flex shrink-0 items-center gap-2 border-b border-border/60 p-3">
-          <Select
+          <PanelSelect
             value={filter}
-            onValueChange={(value) => {
-              setFilter(value as ClipboardKind | "all");
+            onValueChange={(value: string | null) => {
+              setFilter((value ?? "all") as ClipboardKind | "all");
             }}
           >
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start" className="backdrop-blur-md">
+            <PanelSelectTrigger className="w-36">
+              <PanelSelectValue />
+            </PanelSelectTrigger>
+            <PanelSelectContent align="start" className="backdrop-blur-md">
               {FILTERS.map((f) => (
-                <SelectItem key={f.value} value={f.value}>
+                <PanelSelectItem key={f.value} value={f.value}>
                   {f.label}
-                </SelectItem>
+                </PanelSelectItem>
               ))}
-            </SelectContent>
-          </Select>
+            </PanelSelectContent>
+          </PanelSelect>
           <span className="ml-auto max-w-64 truncate text-xs text-muted-foreground">
             {commandQuery ? `Query: ${commandQuery}` : "Type in top search to filter"}
           </span>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1">
+        <PanelScrollArea className="min-h-0 flex-1">
           <div
             ref={listContainerRef}
             className="space-y-2.5 p-3.5 outline-none focus-visible:outline-none"
@@ -576,14 +564,14 @@ export function ClipboardPanel({
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <Badge
+                    <PanelBadge
                       variant="ghost"
                       className="size-6 p-0 [&_svg]:size-3.5"
                       aria-label={`${item.kind} clipboard item`}
                       title={item.kind}
                     >
                       <HugeiconsIcon icon={KIND_ICON_MAP[item.kind]} strokeWidth={2} aria-hidden="true" />
-                    </Badge>
+                    </PanelBadge>
                     {item.imageBase64 && (
                       <img
                         src={`data:image/png;base64,${item.imageBase64}`}
@@ -607,7 +595,7 @@ export function ClipboardPanel({
                         </span>
                       </div>
                     )}
-                    {item.pinned && <Badge variant="outline">Pinned</Badge>}
+                    {item.pinned && <PanelBadge variant="outline">Pinned</PanelBadge>}
                   </div>
                 </div>
               </article>
@@ -619,7 +607,7 @@ export function ClipboardPanel({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </PanelScrollArea>
       </section>
 
       <aside className="flex min-h-0 flex-col gap-3 p-3.5">
@@ -632,16 +620,16 @@ export function ClipboardPanel({
         {selectedItem && (
           <>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Badge variant="ghost" className="size-6 p-0 [&_svg]:size-3.5" title={selectedItem.kind}>
+                <div className="flex items-center gap-2">
+                <PanelBadge variant="ghost" className="size-6 p-0 [&_svg]:size-3.5" title={selectedItem.kind}>
                   <HugeiconsIcon icon={KIND_ICON_MAP[selectedItem.kind]} strokeWidth={2} aria-hidden="true" />
-                </Badge>
+                </PanelBadge>
                 <h3 className="text-lg font-semibold capitalize leading-tight">{selectedItem.kind} item</h3>
-                {selectedItem.pinned && <Badge variant="outline">Pinned</Badge>}
+                {selectedItem.pinned && <PanelBadge variant="outline">Pinned</PanelBadge>}
               </div>
             </div>
 
-            <ScrollArea className="min-h-0 flex-1">
+            <PanelScrollArea className="min-h-0 flex-1">
               <div className="space-y-3">
                 {selectedItem.kind === "text" && (
                   <pre
@@ -690,7 +678,7 @@ export function ClipboardPanel({
                   </p>
                 )}
               </div>
-            </ScrollArea>
+            </PanelScrollArea>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
               <span className="text-muted-foreground">ID</span>

@@ -1,19 +1,19 @@
 import * as React from "react";
 import { ArrowLeft, FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import type {
-  PanelFooterConfig,
-  PanelFooterControls,
-  ShortcutPanelDescriptor,
-} from "@/lib/panel-contract";
+  PanelButton,
+  PanelScrollArea,
+  PanelTooltip,
+  PanelTooltipContent,
+  PanelTooltipProvider,
+  PanelTooltipTrigger,
+  usePanelArrowDownBridge,
+  usePanelEnterBridge,
+  usePanelFooter,
+  usePanelFooterControlsRef,
+} from "@/components/panels/framework";
+import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
@@ -207,16 +207,18 @@ function SingleLineTooltipText({
   tooltipClassName,
 }: SingleLineTooltipTextProps) {
   return (
-    <Tooltip>
-      <TooltipTrigger
+    <PanelTooltip>
+      <PanelTooltipTrigger
         render={
           <span className={cn("block min-w-0 truncate whitespace-nowrap", className)}>
             {text}
           </span>
         }
       />
-      <TooltipContent className={cn("max-w-md break-all", tooltipClassName)}>{text}</TooltipContent>
-    </Tooltip>
+      <PanelTooltipContent className={cn("max-w-md break-all", tooltipClassName)}>
+        {text}
+      </PanelTooltipContent>
+    </PanelTooltip>
   );
 }
 
@@ -227,7 +229,7 @@ type DetailRowProps = {
 
 function DetailRow({ label, value }: DetailRowProps) {
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-4">
+    <div className="grid grid-cols-[auto_1fr] items-center gap-4 min-w-0">
       <span className="text-muted-foreground whitespace-nowrap">{label}</span>
       <SingleLineTooltipText text={value} className="text-right" />
     </div>
@@ -256,11 +258,7 @@ export function AppsLauncherPanel({
 
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
-  const footerControlsRef = React.useRef<PanelFooterControls | null>(null);
-
-  const registerFooterControls = React.useCallback((controls: PanelFooterControls | null) => {
-    footerControlsRef.current = controls;
-  }, []);
+  const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
 
   const refreshAllApps = React.useCallback(async () => {
     try {
@@ -632,12 +630,7 @@ export function AppsLauncherPanel({
     };
   }, [activatePanelSession, appActions, busy, busyActionId, clearLauncherInput, executeAppAction, registerFooterControls, selectedItem]);
 
-  React.useEffect(() => {
-    registerPanelFooter?.(footerConfig);
-    return () => {
-      registerPanelFooter?.(null);
-    };
-  }, [footerConfig, registerPanelFooter]);
+  usePanelFooter(registerPanelFooter, footerConfig);
 
   const onInputArrowDown = React.useCallback(() => {
     if (!navigationList.length) {
@@ -650,7 +643,7 @@ export function AppsLauncherPanel({
     }
 
     setSelectedId(first.id);
-  setNavigationMode("list");
+    setNavigationMode("list");
     const target = itemRefs.current.get(first.id);
     if (target) {
       target.focus();
@@ -660,19 +653,8 @@ export function AppsLauncherPanel({
     return false;
   }, [navigationList]);
 
-  React.useEffect(() => {
-    registerInputArrowDownHandler?.(onInputArrowDown);
-    return () => {
-      registerInputArrowDownHandler?.(null);
-    };
-  }, [onInputArrowDown, registerInputArrowDownHandler]);
-
-  React.useEffect(() => {
-    registerInputEnterHandler?.(activateSelectedItem);
-    return () => {
-      registerInputEnterHandler?.(null);
-    };
-  }, [activateSelectedItem, registerInputEnterHandler]);
+  usePanelArrowDownBridge(registerInputArrowDownHandler, onInputArrowDown);
+  usePanelEnterBridge(registerInputEnterHandler, activateSelectedItem);
 
   useHotkey(
     "Alt+K",
@@ -869,10 +851,10 @@ export function AppsLauncherPanel({
   );
 
   return (
-    <TooltipProvider>
+    <PanelTooltipProvider>
       <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
         <div className="overflow-hidden h-full">
-          <ScrollArea className="h-full">
+          <PanelScrollArea className="h-full">
             <div className="">
               <div className="flex flex-col gap-1">
                 {navigationList.map((item) => {
@@ -959,7 +941,7 @@ export function AppsLauncherPanel({
                 })}
               </div>
             </div>
-          </ScrollArea>
+          </PanelScrollArea>
         </div>
 
         <aside className="flex flex-col gap-3.5 overflow-hidden">
@@ -968,7 +950,7 @@ export function AppsLauncherPanel({
               <div className="flex-1 grid place-items-center">
                 Press Enter to open {selectedItem.command.panel.name}.
               </div>
-              <Button
+              <PanelButton
                 type="button"
                 variant="outline"
                 size="sm"
@@ -982,7 +964,7 @@ export function AppsLauncherPanel({
                   Back to Apps
                 </span>
                 <span className="font-mono text-[11px] text-muted-foreground">Left Arrow</span>
-              </Button>
+              </PanelButton>
             </div>
           ) : selectedApp ? (
             <>
@@ -1028,6 +1010,6 @@ export function AppsLauncherPanel({
           )}
         </aside>
       </div>
-    </TooltipProvider>
+    </PanelTooltipProvider>
   );
 }

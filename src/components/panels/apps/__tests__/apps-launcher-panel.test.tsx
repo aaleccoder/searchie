@@ -2,6 +2,7 @@ import type * as React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { definePanel } from "@/components/panels/framework";
 import { AppsLauncherPanel } from "@/components/panels/apps/apps-launcher-panel";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
@@ -202,7 +203,7 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     const clearLauncherInput = vi.fn();
     const activatePanelSession = vi.fn();
     const registry = createPanelRegistry();
-    const clipboardPanel: ShortcutPanelDescriptor = {
+    const clipboardPanel: ShortcutPanelDescriptor = definePanel({
       id: "clipboard",
       name: "Clipboard",
       aliases: ["cl", "clip", "clipboard"],
@@ -210,7 +211,7 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
       matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
       searchIntegration: { activationMode: "result-item" as const },
       component: () => null,
-    };
+    });
     registry.register(clipboardPanel);
 
     render(
@@ -233,7 +234,7 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
   it("shows a back-to-apps button when a panel command item is selected", async () => {
     const user = userEvent.setup();
     const registry = createPanelRegistry();
-    const clipboardPanel: ShortcutPanelDescriptor = {
+    const clipboardPanel: ShortcutPanelDescriptor = definePanel({
       id: "clipboard",
       name: "Clipboard",
       aliases: ["cl", "clip", "clipboard"],
@@ -241,7 +242,7 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
       matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
       searchIntegration: { activationMode: "result-item" as const },
       component: () => null,
-    };
+    });
     registry.register(clipboardPanel);
 
     render(
@@ -269,7 +270,9 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     });
 
     await screen.findByRole("button", { name: /Notepad/i });
-    const footer = registerPanelFooter.mock.calls[registerPanelFooter.mock.calls.length - 1]?.[0];
-    expect(footer?.panel?.title).toBe("Apps");
+    await waitFor(() => {
+      const footer = registerPanelFooter.mock.calls[registerPanelFooter.mock.calls.length - 1]?.[0];
+      expect(footer?.panel?.title).toBe("Apps");
+    });
   });
 });

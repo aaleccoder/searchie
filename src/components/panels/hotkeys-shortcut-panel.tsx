@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { PanelKbd, PanelKbdGroup, PanelScrollArea } from "@/components/panels/framework";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import { usePanelRegistry } from "@/lib/panel-registry";
@@ -38,7 +37,7 @@ export function HotkeysShortcutPanel({ commandQuery }: HotkeysShortcutPanelProps
 
   return (
     <div className="h-full overflow-hidden">
-      <ScrollArea className="h-full">
+      <PanelScrollArea className="h-full">
         <div className="p-4 space-y-4">
           <div className="space-y-1">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Hotkeys</p>
@@ -55,16 +54,16 @@ export function HotkeysShortcutPanel({ commandQuery }: HotkeysShortcutPanelProps
                 className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-background/60 px-3 py-2"
               >
                 <span className="text-xs text-muted-foreground">{hint.description}</span>
-                <KbdGroup>
+                <PanelKbdGroup>
                   {hint.keys.split("+").map((part) => (
-                    <Kbd key={`${hint.keys}:${part}`}>{formatShortcutPart(part)}</Kbd>
+                    <PanelKbd key={`${hint.keys}:${part}`}>{formatShortcutPart(part)}</PanelKbd>
                   ))}
-                </KbdGroup>
+                </PanelKbdGroup>
               </div>
             ))}
           </div>
         </div>
-      </ScrollArea>
+      </PanelScrollArea>
     </div>
   );
 }
