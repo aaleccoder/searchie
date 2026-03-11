@@ -16,6 +16,7 @@ const CREATE_APPS_TABLE: &str = "
         version TEXT,
         publisher TEXT,
         install_location TEXT,
+        uninstall_command TEXT,
         source TEXT NOT NULL
     )
 ";
@@ -95,6 +96,12 @@ pub fn migrations() -> Vec<Migration> {
             ON clipboard_history (created_at DESC)",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "add_uninstall_command_to_installed_apps",
+            sql: "ALTER TABLE installed_apps ADD COLUMN uninstall_command TEXT",
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -168,8 +175,8 @@ pub async fn replace_all_apps(pool: &SqlitePool, apps: &[InstalledApp]) {
             serde_json::to_string(&app.launch_args).unwrap_or_else(|_| "[]".to_string());
         let _ = sqlx::query(
             "INSERT INTO installed_apps
-             (id, name, launch_path, launch_args, icon_blob, icon_path, version, publisher, install_location, source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               (id, name, launch_path, launch_args, icon_blob, icon_path, version, publisher, install_location, uninstall_command, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&app.id)
         .bind(&app.name)
@@ -180,6 +187,7 @@ pub async fn replace_all_apps(pool: &SqlitePool, apps: &[InstalledApp]) {
         .bind(&app.version)
         .bind(&app.publisher)
         .bind(&app.install_location)
+        .bind(&app.uninstall_command)
         .bind(&app.source)
         .execute(&mut *tx)
         .await;
@@ -191,7 +199,7 @@ pub async fn replace_all_apps(pool: &SqlitePool, apps: &[InstalledApp]) {
 /// Loads all apps from DB without the icon blob (kept in DB only, fetched on demand).
 pub async fn load_apps(pool: &SqlitePool) -> Vec<InstalledApp> {
     let rows = sqlx::query(
-        "SELECT id, name, launch_path, launch_args, icon_path, version, publisher, install_location, source
+        "SELECT id, name, launch_path, launch_args, icon_path, version, publisher, install_location, uninstall_command, source
          FROM installed_apps ORDER BY name COLLATE NOCASE",
     )
     .fetch_all(pool)
@@ -212,6 +220,7 @@ pub async fn load_apps(pool: &SqlitePool) -> Vec<InstalledApp> {
                 version: row.try_get("version").ok(),
                 publisher: row.try_get("publisher").ok(),
                 install_location: row.try_get("install_location").ok(),
+                uninstall_command: row.try_get("uninstall_command").ok(),
                 source: row.try_get("source").unwrap_or_default(),
             }
         })

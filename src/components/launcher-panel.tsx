@@ -19,6 +19,7 @@ type InstalledApp = {
   version?: string | null;
   publisher?: string | null;
   installLocation?: string | null;
+  uninstallCommand?: string | null;
   source: string;
 };
 
@@ -40,6 +41,36 @@ type NavigationItem =
       command: PanelCommandSuggestion;
     };
 
+type AppActionItem = {
+  id: "open" | "run-as-admin" | "uninstall" | "properties" | "open-location";
+  label: string;
+  hint: string;
+  disabled?: boolean;
+};
+
+type LauncherFocusArea = "list" | "actions";
+
+function supportsRunAsAdmin(app: InstalledApp): boolean {
+  const source = app.source.toLowerCase();
+  if (source === "uwp" || source === "startapps") {
+    return false;
+  }
+
+  const launchPath = app.launchPath.toLowerCase();
+  if (launchPath !== "explorer.exe") {
+    return true;
+  }
+
+  return !app.launchArgs.some((arg) => arg.toLowerCase().includes("shell:appsfolder\\"));
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 type LauncherPanelProps = {
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
@@ -49,7 +80,16 @@ type LauncherPanelProps = {
 const iconCache = new Map<string, string | null>();
 const launcherCommandScope: PanelCommandScope = {
   id: "launcher",
-  capabilities: ["apps.list", "apps.search", "apps.launch", "apps.icon"],
+  capabilities: [
+    "apps.list",
+    "apps.search",
+    "apps.launch",
+    "apps.launchAdmin",
+    "apps.uninstall",
+    "apps.properties",
+    "apps.location",
+    "apps.icon",
+  ],
 };
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -128,6 +168,9 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [busyActionId, setBusyActionId] = React.useState<AppActionItem["id"] | null>(null);
+  const [focusArea, setFocusArea] = React.useState<LauncherFocusArea>("list");
+  const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [activePanelSession, setActivePanelSession] = React.useState<{
     panel: ShortcutPanelDescriptor;
   } | null>(null);
@@ -179,6 +222,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
   const handleInputValueChange = React.useCallback(
     (next: string) => {
       setQuery(next);
+      setFocusArea("list");
       const shouldExpand = next.trim().length > 0;
       if (shouldExpand !== expanded) {
         onExpandedChange(shouldExpand);
@@ -361,12 +405,65 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
   const selectedApp = selectedItem?.kind === "app" ? selectedItem.app : null;
 
+  const appActions = React.useMemo<AppActionItem[]>(() => {
+    if (!selectedApp) {
+      return [];
+    }
+
+    const canRunAsAdmin = supportsRunAsAdmin(selectedApp);
+
+    return [
+      {
+        id: "open",
+        label: "Open App",
+        hint: "Launch normally",
+      },
+      {
+        id: "run-as-admin",
+        label: "Run As Administrator",
+        hint: canRunAsAdmin ? "Elevated launch" : "Not supported for this app type",
+        disabled: !canRunAsAdmin,
+      },
+      {
+        id: "uninstall",
+        label: "Uninstall App",
+        hint: selectedApp.uninstallCommand ? "Run uninstaller" : "Not available",
+        disabled: !selectedApp.uninstallCommand,
+      },
+      {
+        id: "properties",
+        label: "Open Properties",
+        hint: "Windows file properties",
+      },
+      {
+        id: "open-location",
+        label: "Open Install Location",
+        hint: selectedApp.installLocation ? "Open install folder" : "Try app folder",
+      },
+    ];
+  }, [selectedApp]);
+
   React.useEffect(() => {
     if (!selectedApp) return;
     if (!selectedId) {
       setSelectedId(selectedApp.id);
     }
   }, [selectedApp, selectedId]);
+
+  React.useEffect(() => {
+    if (!selectedApp) {
+      setFocusArea("list");
+      setSelectedActionIndex(0);
+      return;
+    }
+
+    setSelectedActionIndex((current) => {
+      if (!appActions.length) {
+        return 0;
+      }
+      return Math.min(current, appActions.length - 1);
+    });
+  }, [appActions, selectedApp]);
 
   React.useEffect(() => {
     if (!selectedId) return;
@@ -396,6 +493,75 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
     }
   }, [activatePanelSession, selectedItem]);
 
+  const executeAppAction = React.useCallback(
+    async (actionId: AppActionItem["id"], app: InstalledApp) => {
+      setBusy(true);
+      setBusyActionId(actionId);
+
+      try {
+        if (actionId === "open") {
+          await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "run-as-admin") {
+          await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app_as_admin", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "uninstall") {
+          await invokePanelCommand<void>(launcherCommandScope, "uninstall_installed_app", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "properties") {
+          await invokePanelCommand<void>(launcherCommandScope, "open_installed_app_properties", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "open-location") {
+          await invokePanelCommand<void>(
+            launcherCommandScope,
+            "open_installed_app_install_location",
+            { appId: app.id },
+          );
+        }
+      } catch (error) {
+        console.error("[launcher] app action failed", {
+          actionId,
+          appId: app.id,
+          message: getErrorMessage(error),
+          error,
+        });
+      } finally {
+        setBusy(false);
+        setBusyActionId(null);
+      }
+    },
+    [],
+  );
+
+  const activateSelectedAction = React.useCallback(async () => {
+    if (!selectedApp || !appActions.length) {
+      return;
+    }
+
+    const action = appActions[selectedActionIndex] ?? appActions[0];
+    if (!action || action.disabled) {
+      return;
+    }
+
+    await executeAppAction(action.id, selectedApp);
+  }, [appActions, executeAppAction, selectedActionIndex, selectedApp]);
+
   const launchById = React.useCallback(
     async (appId: string) => {
       try {
@@ -408,6 +574,17 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       }
     },
     [],
+  );
+
+  const moveActionSelection = React.useCallback(
+    (delta: number) => {
+      if (!appActions.length) {
+        return;
+      }
+      const next = Math.max(0, Math.min(appActions.length - 1, selectedActionIndex + delta));
+      setSelectedActionIndex(next);
+    },
+    [appActions.length, selectedActionIndex],
   );
 
   const moveSelection = React.useCallback(
@@ -441,12 +618,34 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
         }
       }
       event.preventDefault();
-      moveSelection(1);
+      if (focusArea === "actions") {
+        moveActionSelection(1);
+      } else {
+        moveSelection(1);
+      }
       return;
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      moveSelection(-1);
+      if (focusArea === "actions") {
+        moveActionSelection(-1);
+      } else {
+        moveSelection(-1);
+      }
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      if (!activePanel && selectedApp && appActions.length) {
+        event.preventDefault();
+        setFocusArea("actions");
+      }
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      if (!activePanel && focusArea === "actions") {
+        event.preventDefault();
+        setFocusArea("list");
+      }
       return;
     }
     if (event.key === "Enter") {
@@ -454,7 +653,12 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
       if (activePanel) {
         return;
       }
-      void activateSelectedItem();
+
+      if (focusArea === "actions") {
+        void activateSelectedAction();
+      } else {
+        void activateSelectedItem();
+      }
       return;
     }
     if (event.key === "Escape") {
@@ -471,6 +675,7 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
 
       if (query) {
         setQuery("");
+        setFocusArea("list");
       } else {
         onExpandedChange(false);
         void getCurrentWindow().hide();
@@ -516,8 +721,12 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                               key={item.id}
                               type="button"
                               ref={(el) => { if (el) itemRefs.current.set(item.id, el); else itemRefs.current.delete(item.id); }}
-                              onMouseEnter={() => setSelectedId(item.id)}
+                              onMouseEnter={() => {
+                                setFocusArea("list");
+                                setSelectedId(item.id);
+                              }}
                               onClick={() => {
+                                setFocusArea("list");
                                 setSelectedId(item.id);
                                 activatePanelSession(item.command.panel, item.command.commandQuery);
                               }}
@@ -545,8 +754,12 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                             key={item.id}
                             type="button"
                             ref={(el) => { if (el) itemRefs.current.set(item.id, el); else itemRefs.current.delete(item.id); }}
-                            onMouseEnter={() => setSelectedId(item.id)}
+                            onMouseEnter={() => {
+                              setFocusArea("list");
+                              setSelectedId(item.id);
+                            }}
                             onClick={() => {
+                              setFocusArea("list");
                               setSelectedId(app.id);
                               void launchById(app.id);
                             }}
@@ -589,19 +802,50 @@ export function LauncherPanel({ expanded, onExpandedChange, onOpenSettings }: La
                         <span className="text-muted-foreground">Source</span>
                         <span className="text-right">{selectedApp.source}</span>
                       </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Install Path</span>
+                        <span className="text-right break-all">{selectedApp.installLocation ?? "-"}</span>
+                      </div>
                     </div>
 
                     <div className="mt-auto space-y-2">
-                      <Button className="w-full" onClick={() => void activateSelectedItem()} disabled={busy}>
-                        {busy ? "Launching..." : "Open App"}
-                      </Button>
+                      {appActions.map((action, index) => {
+                        const active = focusArea === "actions" && selectedActionIndex === index;
+                        const pending = busy && busyActionId === action.id;
+                        return (
+                          <Button
+                            key={action.id}
+                            variant={active ? "default" : "outline"}
+                            className="w-full justify-between"
+                            onMouseEnter={() => {
+                              setFocusArea("actions");
+                              setSelectedActionIndex(index);
+                            }}
+                            onClick={() => {
+                              setFocusArea("actions");
+                              setSelectedActionIndex(index);
+                              if (!action.disabled) {
+                                void executeAppAction(action.id, selectedApp);
+                              }
+                            }}
+                            disabled={busy || action.disabled}
+                          >
+                            <span>{pending ? "Running..." : action.label}</span>
+                            <span className="text-[11px] text-muted-foreground">{action.hint}</span>
+                          </Button>
+                        );
+                      })}
                       <div className="text-xs text-muted-foreground flex items-center justify-between">
-                        <span>Navigate</span>
-                        <span className="font-mono">Arrow keys</span>
+                        <span>List to Actions</span>
+                        <span className="font-mono">Right Arrow</span>
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center justify-between">
-                        <span>Run selected</span>
-                        <span className="font-mono">Enter</span>
+                        <span>Actions to List</span>
+                        <span className="font-mono">Left Arrow</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-between">
+                        <span>Navigate / Run</span>
+                        <span className="font-mono">Up Down + Enter</span>
                       </div>
                     </div>
                   </>

@@ -14,7 +14,16 @@ const launcherPanel: ShortcutPanelDescriptor = {
   id: "launcher",
   name: "Launcher",
   aliases: [],
-  capabilities: ["apps.list", "apps.search", "apps.launch", "apps.icon"],
+  capabilities: [
+    "apps.list",
+    "apps.search",
+    "apps.launch",
+    "apps.launchAdmin",
+    "apps.uninstall",
+    "apps.properties",
+    "apps.location",
+    "apps.icon",
+  ],
   matcher: () => ({ matches: false, commandQuery: "" }),
   component: () => null,
 };
@@ -35,6 +44,16 @@ describe("invokePanelCommand", () => {
 
     expect(result).toEqual([{ id: "a" }]);
     expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
+  });
+
+  it("invokes newly added app action commands when capability allows", async () => {
+    invokeMock.mockResolvedValueOnce(null);
+
+    await invokePanelCommand<void>(launcherPanel, "open_installed_app_properties", {
+      appId: "a",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("open_installed_app_properties", { appId: "a" });
   });
 
   it("rejects disallowed commands", async () => {

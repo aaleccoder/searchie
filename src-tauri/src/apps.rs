@@ -35,10 +35,98 @@ pub struct InstalledApp {
     pub version: Option<String>,
     pub publisher: Option<String>,
     pub install_location: Option<String>,
+    pub uninstall_command: Option<String>,
     pub source: String,
     /// Stored only in the DB; never serialised over the IPC boundary.
     #[serde(skip)]
     pub icon_blob: Option<Vec<u8>>,
+}
+
+fn app_by_id(state: &AppIndexState, app_id: &str) -> Result<InstalledApp, String> {
+    state
+        .get_apps()
+        .into_iter()
+        .find(|a| a.id == app_id)
+        .ok_or_else(|| "app not found".to_string())
+}
+
+fn run_detached(executable: &str, args: &[String]) -> Result<(), String> {
+    let mut cmd = Command::new(executable);
+    if !args.is_empty() {
+        cmd.args(args);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(DETACHED_PROCESS);
+    }
+
+    cmd.spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn is_uwp_shell_app(app: &InstalledApp) -> bool {
+    app.launch_path.eq_ignore_ascii_case("explorer.exe")
+        && app
+            .launch_args
+            .iter()
+            .any(|arg| arg.to_lowercase().contains("shell:appsfolder\\"))
+}
+
+fn expand_windows_env_vars(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    let mut out = String::with_capacity(value.len());
+    let mut i = 0usize;
+
+    while i < chars.len() {
+        if chars[i] == '%' {
+            let mut j = i + 1;
+            while j < chars.len() && chars[j] != '%' {
+                j += 1;
+            }
+
+            if j < chars.len() && j > i + 1 {
+                let key = chars[i + 1..j].iter().collect::<String>();
+                if let Ok(expanded) = std::env::var(&key) {
+                    out.push_str(&expanded);
+                } else {
+                    out.push('%');
+                    out.push_str(&key);
+                    out.push('%');
+                }
+                i = j + 1;
+                continue;
+            }
+        }
+
+        out.push(chars[i]);
+        i += 1;
+    }
+
+    out
+}
+
+fn resolve_existing_openable_dir(raw: &str) -> Option<PathBuf> {
+    let cleaned = clean_command_path(raw);
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    let expanded = expand_windows_env_vars(&cleaned);
+    let candidate = PathBuf::from(expanded.trim().trim_matches('"'));
+
+    if candidate.is_dir() {
+        return std::fs::read_dir(&candidate).ok().map(|_| candidate);
+    }
+
+    if candidate.is_file() {
+        if let Some(parent) = candidate.parent() {
+            let dir = parent.to_path_buf();
+            return std::fs::read_dir(&dir).ok().map(|_| dir);
+        }
+    }
+
+    None
 }
 
 #[derive(Clone)]
@@ -181,6 +269,8 @@ fn read_uninstall_apps(root: &RegKey, uninstall_path: &str, source: &str) -> Vec
 
         let icon_raw = read_string_value(&app_key, "DisplayIcon");
         let install_location = read_string_value(&app_key, "InstallLocation");
+        let uninstall_command = read_string_value(&app_key, "QuietUninstallString")
+            .or_else(|| read_string_value(&app_key, "UninstallString"));
 
         let mut launch_path = icon_raw
             .as_ref()
@@ -217,6 +307,7 @@ fn read_uninstall_apps(root: &RegKey, uninstall_path: &str, source: &str) -> Vec
             version: read_string_value(&app_key, "DisplayVersion"),
             publisher: read_string_value(&app_key, "Publisher"),
             install_location,
+            uninstall_command,
             source: source.to_string(),
         };
 
@@ -269,6 +360,7 @@ fn read_app_paths(root: &RegKey, source: &str) -> Vec<InstalledApp> {
             install_location: PathBuf::from(cleaned)
                 .parent()
                 .and_then(|p| p.to_str().map(|s| s.to_string())),
+            uninstall_command: None,
             source: source.to_string(),
         };
 
@@ -436,7 +528,7 @@ fn build_uwp_family_meta_index() -> HashMap<String, UwpFamilyMeta> {
 fn scan_start_apps() -> Vec<InstalledApp> {
     let family_meta = build_uwp_family_meta_index();
 
-    let mut cmd = Command::new("powershell");
+    let mut cmd = Command::new("powershell.exe");
     cmd.args([
         "-NoProfile",
         "-NonInteractive",
@@ -514,6 +606,7 @@ fn scan_start_apps() -> Vec<InstalledApp> {
             version: meta.and_then(|m| m.version.clone()),
             publisher: meta.and_then(|m| m.publisher.clone()),
             install_location: meta.and_then(|m| m.install_location.clone()),
+            uninstall_command: None,
             source: "startapps".to_string(),
         });
     }
@@ -784,6 +877,7 @@ fn scan_uwp_from_root(
                 version: version.clone(),
                 publisher: publisher.clone(),
                 install_location: install_location.clone(),
+                uninstall_command: None,
                 source: "uwp".to_string(),
             });
         }
@@ -872,13 +966,30 @@ pub fn search_installed_apps(
 
 #[tauri::command]
 pub fn launch_installed_app(state: State<'_, AppIndexState>, app_id: String) -> Result<(), String> {
-    let apps = state.get_apps();
-    let app = apps
-        .iter()
-        .find(|a| a.id == app_id)
-        .ok_or_else(|| "app not found".to_string())?;
+    let app = app_by_id(state.inner(), &app_id)?;
+    run_detached(&app.launch_path, &app.launch_args)
+}
 
-    let mut cmd = Command::new(&app.launch_path);
+#[tauri::command]
+pub fn launch_installed_app_as_admin(
+    state: State<'_, AppIndexState>,
+    app_id: String,
+) -> Result<(), String> {
+    let app = app_by_id(state.inner(), &app_id)?;
+
+    if is_uwp_shell_app(&app) {
+        return Err("run as administrator is not supported for this app type".to_string());
+    }
+
+    let mut cmd = Command::new("powershell");
+    cmd.args([
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "if ($args.Length -gt 1) { Start-Process -FilePath $args[0] -ArgumentList $args[1..($args.Length-1)] -Verb RunAs } else { Start-Process -FilePath $args[0] -Verb RunAs }",
+        &app.launch_path,
+    ]);
+
     if !app.launch_args.is_empty() {
         cmd.args(&app.launch_args);
     }
@@ -888,8 +999,67 @@ pub fn launch_installed_app(state: State<'_, AppIndexState>, app_id: String) -> 
         cmd.creation_flags(DETACHED_PROCESS);
     }
 
-    cmd.spawn().map_err(|e| e.to_string())?;
+    cmd.spawn()
+        .map_err(|e| format!("failed to elevate app launch: {e}"))?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn uninstall_installed_app(state: State<'_, AppIndexState>, app_id: String) -> Result<(), String> {
+    let app = app_by_id(state.inner(), &app_id)?;
+    let uninstall = app
+        .uninstall_command
+        .as_ref()
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "uninstaller command is not available for this app".to_string())?;
+
+    let (exe, args) = parse_launch_command(uninstall);
+    if exe.is_empty() {
+        return Err("uninstaller command is invalid".to_string());
+    }
+
+    run_detached(&exe, &args)
+}
+
+#[tauri::command]
+pub fn open_installed_app_properties(
+    state: State<'_, AppIndexState>,
+    app_id: String,
+) -> Result<(), String> {
+    let app = app_by_id(state.inner(), &app_id)?;
+    let args = vec![
+        "shell32.dll,ShellExec_RunDLL".to_string(),
+        app.launch_path,
+        "properties".to_string(),
+    ];
+
+    run_detached("rundll32.exe", &args)
+}
+
+#[tauri::command]
+pub fn open_installed_app_install_location(
+    state: State<'_, AppIndexState>,
+    app_id: String,
+) -> Result<(), String> {
+    let app = app_by_id(state.inner(), &app_id)?;
+
+    let open_target = app
+        .install_location
+        .as_ref()
+        .and_then(|p| resolve_existing_openable_dir(p))
+        .or_else(|| {
+            // UWP/AppsFolder launch paths are virtual shell entries and cannot be mapped reliably.
+            if app.launch_path.eq_ignore_ascii_case("explorer.exe") {
+                None
+            } else {
+                resolve_existing_openable_dir(&app.launch_path)
+            }
+        })
+        .ok_or_else(|| "install location is not available for this app".to_string())?;
+
+    let open_target = open_target.to_string_lossy().to_string();
+    run_detached("explorer.exe", &[open_target])
 }
 
 #[tauri::command]

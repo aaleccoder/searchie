@@ -48,6 +48,10 @@ describe("LauncherPanel with panel registry", () => {
       if (command === "list_installed_apps") return [];
       if (command === "search_installed_apps") return [];
       if (command === "launch_installed_app") return null;
+      if (command === "launch_installed_app_as_admin") return null;
+      if (command === "uninstall_installed_app") return null;
+      if (command === "open_installed_app_properties") return null;
+      if (command === "open_installed_app_install_location") return null;
       if (command === "get_app_icon") return null;
       return null;
     });
@@ -256,6 +260,56 @@ describe("LauncherPanel with panel registry", () => {
     expect(screen.getByText("No apps found.")).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe("");
     expect(input).toHaveFocus();
+  });
+
+  it("uses right/left arrows to move between app list and action buttons", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "list_installed_apps") {
+        return [
+          {
+            id: "app-1",
+            name: "Notepad",
+            launchPath: "C:/Windows/notepad.exe",
+            launchArgs: [],
+            source: "test",
+            installLocation: "C:/Windows",
+            uninstallCommand: "C:/Windows/system32/msiexec.exe /x {ABC}",
+          },
+        ];
+      }
+      if (command === "search_installed_apps") return [];
+      if (command === "launch_installed_app") return null;
+      if (command === "launch_installed_app_as_admin") return null;
+      if (command === "uninstall_installed_app") return null;
+      if (command === "open_installed_app_properties") return null;
+      if (command === "open_installed_app_install_location") return null;
+      if (command === "get_app_icon") return null;
+      return null;
+    });
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry();
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.click(input);
+    await waitFor(() => {
+      expect(screen.getAllByText("Notepad").length).toBeGreaterThan(0);
+    });
+
+    await user.keyboard("{ArrowRight}");
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Enter}");
+
+    expect(
+      invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app_as_admin"),
+    ).toBe(true);
+
+    await user.keyboard("{ArrowLeft}");
+    await user.keyboard("{Enter}");
+
+    expect(
+      invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app"),
+    ).toBe(true);
   });
 
   it("shows result-item panel command and Enter on selected app still launches app", async () => {
