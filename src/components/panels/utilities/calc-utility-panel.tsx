@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PanelBadge, PanelInput } from "@/components/panels/framework";
+import { Badge as PanelBadge, Input as PanelInput } from "@/plugins/sdk";
 import { evaluateExpression } from "@/lib/utilities/calc-engine";
 
 type CalcUtilityPanelProps = {

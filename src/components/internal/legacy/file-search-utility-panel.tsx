@@ -1,18 +1,18 @@
 import * as React from "react";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { FolderSearch, Loader2, FolderOpen, FileSearch, ExternalLink } from "lucide-react";
 import {
-  PanelButton,
-  PanelEmpty,
-  PanelEmptyDescription,
-  PanelEmptyHeader,
-  PanelEmptyMedia,
-  PanelEmptyTitle,
-  PanelScrollArea,
+  Button as PanelButton,
+  Empty as PanelEmpty,
+  EmptyDescription as PanelEmptyDescription,
+  EmptyHeader as PanelEmptyHeader,
+  EmptyMedia as PanelEmptyMedia,
+  EmptyTitle as PanelEmptyTitle,
+  ScrollArea as PanelScrollArea,
+  createPluginBackendSdk,
   usePanelArrowDownBridge,
-} from "@/components/panels/framework";
+} from "@/plugins/sdk";
 import { registerFileSearchInputController } from "@/components/panels/utilities/file-search-keybindings";
-import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
+import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { buildSearchRequest, rankFileSearchResults } from "@/lib/utilities/file-search-engine";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ type FileSearchResult = {
 };
 
 const fileSearchCommandScope: PanelCommandScope = {
+  pluginId: "core.utilities",
   id: "utilities-file-search",
   capabilities: ["files.search", "files.open"],
 };
@@ -76,6 +77,7 @@ export function FileSearchUtilityPanel({
   registerInputArrowDownHandler,
   focusLauncherInput,
 }: FileSearchUtilityPanelProps) {
+  const backend = React.useMemo(() => createPluginBackendSdk(fileSearchCommandScope), []);
   const [results, setResults] = React.useState<FileSearchResult[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -131,11 +133,7 @@ export function FileSearchUtilityPanel({
       setErrorMessage(null);
 
       try {
-        const raw = await invokePanelCommand<FileSearchResult[]>(
-          fileSearchCommandScope,
-          "search_files",
-          request,
-        );
+        const raw = await backend.files.search<FileSearchResult[]>(request);
 
         if (cancelled) {
           return;
@@ -190,15 +188,12 @@ export function FileSearchUtilityPanel({
 
   const openResult = React.useCallback(async (entry: FileSearchResult, reveal = false) => {
     try {
-      await invokePanelCommand<void>(fileSearchCommandScope, "open_file_path", {
-        path: entry.path,
-        reveal,
-      });
+      await backend.files.openPath(entry.path, reveal);
     } catch (error) {
       console.error("[file-search] open failed", error);
       setErrorMessage(error instanceof Error ? error.message : "Could not open file");
     }
-  }, []);
+  }, [backend.files]);
 
   const selectedResult = results[selectedIndex] ?? null;
   const actions = React.useMemo(
@@ -212,7 +207,7 @@ export function FileSearchUtilityPanel({
   const isImagePreview = selectedResult ? IMAGE_EXTENSIONS.has(selectedExtension) : false;
   const imagePreviewSrc =
     selectedResult && isImagePreview && !previewFailed
-      ? convertFileSrc(selectedResult.path)
+      ? backend.files.toAssetUrl(selectedResult.path)
       : null;
 
   React.useEffect(() => {

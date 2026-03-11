@@ -2,20 +2,21 @@ import * as React from "react";
 import { ArrowLeft, FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
-  PanelButton,
-  PanelScrollArea,
-  PanelTooltip,
-  PanelTooltipContent,
-  PanelTooltipProvider,
-  PanelTooltipTrigger,
+  Button as PanelButton,
+  ScrollArea as PanelScrollArea,
+  Tooltip as PanelTooltip,
+  TooltipContent as PanelTooltipContent,
+  TooltipProvider as PanelTooltipProvider,
+  TooltipTrigger as PanelTooltipTrigger,
+  createPluginBackendSdk,
   usePanelArrowDownBridge,
   usePanelEnterBridge,
   usePanelFooter,
   usePanelFooterControlsRef,
-} from "@/components/panels/framework";
+} from "@/plugins/sdk";
 import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
-import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
+import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
 type InstalledApp = {
@@ -72,6 +73,7 @@ type NavigationItem =
 const iconCache = new Map<string, string | null>();
 
 const launcherCommandScope: PanelCommandScope = {
+  pluginId: "core.apps",
   id: "launcher",
   capabilities: [
     "apps.list",
@@ -139,6 +141,7 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 function AppIcon({ appId, className }: { appId: string; className?: string }) {
+  const backend = React.useMemo(() => createPluginBackendSdk(launcherCommandScope), []);
   const [src, setSrc] = React.useState<string | null>(iconCache.get(appId) ?? null);
   const [failed, setFailed] = React.useState(false);
 
@@ -154,11 +157,7 @@ function AppIcon({ appId, className }: { appId: string; className?: string }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const base64 = await invokePanelCommand<string | null>(
-          launcherCommandScope,
-          "get_app_icon",
-          { appId },
-        );
+        const base64 = await backend.apps.getAppIcon(appId);
         if (cancelled) return;
         const next = base64 ? `data:image/png;base64,${base64}` : null;
         iconCache.set(appId, next);
@@ -174,7 +173,7 @@ function AppIcon({ appId, className }: { appId: string; className?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [appId]);
+  }, [appId, backend.apps]);
 
   if (!src || failed) {
     return (
@@ -246,6 +245,7 @@ export function AppsLauncherPanel({
   closeLauncherWindow,
   activatePanelSession,
 }: AppsLauncherPanelProps) {
+  const backend = React.useMemo(() => createPluginBackendSdk(launcherCommandScope), []);
   const panelRegistry = usePanelRegistry();
   const debouncedQuery = useDebouncedValue(commandQuery, 120);
   const [allApps, setAllApps] = React.useState<InstalledApp[]>([]);
@@ -262,11 +262,7 @@ export function AppsLauncherPanel({
 
   const refreshAllApps = React.useCallback(async () => {
     try {
-      const apps = await invokePanelCommand<InstalledApp[]>(
-        launcherCommandScope,
-        "list_installed_apps",
-        {},
-      );
+      const apps = await backend.apps.listInstalledApps<InstalledApp[]>();
       setAllApps(apps);
       if (!commandQuery.trim()) {
         setSearchResults(apps.slice(0, 120));
@@ -278,7 +274,7 @@ export function AppsLauncherPanel({
       setSearchResults([]);
       setSelectedId(null);
     }
-  }, [commandQuery]);
+  }, [backend.apps, commandQuery]);
 
   React.useEffect(() => {
     void refreshAllApps();
@@ -298,14 +294,7 @@ export function AppsLauncherPanel({
 
       let results: InstalledApp[] = [];
       try {
-        results = await invokePanelCommand<InstalledApp[]>(
-          launcherCommandScope,
-          "search_installed_apps",
-          {
-            query: q,
-            limit: 160,
-          },
-        );
+        results = await backend.apps.searchInstalledApps<InstalledApp[]>(q, 160);
       } catch (error) {
         console.error("[apps-panel] search failed", error);
       }
@@ -322,7 +311,7 @@ export function AppsLauncherPanel({
     return () => {
       cancelled = true;
     };
-  }, [allApps, debouncedQuery]);
+  }, [allApps, backend.apps, debouncedQuery]);
 
   const panelCommandSuggestion = React.useMemo<PanelCommandSuggestion | null>(() => {
     const trimmed = commandQuery.trim().toLowerCase();
@@ -474,36 +463,26 @@ export function AppsLauncherPanel({
         if (actionId === "open") {
           clearLauncherInput?.();
           closeLauncherWindow?.();
-          await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app", {
-            appId: app.id,
-          });
+          await backend.apps.launchInstalledApp(app.id);
           return;
         }
 
         if (actionId === "run-as-admin") {
-          await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app_as_admin", {
-            appId: app.id,
-          });
+          await backend.apps.launchInstalledAppAsAdmin(app.id);
           return;
         }
 
         if (actionId === "uninstall") {
-          await invokePanelCommand<void>(launcherCommandScope, "uninstall_installed_app", {
-            appId: app.id,
-          });
+          await backend.apps.uninstallInstalledApp(app.id);
           return;
         }
 
         if (actionId === "properties") {
-          await invokePanelCommand<void>(launcherCommandScope, "open_installed_app_properties", {
-            appId: app.id,
-          });
+          await backend.apps.openInstalledAppProperties(app.id);
           return;
         }
 
-        await invokePanelCommand<void>(launcherCommandScope, "open_installed_app_install_location", {
-          appId: app.id,
-        });
+        await backend.apps.openInstalledAppInstallLocation(app.id);
       } catch (error) {
         console.error("[apps-panel] app action failed", {
           actionId,
@@ -516,7 +495,7 @@ export function AppsLauncherPanel({
         setBusyActionId(null);
       }
     },
-    [clearLauncherInput, closeLauncherWindow],
+    [backend.apps, clearLauncherInput, closeLauncherWindow],
   );
 
   const focusListItemById = React.useCallback((id: string) => {

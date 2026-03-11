@@ -42,6 +42,76 @@ export const PanelTooltipProvider = TooltipProvider;
 export const PanelTooltipTrigger = TooltipTrigger;
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
+type SpanProps = React.HTMLAttributes<HTMLSpanElement>;
+type ParagraphProps = React.HTMLAttributes<HTMLParagraphElement>;
+type SectionProps = React.HTMLAttributes<HTMLElement>;
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+type ImageProps = React.ImgHTMLAttributes<HTMLImageElement>;
+
+export function PanelContainer({ className, ...props }: DivProps) {
+  return <div className={cn(className)} {...props} />;
+}
+
+export function PanelFlex({ className, ...props }: DivProps) {
+  return <div className={cn("flex", className)} {...props} />;
+}
+
+export function PanelSection({ className, ...props }: SectionProps) {
+  return <section className={cn(className)} {...props} />;
+}
+
+export function PanelAside({ className, ...props }: SectionProps) {
+  return <aside className={cn(className)} {...props} />;
+}
+
+export function PanelArticle({ className, ...props }: SectionProps) {
+  return <article className={cn(className)} {...props} />;
+}
+
+export function PanelText({ className, ...props }: SpanProps) {
+  return <span className={cn(className)} {...props} />;
+}
+
+export function PanelInline({ className, ...props }: SpanProps) {
+  return <span className={cn(className)} {...props} />;
+}
+
+export function PanelParagraph({ className, ...props }: ParagraphProps) {
+  return <p className={cn(className)} {...props} />;
+}
+
+type PanelHeadingProps = React.HTMLAttributes<HTMLHeadingElement> & {
+  level?: 1 | 2 | 3 | 4;
+};
+
+export function PanelHeading({ level = 3, className, ...props }: PanelHeadingProps) {
+  if (level === 1) {
+    return <h1 className={cn(className)} {...props} />;
+  }
+  if (level === 2) {
+    return <h2 className={cn(className)} {...props} />;
+  }
+  if (level === 4) {
+    return <h4 className={cn(className)} {...props} />;
+  }
+  return <h3 className={cn(className)} {...props} />;
+}
+
+export function PanelCode({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
+  return <code className={cn(className)} {...props} />;
+}
+
+export function PanelPre({ className, ...props }: React.HTMLAttributes<HTMLPreElement>) {
+  return <pre className={cn(className)} {...props} />;
+}
+
+export function PanelTextButton({ className, ...props }: ButtonProps) {
+  return <button type="button" className={cn(className)} {...props} />;
+}
+
+export function PanelFigureImage({ className, alt = "", ...props }: ImageProps) {
+  return <img className={cn(className)} alt={alt} {...props} />;
+}
 
 export function PanelGrid({ className, ...props }: DivProps) {
   return <div className={cn("grid h-full items-stretch gap-2.5", className)} {...props} />;

@@ -19,4 +19,27 @@ describe("PanelRegistryProvider", () => {
 
     expect(screen.getByText("clipboard")).toBeInTheDocument();
   });
+
+  it("registers default core plugins through provider", () => {
+    function PluginProbe() {
+      const registry = usePanelRegistry();
+      const apps = registry.find("apps notepad")?.panel.id ?? "none";
+      const files = registry.find("files report")?.panel.id ?? "none";
+      return (
+        <>
+          <div>{apps}</div>
+          <div>{files}</div>
+        </>
+      );
+    }
+
+    render(
+      <PanelRegistryProvider>
+        <PluginProbe />
+      </PanelRegistryProvider>,
+    );
+
+    expect(screen.getByText("apps-launcher")).toBeInTheDocument();
+    expect(screen.getByText("utilities-file-search")).toBeInTheDocument();
+  });
 });

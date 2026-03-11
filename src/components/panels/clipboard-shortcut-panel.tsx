@@ -1,10 +1,10 @@
 import { ClipboardPanel } from "@/components/clipboard-panel";
-import { definePanel } from "@/components/panels/framework";
 import { Clipboard } from "lucide-react";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
+import { definePluginPanel } from "@/plugins/sdk";
 
-export const clipboardShortcutPanel: ShortcutPanelDescriptor = definePanel({
+export const clipboardShortcutPanel: ShortcutPanelDescriptor = definePluginPanel({
   id: "clipboard",
   name: "Clipboard",
   aliases: ["cl", "clip", "clipboard"],

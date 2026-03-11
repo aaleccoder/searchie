@@ -15,6 +15,8 @@ impl FeatureProvider for ClipboardFeatureProvider {
         vec![
             CommandMeta::new("search_clipboard_history"),
             CommandMeta::new("clear_clipboard_history"),
+            CommandMeta::new("toggle_clipboard_pin"),
+            CommandMeta::new("delete_clipboard_entry"),
         ]
     }
 

@@ -1,6 +1,7 @@
 pub mod apps;
 pub mod clipboard;
 pub mod events;
+pub mod files;
 pub mod windows;
 
 use std::collections::{HashMap, HashSet};
@@ -59,9 +60,13 @@ impl FeatureRegistry {
     }
 
     pub fn ordered_feature_ids(&self) -> Vec<&'static str> {
-        let mut providers: Vec<&dyn FeatureProvider> = self.providers.values().map(|p| p.as_ref()).collect();
+        let mut providers: Vec<&dyn FeatureProvider> =
+            self.providers.values().map(|p| p.as_ref()).collect();
         providers.sort_by_key(|provider| provider.init_order());
-        providers.into_iter().map(|provider| provider.id()).collect()
+        providers
+            .into_iter()
+            .map(|provider| provider.id())
+            .collect()
     }
 
     pub fn all_commands(&self) -> Vec<(&'static str, CommandMeta)> {
@@ -88,7 +93,10 @@ impl FeatureRegistry {
         let mut seen = HashSet::<&'static str>::new();
         for (_, command) in self.all_commands() {
             if !seen.insert(command.name) {
-                return Err(format!("duplicate command metadata detected: {}", command.name));
+                return Err(format!(
+                    "duplicate command metadata detected: {}",
+                    command.name
+                ));
             }
         }
         Ok(())
@@ -105,6 +113,7 @@ pub fn build_builtin_feature_registry() -> Result<FeatureRegistry, String> {
     let mut registry = FeatureRegistry::new();
     registry.register(apps::AppsFeatureProvider)?;
     registry.register(clipboard::ClipboardFeatureProvider)?;
+    registry.register(files::FilesFeatureProvider)?;
     registry.register(windows::WindowsFeatureProvider)?;
     registry.validate_unique_commands()?;
     Ok(registry)
@@ -139,7 +148,11 @@ mod tests {
         }
 
         fn events(&self) -> Vec<EventMeta> {
-            self.event_names.iter().copied().map(EventMeta::new).collect()
+            self.event_names
+                .iter()
+                .copied()
+                .map(EventMeta::new)
+                .collect()
         }
     }
 
@@ -180,8 +193,12 @@ mod tests {
         let commands = registry.all_commands();
         let events = registry.all_events();
 
-        assert!(commands.iter().any(|(id, c)| *id == "alpha" && c.name == "alpha_cmd"));
-        assert!(events.iter().any(|(id, e)| *id == "alpha" && e.name == "alpha_evt"));
+        assert!(commands
+            .iter()
+            .any(|(id, c)| *id == "alpha" && c.name == "alpha_cmd"));
+        assert!(events
+            .iter()
+            .any(|(id, e)| *id == "alpha" && e.name == "alpha_evt"));
     }
 
     #[test]
@@ -212,7 +229,10 @@ mod tests {
             })
             .expect("second should register");
 
-        assert_eq!(registry.ordered_feature_ids(), vec!["first", "second", "third"]);
+        assert_eq!(
+            registry.ordered_feature_ids(),
+            vec!["first", "second", "third"]
+        );
     }
 
     #[test]

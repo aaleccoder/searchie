@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PanelCapability, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 
-export type PanelCommandScope = Pick<ShortcutPanelDescriptor, "id" | "capabilities">;
+export type PanelCommandScope = Pick<ShortcutPanelDescriptor, "id" | "capabilities"> & {
+  pluginId?: string;
+};
 
 export type BackendCommand =
   | "list_installed_apps"
@@ -47,11 +49,13 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
 export class PanelCommandError extends Error {
   readonly code: "CAPABILITY_DENIED" | "COMMAND_FAILED";
   readonly panelId: string;
+  readonly pluginId?: string;
   readonly command: BackendCommand;
 
   constructor(
     code: "CAPABILITY_DENIED" | "COMMAND_FAILED",
     panelId: string,
+    pluginId: string | undefined,
     command: BackendCommand,
     message: string,
   ) {
@@ -59,6 +63,7 @@ export class PanelCommandError extends Error {
     this.name = "PanelCommandError";
     this.code = code;
     this.panelId = panelId;
+    this.pluginId = pluginId;
     this.command = command;
   }
 }
@@ -70,6 +75,7 @@ function assertCapability(panel: PanelCommandScope, command: BackendCommand): vo
     throw new PanelCommandError(
       "CAPABILITY_DENIED",
       panel.id,
+      panel.pluginId,
       command,
       `Panel \"${panel.id}\" is not allowed to invoke \"${command}\".`,
     );
@@ -89,6 +95,7 @@ export async function invokePanelCommand<T>(
     throw new PanelCommandError(
       "COMMAND_FAILED",
       panel.id,
+      panel.pluginId,
       command,
       `Command \"${command}\" failed for panel \"${panel.id}\": ${String(error)}`,
     );

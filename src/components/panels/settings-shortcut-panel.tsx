@@ -1,4 +1,4 @@
-import { PanelScrollArea } from "@/components/panels/framework";
+import { ScrollArea as PanelScrollArea } from "@/plugins/sdk";
 import { SettingsPanel } from "@/components/settings-panel";
 
 type SettingsShortcutPanelProps = {

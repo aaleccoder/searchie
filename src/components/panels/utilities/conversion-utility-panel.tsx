@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PanelBadge, PanelInput } from "@/components/panels/framework";
+import { Badge as PanelBadge, Input as PanelInput } from "@/plugins/sdk";
 import { convertValue, parseConversionQuery } from "@/lib/utilities/conversion-engine";
 
 type ConversionUtilityPanelProps = {

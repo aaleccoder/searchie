@@ -91,6 +91,7 @@ export type PanelShortcutHint = {
 };
 
 export type ShortcutPanelDescriptor = {
+  pluginId?: string;
   id: string;
   name: string;
   aliases: string[];

@@ -12,20 +12,21 @@ import {
   TextIcon,
 } from "@hugeicons/core-free-icons";
 import {
-  PanelBadge,
-  PanelScrollArea,
-  PanelSelect,
-  PanelSelectContent,
-  PanelSelectItem,
-  PanelSelectTrigger,
-  PanelSelectValue,
+  Badge as PanelBadge,
+  ScrollArea as PanelScrollArea,
+  Select as PanelSelect,
+  SelectContent as PanelSelectContent,
+  SelectItem as PanelSelectItem,
+  SelectTrigger as PanelSelectTrigger,
+  SelectValue as PanelSelectValue,
+  createPluginBackendSdk,
   usePanelArrowDownBridge,
   usePanelFooter,
   usePanelFooterControlsRef,
-} from "@/components/panels/framework";
+} from "@/plugins/sdk";
 import type { PanelFooterConfig } from "@/lib/panel-contract";
 import { extractFirstColorToken } from "@/lib/utilities/color-preview";
-import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
+import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
 
 type ClipboardKind = "text" | "image" | "files" | "other";
@@ -59,6 +60,7 @@ const FILTERS: Array<{ label: string; value: ClipboardKind | "all" }> = [
 ];
 
 const clipboardCommandScope: PanelCommandScope = {
+  pluginId: "core.clipboard",
   id: "clipboard",
   capabilities: ["clipboard.search", "clipboard.clear", "clipboard.pin", "clipboard.delete"],
 };
@@ -101,6 +103,7 @@ export function ClipboardPanel({
   focusLauncherInput,
   clearLauncherInput,
 }: ClipboardPanelProps) {
+  const backend = React.useMemo(() => createPluginBackendSdk(clipboardCommandScope), []);
   const [filter, setFilter] = React.useState<ClipboardKind | "all">("all");
   const [items, setItems] = React.useState<ClipboardEntry[]>([]);
   const [busy, setBusy] = React.useState(false);
@@ -123,15 +126,7 @@ export function ClipboardPanel({
   const loadItems = React.useCallback(async () => {
     try {
       setBusy(true);
-      const rows = await invokePanelCommand<ClipboardEntry[]>(
-        clipboardCommandScope,
-        "search_clipboard_history",
-        {
-          query: commandQuery,
-          kind: filter,
-          limit: 120,
-        },
-      );
+      const rows = await backend.clipboard.searchHistory<ClipboardEntry[]>(commandQuery, filter, 120);
       setItems(rows);
     } catch (error) {
       console.error("[clipboard] failed to load history", error);
@@ -139,7 +134,7 @@ export function ClipboardPanel({
     } finally {
       setBusy(false);
     }
-  }, [commandQuery, filter]);
+  }, [backend.clipboard, commandQuery, filter]);
 
   React.useEffect(() => {
     void loadItems();
@@ -285,9 +280,7 @@ export function ClipboardPanel({
     }
 
     try {
-      await invokePanelCommand<void>(clipboardCommandScope, "toggle_clipboard_pin", {
-        id: selectedItem.id,
-      });
+      await backend.clipboard.togglePin(selectedItem.id);
       toast.success(selectedItem.pinned ? "Entry unpinned" : "Entry pinned");
       await loadItems();
     } catch (error) {
@@ -296,7 +289,7 @@ export function ClipboardPanel({
         description: "Please try again.",
       });
     }
-  }, [loadItems, selectedItem]);
+  }, [backend.clipboard, loadItems, selectedItem]);
 
   const deleteSelected = React.useCallback(async () => {
     if (!selectedItem) {
@@ -304,9 +297,7 @@ export function ClipboardPanel({
     }
 
     try {
-      await invokePanelCommand<void>(clipboardCommandScope, "delete_clipboard_entry", {
-        id: selectedItem.id,
-      });
+      await backend.clipboard.deleteEntry(selectedItem.id);
       toast.success("Entry removed", {
         description: selectedItem.preview.slice(0, 80),
       });
@@ -317,11 +308,11 @@ export function ClipboardPanel({
         description: "Please try again.",
       });
     }
-  }, [loadItems, selectedItem]);
+  }, [backend.clipboard, loadItems, selectedItem]);
 
   const clearAll = React.useCallback(async () => {
     try {
-      await invokePanelCommand<void>(clipboardCommandScope, "clear_clipboard_history", {});
+      await backend.clipboard.clearHistory();
       toast.success("Clipboard history cleared");
       await loadItems();
     } catch (error) {
@@ -330,7 +321,7 @@ export function ClipboardPanel({
         description: "Please try again.",
       });
     }
-  }, [loadItems]);
+  }, [backend.clipboard, loadItems]);
 
   const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
     if (!selectedItem) {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PanelKbd, PanelKbdGroup, PanelScrollArea } from "@/components/panels/framework";
+import { Kbd as PanelKbd, KbdGroup as PanelKbdGroup, ScrollArea as PanelScrollArea } from "@/plugins/sdk";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import { usePanelRegistry } from "@/lib/panel-registry";

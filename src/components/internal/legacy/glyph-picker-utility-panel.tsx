@@ -3,19 +3,19 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { Copy, Shapes } from "lucide-react";
 import { toast } from "sonner";
 import {
-  PanelBadge,
-  PanelButton,
-  PanelEmpty,
-  PanelEmptyDescription,
-  PanelEmptyHeader,
-  PanelEmptyMedia,
-  PanelEmptyTitle,
-  PanelScrollArea,
+  Badge as PanelBadge,
+  Button as PanelButton,
+  Empty as PanelEmpty,
+  EmptyDescription as PanelEmptyDescription,
+  EmptyHeader as PanelEmptyHeader,
+  EmptyMedia as PanelEmptyMedia,
+  EmptyTitle as PanelEmptyTitle,
+  ScrollArea as PanelScrollArea,
   usePanelArrowDownBridge,
   usePanelEnterBridge,
   usePanelFooter,
   usePanelFooterControlsRef,
-} from "@/components/panels/framework";
+} from "@/plugins/sdk";
 import { registerGlyphPickerInputController } from "@/components/panels/utilities/glyph-picker-keybindings";
 import type { PanelFooterConfig } from "@/lib/panel-contract";
 import {

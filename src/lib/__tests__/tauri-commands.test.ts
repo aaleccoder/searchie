@@ -12,6 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 const launcherPanel: ShortcutPanelDescriptor = definePanel({
+  pluginId: "core.apps",
   id: "launcher",
   name: "Launcher",
   aliases: [],
@@ -74,6 +75,7 @@ describe("invokePanelCommand", () => {
       name: "PanelCommandError",
       code: "COMMAND_FAILED",
       panelId: "launcher",
+      pluginId: "core.apps",
       command: "search_installed_apps",
     });
   });
