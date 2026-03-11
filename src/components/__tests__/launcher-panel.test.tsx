@@ -1,23 +1,11 @@
 import * as React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LauncherPanel } from "@/components/launcher-panel";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
-
-const { invokeMock } = vi.hoisted(() => ({
-  invokeMock: vi.fn(),
-}));
-
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: invokeMock,
-}));
-
-vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn(async () => () => {}),
-}));
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -42,21 +30,6 @@ function renderLauncherWithRegistry(registry = createTestRegistry()) {
 }
 
 describe("LauncherPanel with panel registry", () => {
-  beforeEach(() => {
-    invokeMock.mockReset();
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "list_installed_apps") return [];
-      if (command === "search_installed_apps") return [];
-      if (command === "launch_installed_app") return null;
-      if (command === "launch_installed_app_as_admin") return null;
-      if (command === "uninstall_installed_app") return null;
-      if (command === "open_installed_app_properties") return null;
-      if (command === "open_installed_app_install_location") return null;
-      if (command === "get_app_icon") return null;
-      return null;
-    });
-  });
-
   it("activates immediate panel mode while typing and uses launcher input as panel query", async () => {
     const customPanel: ShortcutPanelDescriptor = {
       id: "test-panel",
@@ -77,30 +50,74 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp hello");
-    await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
-    });
 
     expect(await screen.findByText("Panel query: hello")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search test panel...")).toBeInTheDocument();
   });
 
-  it("falls back to default launcher when no panel matches", async () => {
-    renderLauncherWithRegistry();
-    await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
-    });
-
-    expect(screen.getByText("No apps found.")).toBeInTheDocument();
-  });
-
-  it("does not launch selected app while a panel is active", async () => {
+  it("shows command suggestions in default launcher mode", async () => {
     const customPanel: ShortcutPanelDescriptor = {
       id: "test-panel",
       name: "Test Panel",
       aliases: ["tp"],
       capabilities: [],
       matcher: createPrefixAliasMatcher(["tp"]),
+      component: () => <div>Test Panel</div>,
+      searchIntegration: {
+        activationMode: "result-item",
+      },
+      priority: 5,
+    };
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(createTestRegistry(customPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "test");
+
+    expect(screen.getByText("Open Test Panel")).toBeInTheDocument();
+  });
+
+  it("routes plain text query into default panel without needing alias", async () => {
+    const defaultPanel: ShortcutPanelDescriptor = {
+      id: "apps-launcher",
+      name: "Apps",
+      aliases: ["apps"],
+      isDefault: true,
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["apps"]),
+      component: ({ commandQuery }) => <div>Apps query: {commandQuery}</div>,
+      priority: 20,
+    };
+
+    const user = userEvent.setup();
+    renderLauncherWithRegistry(createTestRegistry(defaultPanel));
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "notepad");
+
+    expect(screen.getByText("Apps query: notepad")).toBeInTheDocument();
+  });
+
+  it("shows an empty message when no panel command matches", async () => {
+    renderLauncherWithRegistry();
+    const user = userEvent.setup();
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "unknown panel command");
+
+    expect(screen.getByText("No matching panel command.")).toBeInTheDocument();
+  });
+
+  it("selects and activates a result-item panel with Enter", async () => {
+    const customPanel: ShortcutPanelDescriptor = {
+      id: "test-panel",
+      name: "Test Panel",
+      aliases: ["tp"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["tp"]),
+      searchIntegration: {
+        activationMode: "result-item",
+      },
       component: () => <div>Test Panel</div>,
       priority: 5,
     };
@@ -110,12 +127,9 @@ describe("LauncherPanel with panel registry", () => {
 
     const input = screen.getByPlaceholderText("Search apps...");
     await user.type(input, "tp");
-    await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("list_installed_apps", {});
-    });
+    await user.keyboard("{Enter}");
 
-    const launched = invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app");
-    expect(launched).toBe(false);
+    expect(screen.getByText("Test Panel")).toBeInTheDocument();
   });
 
   it("lets the active panel consume keyboard events", async () => {
@@ -257,112 +271,8 @@ describe("LauncherPanel with panel registry", () => {
 
     await user.keyboard("{Escape}");
     expect(screen.queryByText("Test Panel Content")).not.toBeInTheDocument();
-    expect(screen.getByText("No apps found.")).toBeInTheDocument();
+    expect(screen.getByText("Command Panels")).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe("");
     expect(input).toHaveFocus();
-  });
-
-  it("uses right/left arrows to move between app list and action buttons", async () => {
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "list_installed_apps") {
-        return [
-          {
-            id: "app-1",
-            name: "Notepad",
-            launchPath: "C:/Windows/notepad.exe",
-            launchArgs: [],
-            source: "test",
-            installLocation: "C:/Windows",
-            uninstallCommand: "C:/Windows/system32/msiexec.exe /x {ABC}",
-          },
-        ];
-      }
-      if (command === "search_installed_apps") return [];
-      if (command === "launch_installed_app") return null;
-      if (command === "launch_installed_app_as_admin") return null;
-      if (command === "uninstall_installed_app") return null;
-      if (command === "open_installed_app_properties") return null;
-      if (command === "open_installed_app_install_location") return null;
-      if (command === "get_app_icon") return null;
-      return null;
-    });
-
-    const user = userEvent.setup();
-    renderLauncherWithRegistry();
-
-    const input = screen.getByPlaceholderText("Search apps...");
-    await user.click(input);
-    await waitFor(() => {
-      expect(screen.getAllByText("Notepad").length).toBeGreaterThan(0);
-    });
-
-    await user.keyboard("{ArrowRight}");
-    await user.keyboard("{ArrowDown}");
-    await user.keyboard("{Enter}");
-
-    expect(
-      invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app_as_admin"),
-    ).toBe(true);
-
-    await user.keyboard("{ArrowLeft}");
-    await user.keyboard("{Enter}");
-
-    expect(
-      invokeMock.mock.calls.some((call) => call[0] === "launch_installed_app"),
-    ).toBe(true);
-  });
-
-  it("shows result-item panel command and Enter on selected app still launches app", async () => {
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "list_installed_apps") return [];
-      if (command === "search_installed_apps") {
-        return [
-          {
-            id: "app-1",
-            name: "Clip Studio",
-            launchPath: "C:/ClipStudio.exe",
-            launchArgs: [],
-            source: "test",
-          },
-        ];
-      }
-      if (command === "launch_installed_app") return null;
-      if (command === "get_app_icon") return null;
-      return null;
-    });
-
-    const customPanel: ShortcutPanelDescriptor = {
-      id: "clipboard",
-      name: "Clipboard",
-      aliases: ["cl", "clip", "clipboard"],
-      commandIcon: ({ className }) => <svg data-testid="clipboard-command-icon" className={className} />,
-      capabilities: [],
-      matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
-      searchIntegration: {
-        activationMode: "result-item",
-        placeholder: "Search clipboard...",
-      },
-      component: () => <div>Clipboard Panel</div>,
-      priority: 5,
-    };
-
-    const user = userEvent.setup();
-    renderLauncherWithRegistry(createTestRegistry(customPanel));
-
-    const input = screen.getByPlaceholderText("Search apps...");
-    await user.type(input, "clip");
-
-    const clipStudioNodes = await screen.findAllByText("Clip Studio");
-    expect(clipStudioNodes.length).toBeGreaterThan(0);
-    expect(screen.getByText("Open Clipboard")).toBeInTheDocument();
-    expect(screen.getByTestId("clipboard-command-icon")).toBeInTheDocument();
-
-    await user.keyboard("{Enter}");
-
-    const launched = invokeMock.mock.calls.some(
-      (call) => call[0] === "launch_installed_app" && call[1]?.appId === "app-1",
-    );
-    expect(launched).toBe(true);
-    expect(screen.queryByText("Clipboard Panel")).not.toBeInTheDocument();
   });
 });

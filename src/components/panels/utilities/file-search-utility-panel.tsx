@@ -343,14 +343,7 @@ export function FileSearchUtilityPanel({
 
   return (
     <div className="grid h-full grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2.5 items-stretch">
-      <section className="min-w-0 overflow-hidden h-full rounded-xl border border-border/70 bg-card/82">
-        <div className="p-3 border-b border-border/60 flex items-center gap-2">
-          <FolderSearch className="size-4 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground line-clamp-1 flex-1">
-            {commandQuery.trim() ? commandQuery : "Type in the launcher input to search files"}
-          </p>
-          <Badge variant="secondary">Indexed</Badge>
-        </div>
+      <section className="min-w-0 overflow-hidden h-full">
 
         <ScrollArea className="h-[calc(100%-3.25rem)]">
           <div

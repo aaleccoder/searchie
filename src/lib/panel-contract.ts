@@ -50,6 +50,7 @@ export type ShortcutPanelDescriptor = {
   id: string;
   name: string;
   aliases: string[];
+  isDefault?: boolean;
   capabilities: PanelCapability[];
   matcher: PanelMatcher;
   component: React.ComponentType<PanelRenderProps>;

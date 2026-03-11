@@ -1,0 +1,623 @@
+import * as React from "react";
+import { Rocket } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { invokePanelCommand, type PanelCommandScope } from "@/lib/tauri-commands";
+import { cn } from "@/lib/utils";
+
+type InstalledApp = {
+  id: string;
+  name: string;
+  launchPath: string;
+  launchArgs: string[];
+  iconPath?: string | null;
+  version?: string | null;
+  publisher?: string | null;
+  installLocation?: string | null;
+  uninstallCommand?: string | null;
+  source: string;
+};
+
+type AppActionItem = {
+  id: "open" | "run-as-admin" | "uninstall" | "properties" | "open-location";
+  label: string;
+  hint: string;
+  disabled?: boolean;
+};
+
+type AppsLauncherPanelProps = {
+  commandQuery: string;
+  registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  focusLauncherInput?: (() => void) | undefined;
+};
+
+const iconCache = new Map<string, string | null>();
+
+const launcherCommandScope: PanelCommandScope = {
+  id: "launcher",
+  capabilities: [
+    "apps.list",
+    "apps.search",
+    "apps.launch",
+    "apps.launchAdmin",
+    "apps.uninstall",
+    "apps.properties",
+    "apps.location",
+    "apps.icon",
+  ],
+};
+
+function supportsRunAsAdmin(app: InstalledApp): boolean {
+  const source = app.source.toLowerCase();
+  if (source === "uwp" || source === "startapps") {
+    return false;
+  }
+
+  const launchPath = app.launchPath.toLowerCase();
+  if (launchPath !== "explorer.exe") {
+    return true;
+  }
+
+  return !app.launchArgs.some((arg) => arg.toLowerCase().includes("shell:appsfolder\\"));
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = React.useState(value);
+
+  React.useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
+function AppIcon({ appId, className }: { appId: string; className?: string }) {
+  const [src, setSrc] = React.useState<string | null>(iconCache.get(appId) ?? null);
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setFailed(false);
+
+    const cached = iconCache.get(appId);
+    if (cached !== undefined) {
+      setSrc(cached);
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const base64 = await invokePanelCommand<string | null>(
+          launcherCommandScope,
+          "get_app_icon",
+          { appId },
+        );
+        if (cancelled) return;
+        const next = base64 ? `data:image/png;base64,${base64}` : null;
+        iconCache.set(appId, next);
+        setSrc(next);
+      } catch {
+        if (cancelled) return;
+        iconCache.set(appId, null);
+        setSrc(null);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [appId]);
+
+  if (!src || failed) {
+    return (
+      <div className={cn("rounded-sm bg-muted grid place-items-center", className)}>
+        <Rocket className="size-3.5 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className={cn("rounded-sm object-contain", className)}
+      onError={() => setFailed(true)}
+      loading="lazy"
+    />
+  );
+}
+
+type SingleLineTooltipTextProps = {
+  text: string;
+  className?: string;
+  tooltipClassName?: string;
+};
+
+function SingleLineTooltipText({
+  text,
+  className,
+  tooltipClassName,
+}: SingleLineTooltipTextProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span className={cn("block min-w-0 truncate whitespace-nowrap", className)}>
+            {text}
+          </span>
+        }
+      />
+      <TooltipContent className={cn("max-w-md break-all", tooltipClassName)}>{text}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+type DetailRowProps = {
+  label: string;
+  value: string;
+};
+
+function DetailRow({ label, value }: DetailRowProps) {
+  return (
+    <div className="grid grid-cols-[auto_1fr] items-center gap-4">
+      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
+      <SingleLineTooltipText text={value} className="text-right" />
+    </div>
+  );
+}
+
+export function AppsLauncherPanel({
+  commandQuery,
+  registerInputArrowDownHandler,
+  focusLauncherInput,
+}: AppsLauncherPanelProps) {
+  const debouncedQuery = useDebouncedValue(commandQuery, 120);
+  const [allApps, setAllApps] = React.useState<InstalledApp[]>([]);
+  const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [busyActionId, setBusyActionId] = React.useState<AppActionItem["id"] | null>(null);
+  const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
+
+  const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
+  const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+
+  const refreshAllApps = React.useCallback(async () => {
+    try {
+      const apps = await invokePanelCommand<InstalledApp[]>(
+        launcherCommandScope,
+        "list_installed_apps",
+        {},
+      );
+      setAllApps(apps);
+      if (!commandQuery.trim()) {
+        setSearchResults(apps.slice(0, 120));
+      }
+      setSelectedId((prev) => prev ?? apps[0]?.id ?? null);
+    } catch (error) {
+      console.error("[apps-panel] failed to refresh apps", error);
+      setAllApps([]);
+      setSearchResults([]);
+      setSelectedId(null);
+    }
+  }, [commandQuery]);
+
+  React.useEffect(() => {
+    void refreshAllApps();
+  }, [refreshAllApps]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const q = debouncedQuery.trim();
+
+      if (!q) {
+        setSearchResults(allApps.slice(0, 120));
+        setSelectedId((prev) => prev ?? allApps[0]?.id ?? null);
+        return;
+      }
+
+      let results: InstalledApp[] = [];
+      try {
+        results = await invokePanelCommand<InstalledApp[]>(
+          launcherCommandScope,
+          "search_installed_apps",
+          {
+            query: q,
+            limit: 160,
+          },
+        );
+      } catch (error) {
+        console.error("[apps-panel] search failed", error);
+      }
+
+      if (cancelled) return;
+      setSearchResults(results);
+      setSelectedId((prev) => {
+        if (prev && results.some((app) => app.id === prev)) return prev;
+        return results[0]?.id ?? null;
+      });
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [allApps, debouncedQuery]);
+
+  const navigationList = React.useMemo(() => {
+    const source = (debouncedQuery.trim() ? searchResults : allApps).slice(0, 72);
+    return source;
+  }, [allApps, debouncedQuery, searchResults]);
+
+  const selectedApp = React.useMemo(() => {
+    if (!selectedId) {
+      return navigationList[0] ?? null;
+    }
+    return navigationList.find((app) => app.id === selectedId) ?? navigationList[0] ?? null;
+  }, [navigationList, selectedId]);
+
+  const appActions = React.useMemo<AppActionItem[]>(() => {
+    if (!selectedApp) {
+      return [];
+    }
+
+    const canRunAsAdmin = supportsRunAsAdmin(selectedApp);
+
+    return [
+      {
+        id: "open",
+        label: "Open App",
+        hint: "Launch normally",
+      },
+      {
+        id: "run-as-admin",
+        label: "Run As Administrator",
+        hint: canRunAsAdmin ? "Elevated launch" : "Not supported for this app type",
+        disabled: !canRunAsAdmin,
+      },
+      {
+        id: "uninstall",
+        label: "Uninstall App",
+        hint: selectedApp.uninstallCommand ? "Run uninstaller" : "Not available",
+        disabled: !selectedApp.uninstallCommand,
+      },
+      {
+        id: "properties",
+        label: "Open Properties",
+        hint: "Windows file properties",
+      },
+      {
+        id: "open-location",
+        label: "Open Install Location",
+        hint: selectedApp.installLocation ? "Open install folder" : "Try app folder",
+      },
+    ];
+  }, [selectedApp]);
+
+  React.useEffect(() => {
+    if (!selectedId) return;
+    const target = itemRefs.current.get(selectedId);
+    if (target && typeof target.scrollIntoView === "function") {
+      target.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedId]);
+
+  React.useEffect(() => {
+    if (!appActions.length) {
+      setSelectedActionIndex(0);
+      return;
+    }
+
+    setSelectedActionIndex((current) => Math.min(current, appActions.length - 1));
+  }, [appActions]);
+
+  const executeAppAction = React.useCallback(
+    async (actionId: AppActionItem["id"], app: InstalledApp) => {
+      setBusy(true);
+      setBusyActionId(actionId);
+
+      try {
+        if (actionId === "open") {
+          await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "run-as-admin") {
+          await invokePanelCommand<void>(launcherCommandScope, "launch_installed_app_as_admin", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "uninstall") {
+          await invokePanelCommand<void>(launcherCommandScope, "uninstall_installed_app", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        if (actionId === "properties") {
+          await invokePanelCommand<void>(launcherCommandScope, "open_installed_app_properties", {
+            appId: app.id,
+          });
+          return;
+        }
+
+        await invokePanelCommand<void>(launcherCommandScope, "open_installed_app_install_location", {
+          appId: app.id,
+        });
+      } catch (error) {
+        console.error("[apps-panel] app action failed", {
+          actionId,
+          appId: app.id,
+          message: getErrorMessage(error),
+          error,
+        });
+      } finally {
+        setBusy(false);
+        setBusyActionId(null);
+      }
+    },
+    [],
+  );
+
+  const onInputArrowDown = React.useCallback(() => {
+    if (!navigationList.length) {
+      return false;
+    }
+
+    const first = navigationList[0];
+    if (!first) {
+      return false;
+    }
+
+    setSelectedId(first.id);
+    const target = itemRefs.current.get(first.id);
+    if (target) {
+      target.focus();
+      return true;
+    }
+
+    return false;
+  }, [navigationList]);
+
+  React.useEffect(() => {
+    registerInputArrowDownHandler?.(onInputArrowDown);
+    return () => {
+      registerInputArrowDownHandler?.(null);
+    };
+  }, [onInputArrowDown, registerInputArrowDownHandler]);
+
+  const handleListItemKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, app: InstalledApp, index: number) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const next = Math.min(navigationList.length - 1, index + 1);
+        const nextApp = navigationList[next];
+        if (!nextApp) {
+          return;
+        }
+        setSelectedId(nextApp.id);
+        itemRefs.current.get(nextApp.id)?.focus();
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const prev = index - 1;
+        if (prev < 0) {
+          focusLauncherInput?.();
+          return;
+        }
+        const prevApp = navigationList[prev];
+        if (!prevApp) {
+          return;
+        }
+        setSelectedId(prevApp.id);
+        itemRefs.current.get(prevApp.id)?.focus();
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        if (!appActions.length) {
+          return;
+        }
+        setSelectedActionIndex(0);
+        actionRefs.current[0]?.focus();
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void executeAppAction("open", app);
+      }
+    },
+    [appActions.length, executeAppAction, focusLauncherInput, navigationList],
+  );
+
+  const handleActionKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, index: number, action: AppActionItem) => {
+      if (!selectedApp) {
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const next = Math.min(appActions.length - 1, index + 1);
+        setSelectedActionIndex(next);
+        actionRefs.current[next]?.focus();
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const prev = index - 1;
+        if (prev < 0) {
+          const app = selectedApp;
+          setSelectedId(app.id);
+          itemRefs.current.get(app.id)?.focus();
+          return;
+        }
+        setSelectedActionIndex(prev);
+        actionRefs.current[prev]?.focus();
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        const app = selectedApp;
+        setSelectedId(app.id);
+        itemRefs.current.get(app.id)?.focus();
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (!action.disabled) {
+          void executeAppAction(action.id, selectedApp);
+        }
+      }
+    },
+    [appActions.length, executeAppAction, selectedApp],
+  );
+
+  return (
+    <TooltipProvider>
+      <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
+        <div className="overflow-hidden h-full">
+          <ScrollArea className="h-full">
+            <div className="p-3.5">
+              <div className="flex flex-col gap-1">
+                {navigationList.map((app, index) => {
+                  const active = selectedApp?.id === app.id;
+                  return (
+                    <button
+                      key={app.id}
+                      type="button"
+                      ref={(el) => {
+                        if (el) itemRefs.current.set(app.id, el);
+                        else itemRefs.current.delete(app.id);
+                      }}
+                      onMouseEnter={() => {
+                        setSelectedId(app.id);
+                      }}
+                      onClick={() => {
+                        setSelectedId(app.id);
+                        void executeAppAction("open", app);
+                      }}
+                      onKeyDown={(event) => handleListItemKeyDown(event, app, index)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full",
+                        active
+                          ? "border-primary/70 bg-primary/10"
+                          : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+                      )}
+                    >
+                      <AppIcon appId={app.id} className="size-6 shrink-0" />
+                      <SingleLineTooltipText text={app.name} className="text-sm" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
+
+        <aside className="rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5 overflow-hidden">
+          {selectedApp ? (
+            <>
+              <div className="space-y-2 min-w-0">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected App</p>
+                <SingleLineTooltipText
+                  text={selectedApp.name}
+                  className="text-xl font-semibold leading-tight"
+                />
+                <SingleLineTooltipText
+                  text={selectedApp.launchPath}
+                  className="text-xs text-muted-foreground"
+                />
+              </div>
+
+              <div className="space-y-2 text-sm min-w-0">
+                <DetailRow label="Publisher" value={selectedApp.publisher ?? "Unknown"} />
+                <DetailRow label="Version" value={selectedApp.version ?? "-"} />
+                <DetailRow label="Source" value={selectedApp.source} />
+                <DetailRow label="Install Path" value={selectedApp.installLocation ?? "-"} />
+              </div>
+
+              <div className="mt-auto space-y-2 min-w-0">
+                {appActions.map((action, index) => {
+                  const active = selectedActionIndex === index;
+                  const pending = busy && busyActionId === action.id;
+                  return (
+                    <Button
+                      key={action.id}
+                      ref={(el) => {
+                        actionRefs.current[index] = el;
+                      }}
+                      variant={active ? "default" : "outline"}
+                      className="w-full justify-between gap-3 min-w-0"
+                      onMouseEnter={() => {
+                        setSelectedActionIndex(index);
+                      }}
+                      onClick={() => {
+                        setSelectedActionIndex(index);
+                        if (!action.disabled) {
+                          void executeAppAction(action.id, selectedApp);
+                        }
+                      }}
+                      onKeyDown={(event) => handleActionKeyDown(event, index, action)}
+                      disabled={busy || action.disabled}
+                    >
+                      <SingleLineTooltipText text={pending ? "Running..." : action.label} className="min-w-0" />
+                      <SingleLineTooltipText
+                        text={action.hint}
+                        className="min-w-0 text-[11px] text-muted-foreground text-right"
+                      />
+                    </Button>
+                  );
+                })}
+                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                  <span>List to Actions</span>
+                  <span className="font-mono">Right Arrow</span>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Actions to List</span>
+                  <span className="font-mono">Left Arrow</span>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Navigate / Run</span>
+                  <span className="font-mono">Up Down + Enter</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="h-full grid place-items-center text-muted-foreground text-sm">
+              No apps found.
+            </div>
+          )}
+        </aside>
+      </div>
+    </TooltipProvider>
+  );
+}
