@@ -25,6 +25,7 @@ const launcherPanel: ShortcutPanelDescriptor = definePanel({
     "apps.properties",
     "apps.location",
     "apps.icon",
+    "settings.read",
   ],
   matcher: () => ({ matches: false, commandQuery: "" }),
   component: () => null,
@@ -56,6 +57,18 @@ describe("invokePanelCommand", () => {
     });
 
     expect(invokeMock).toHaveBeenCalledWith("open_installed_app_properties", { appId: "a" });
+  });
+
+  it("invokes shell_execute_w when settings.read capability allows", async () => {
+    invokeMock.mockResolvedValueOnce(null);
+
+    await invokePanelCommand<void>(launcherPanel, "shell_execute_w", {
+      target: "ms-settings:privacy-webcam",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("shell_execute_w", {
+      target: "ms-settings:privacy-webcam",
+    });
   });
 
   it("allows batched icon command under apps.icon capability", async () => {

@@ -24,6 +24,7 @@ export type BackendCommand =
   | "open_file_path"
   | "set_main_window_mode"
   | "show_settings"
+  | "shell_execute_w"
   | "update_shortcut";
 
 const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
@@ -45,6 +46,7 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   open_file_path: "files.open",
   set_main_window_mode: "window.mode",
   show_settings: "settings.read",
+  shell_execute_w: "settings.read",
   update_shortcut: "settings.write",
 };
 

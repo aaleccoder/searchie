@@ -73,6 +73,16 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
   beforeEach(() => {
     invokePanelCommandMock.mockReset();
     listenMock.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          { settingsPage: "Camera", uri: "ms-settings:privacy-webcam" },
+          { settingsPage: "Microphone", uri: "ms-settings:privacy-microphone" },
+        ],
+      })) as unknown as typeof fetch,
+    );
     listenMock.mockResolvedValue(() => undefined);
     invokePanelCommandMock.mockImplementation(async (_scope: unknown, command: string, params: unknown) => {
       if (command === "list_installed_apps") {
@@ -344,6 +354,33 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     expect(
       invokePanelCommandMock.mock.calls.some(([, command]) => command === "get_app_icon"),
     ).toBe(false);
+  });
+
+  it("injects matching Windows settings entries into default app results", async () => {
+    renderPanel({ commandQuery: "camera" });
+
+    expect(await screen.findByRole("button", { name: /Open Setting Camera/i })).toBeInTheDocument();
+  });
+
+  it("supports msettings-prefixed query in the default apps panel", async () => {
+    renderPanel({ commandQuery: "msettings microphone" });
+
+    expect(await screen.findByRole("button", { name: /Open Setting Microphone/i })).toBeInTheDocument();
+  });
+
+  it("opens Windows settings URI when selecting a settings entry", async () => {
+    const user = userEvent.setup();
+
+    renderPanel({ commandQuery: "camera" });
+
+    const settingsButton = await screen.findByRole("button", { name: /Open Setting Camera/i });
+    await user.click(settingsButton);
+
+    expect(invokePanelCommandMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "shell_execute_w",
+      { target: "ms-settings:privacy-webcam" },
+    );
   });
 
   it("loads installed apps once while typing and searches on query updates", async () => {

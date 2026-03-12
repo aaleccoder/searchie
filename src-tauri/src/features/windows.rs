@@ -15,6 +15,7 @@ impl FeatureProvider for WindowsFeatureProvider {
         vec![
             CommandMeta::new("set_main_window_mode"),
             CommandMeta::new("show_settings"),
+            CommandMeta::new("shell_execute_w"),
             CommandMeta::new("update_shortcut"),
         ]
     }

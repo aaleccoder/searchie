@@ -25,10 +25,12 @@ describe("PanelRegistryProvider", () => {
       const registry = usePanelRegistry();
       const apps = registry.find("apps notepad")?.panel.id ?? "none";
       const files = registry.find("files report")?.panel.id ?? "none";
+      const settingsSearch = registry.find("msettings privacy")?.panel.id ?? "none";
       return (
         <>
           <div>{apps}</div>
           <div>{files}</div>
+          <div>{settingsSearch}</div>
         </>
       );
     }
@@ -41,5 +43,6 @@ describe("PanelRegistryProvider", () => {
 
     expect(screen.getByText("apps-launcher")).toBeInTheDocument();
     expect(screen.getByText("utilities-file-search")).toBeInTheDocument();
+    expect(screen.getByText("settings-search")).toBeInTheDocument();
   });
 });

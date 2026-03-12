@@ -22,6 +22,7 @@ function createAppsPanel(): ShortcutPanelDescriptor {
       "apps.properties",
       "apps.location",
       "apps.icon",
+      "settings.read",
     ],
     priority: 20,
     searchIntegration: {

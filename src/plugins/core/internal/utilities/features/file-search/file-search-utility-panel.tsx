@@ -7,7 +7,23 @@ import {
   EmptyHeader as PanelEmptyHeader,
   EmptyMedia as PanelEmptyMedia,
   EmptyTitle as PanelEmptyTitle,
+  Grid as PanelGrid,
+  MetaGrid as PanelMetaGrid,
+  ListItem as PanelListItem,
   ScrollArea as PanelScrollArea,
+  PanelAside,
+  PanelCode,
+  PanelContainer,
+  PanelFigureImage,
+  PanelFlex,
+  PanelHeading,
+  PanelParagraph,
+  PanelSection,
+  PanelText,
+  Tooltip as PanelTooltip,
+  TooltipContent as PanelTooltipContent,
+  TooltipProvider as PanelTooltipProvider,
+  TooltipTrigger as PanelTooltipTrigger,
   createPluginBackendSdk,
   usePanelArrowDownBridge,
 } from "@/plugins/sdk";
@@ -45,6 +61,8 @@ const IMAGE_EXTENSIONS = new Set([
   "svg",
   "ico",
 ]);
+
+const SEARCH_DEBOUNCE_MS = 500;
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = React.useState(value);
@@ -89,7 +107,7 @@ export function FileSearchUtilityPanel({
   const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
 
-  const debouncedQuery = useDebouncedValue(commandQuery, 110);
+  const debouncedQuery = useDebouncedValue(commandQuery, SEARCH_DEBOUNCE_MS);
 
   const onArrowDownFromLauncher = React.useCallback(() => {
     if (!listContainerRef.current || results.length === 0) {
@@ -335,11 +353,11 @@ export function FileSearchUtilityPanel({
   );
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2.5 items-stretch">
-      <section className="min-w-0 overflow-hidden h-full">
-
+    <PanelTooltipProvider>
+      <PanelGrid columns="single" className="h-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5">
+      <PanelSection className="min-w-0 h-full overflow-hidden">
         <PanelScrollArea className="h-[calc(100%-3.25rem)]">
-          <div
+          <PanelContainer
             ref={listContainerRef}
             tabIndex={0}
             onKeyDown={onListKeyDown}
@@ -350,9 +368,8 @@ export function FileSearchUtilityPanel({
               const pathInfo = splitPath(entry.path);
 
               return (
-                <button
+                <PanelListItem
                   key={entry.path}
-                  type="button"
                   ref={(el) => {
                     itemRefs.current[index] = el;
                   }}
@@ -362,19 +379,17 @@ export function FileSearchUtilityPanel({
                     setSelectedIndex(index);
                     void openResult(entry, false);
                   }}
+                  title={entry.path}
                   className={cn(
-                    "w-full min-w-0 rounded-lg border px-3 py-2 text-left transition",
                     active
                       ? "border-primary/70 bg-primary/10"
                       : "border-border/55 hover:border-primary/45 hover:bg-accent/40",
                   )}
                 >
-                  <div className="flex min-w-0 items-center justify-between gap-2">
-                    <p className="min-w-0 flex-1 truncate text-sm font-medium">{pathInfo.fileName}</p>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">{entry.extension ?? "file"}</span>
-                  </div>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{pathInfo.parent}</p>
-                </button>
+                  <PanelText className="block min-w-0" size="sm" weight="medium" truncate>
+                    {pathInfo.fileName}
+                  </PanelText>
+                </PanelListItem>
               );
             })}
 
@@ -386,7 +401,7 @@ export function FileSearchUtilityPanel({
                   </PanelEmptyMedia>
                   <PanelEmptyTitle>No matching files</PanelEmptyTitle>
                   <PanelEmptyDescription>
-                    Try fewer words or include a root path using <code>in C:\\path</code>.
+                    Try fewer words or include a root path using <PanelCode>in C:\\path</PanelCode>.
                   </PanelEmptyDescription>
                 </PanelEmptyHeader>
               </PanelEmpty>
@@ -400,116 +415,175 @@ export function FileSearchUtilityPanel({
                   </PanelEmptyMedia>
                   <PanelEmptyTitle>Start typing a file query</PanelEmptyTitle>
                   <PanelEmptyDescription>
-                    Example: <code>files invoice in C:\\Users\\ardev\\Documents</code>
+                    Example: <PanelCode>files invoice in C:\\Users\\ardev\\Documents</PanelCode>
                   </PanelEmptyDescription>
                 </PanelEmptyHeader>
               </PanelEmpty>
             )}
 
             {busy && (
-              <div className="h-24 grid place-items-center text-muted-foreground text-sm">
+              <PanelContainer className="grid h-24 place-items-center text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-              </div>
+              </PanelContainer>
             )}
-          </div>
+          </PanelContainer>
         </PanelScrollArea>
-      </section>
+      </PanelSection>
 
-      <aside className="min-w-0 rounded-xl border border-border/70 bg-card/92 shadow-lg p-3.5 flex flex-col gap-3.5">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">File Search</p>
-          <h3 className="text-xl font-semibold leading-tight">Local Index</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Fast fuzzy lookup over a cached file index. Scope search with <code>in C:\\dir</code>.
-          </p>
-        </div>
+      <PanelAside className="min-w-0 w-full overflow-hidden">
+        <PanelContainer surface="panel" className="h-full min-w-0 w-full p-3.5 overflow-hidden">
+          <PanelFlex direction="col" gap="md" className="h-full">
+            <PanelContainer className="space-y-2">
+              <PanelText className="uppercase tracking-wider" size="xs" tone="muted">
+                File Search
+              </PanelText>
+              <PanelHeading level={2}>Local Index</PanelHeading>
+              <PanelParagraph className="leading-relaxed" tone="muted" size="sm">
+                Fast fuzzy lookup over a cached file index. Scope search with <PanelCode>in C:\\dir</PanelCode>.
+              </PanelParagraph>
+            </PanelContainer>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Results</span>
-            <span className="text-right">{results.length}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Indexed At</span>
-            <span className="text-right">{selectedResult ? formatIndexedAt(selectedResult.indexedAt) : "-"}</span>
-          </div>
-        </div>
+            <PanelContainer className="space-y-2">
+              <PanelMetaGrid className="text-sm">
+                <PanelText tone="muted">Results</PanelText>
+                <PanelText className="text-right">{results.length}</PanelText>
+                <PanelText tone="muted">Indexed At</PanelText>
+                <PanelText className="text-right">
+                  {selectedResult ? formatIndexedAt(selectedResult.indexedAt) : "-"}
+                </PanelText>
+              </PanelMetaGrid>
+            </PanelContainer>
 
-        {selectedResult && (
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Preview</p>
-            {imagePreviewSrc ? (
-              <div className="rounded-md border border-border/60 bg-muted/20 p-2">
-                <img
-                  src={imagePreviewSrc}
-                  alt={selectedResult.name}
-                  className="h-36 w-full rounded object-contain"
-                  loading="lazy"
-                  onError={() => setPreviewFailed(true)}
-                />
-              </div>
-            ) : (
-              <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-                {isImagePreview
-                  ? "Image preview unavailable for this file."
-                  : "Preview is available for image files (png, jpg, webp, svg...)."}
-              </div>
+            {selectedResult && (
+              <PanelContainer className="space-y-2">
+                <PanelText className="uppercase tracking-wider" size="xs" tone="muted">
+                  Properties
+                </PanelText>
+                <PanelMetaGrid className="text-sm">
+                  <PanelText tone="muted">File</PanelText>
+                  <PanelTooltip>
+                    <PanelTooltipTrigger>
+                      <PanelText className="cursor-default truncate text-right" title={selectedResult.name}>
+                        {selectedResult.name}
+                      </PanelText>
+                    </PanelTooltipTrigger>
+                    <PanelTooltipContent side="left" align="end">
+                      <PanelText size="xs">{selectedResult.name}</PanelText>
+                    </PanelTooltipContent>
+                  </PanelTooltip>
+                  <PanelText tone="muted">Path</PanelText>
+                  <PanelTooltip>
+                    <PanelTooltipTrigger>
+                      <PanelText className="cursor-default truncate text-right" title={selectedResult.path}>
+                        {selectedResult.path}
+                      </PanelText>
+                    </PanelTooltipTrigger>
+                    <PanelTooltipContent side="left" align="end" className="max-w-md">
+                      <PanelText size="xs" className="break-all">
+                        {selectedResult.path}
+                      </PanelText>
+                    </PanelTooltipContent>
+                  </PanelTooltip>
+                </PanelMetaGrid>
+              </PanelContainer>
             )}
-          </div>
-        )}
 
-        {selectedResult && (
-          <div className="space-y-2">
-            <PanelButton
-              type="button"
-              variant={focusArea === "actions" && selectedActionIndex === 0 ? "default" : "secondary"}
-              className={cn("w-full", focusArea === "actions" && selectedActionIndex === 0 && "ring-2 ring-primary/40")}
-              onMouseEnter={() => {
-                setFocusArea("actions");
-                setSelectedActionIndex(0);
-              }}
-              onClick={() => void openResult(selectedResult, false)}
-            >
-              <ExternalLink className="size-4" />
-              Open File
-            </PanelButton>
-            <PanelButton
-              type="button"
-              variant={focusArea === "actions" && selectedActionIndex === 1 ? "default" : "outline"}
-              className={cn("w-full", focusArea === "actions" && selectedActionIndex === 1 && "ring-2 ring-primary/40")}
-              onMouseEnter={() => {
-                setFocusArea("actions");
-                setSelectedActionIndex(1);
-              }}
-              onClick={() => void openResult(selectedResult, true)}
-            >
-              <FolderOpen className="size-4" />
-              Reveal In Explorer
-            </PanelButton>
-          </div>
-        )}
+            {selectedResult && (
+              <PanelContainer className="space-y-2">
+                <PanelText className="uppercase tracking-wider" size="xs" tone="muted">
+                  Preview
+                </PanelText>
+                {imagePreviewSrc ? (
+                  <PanelContainer className="rounded-md border border-border/60 bg-muted/20 p-2">
+                    <PanelFigureImage
+                      src={imagePreviewSrc}
+                      alt={selectedResult.name}
+                      className="h-36 w-full rounded object-contain"
+                      loading="lazy"
+                      onError={() => setPreviewFailed(true)}
+                    />
+                  </PanelContainer>
+                ) : (
+                  <PanelContainer className="rounded-md border border-border/60 bg-muted/20 p-3">
+                    <PanelText size="xs" tone="muted">
+                      {isImagePreview
+                        ? "Image preview unavailable for this file."
+                        : "Preview is available for image files (png, jpg, webp, svg...)."}
+                    </PanelText>
+                  </PanelContainer>
+                )}
+              </PanelContainer>
+            )}
 
-        {errorMessage && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
-            {errorMessage}
-          </div>
-        )}
+            {selectedResult && (
+              <PanelContainer className="space-y-2">
+                <PanelButton
+                  type="button"
+                  variant={focusArea === "actions" && selectedActionIndex === 0 ? "default" : "secondary"}
+                  className={cn("w-full", focusArea === "actions" && selectedActionIndex === 0 && "ring-2 ring-primary/40")}
+                  onMouseEnter={() => {
+                    setFocusArea("actions");
+                    setSelectedActionIndex(0);
+                  }}
+                  onClick={() => void openResult(selectedResult, false)}
+                >
+                  <ExternalLink className="size-4" />
+                  Open File
+                </PanelButton>
+                <PanelButton
+                  type="button"
+                  variant={focusArea === "actions" && selectedActionIndex === 1 ? "default" : "outline"}
+                  className={cn("w-full", focusArea === "actions" && selectedActionIndex === 1 && "ring-2 ring-primary/40")}
+                  onMouseEnter={() => {
+                    setFocusArea("actions");
+                    setSelectedActionIndex(1);
+                  }}
+                  onClick={() => void openResult(selectedResult, true)}
+                >
+                  <FolderOpen className="size-4" />
+                  Reveal In Explorer
+                </PanelButton>
+              </PanelContainer>
+            )}
 
-        <div className="mt-auto space-y-2 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between">
-            <span>Enter</span>
-            <span className="font-mono">Open</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Shift+Enter</span>
-            <span className="font-mono">Reveal</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Arrows</span>
-            <span className="font-mono">Navigate</span>
-          </div>
-        </div>
-      </aside>
-    </div>
+            {errorMessage && (
+              <PanelContainer className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
+                <PanelText size="xs" className="text-destructive">
+                  {errorMessage}
+                </PanelText>
+              </PanelContainer>
+            )}
+
+            <PanelContainer className="mt-auto space-y-2">
+              <PanelFlex align="center" justify="between">
+                <PanelText size="xs" tone="muted">
+                  Enter
+                </PanelText>
+                <PanelText size="xs" tone="muted" mono>
+                  Open
+                </PanelText>
+              </PanelFlex>
+              <PanelFlex align="center" justify="between">
+                <PanelText size="xs" tone="muted">
+                  Shift+Enter
+                </PanelText>
+                <PanelText size="xs" tone="muted" mono>
+                  Reveal
+                </PanelText>
+              </PanelFlex>
+              <PanelFlex align="center" justify="between">
+                <PanelText size="xs" tone="muted">
+                  Arrows
+                </PanelText>
+                <PanelText size="xs" tone="muted" mono>
+                  Navigate
+                </PanelText>
+              </PanelFlex>
+            </PanelContainer>
+          </PanelFlex>
+        </PanelContainer>
+      </PanelAside>
+      </PanelGrid>
+    </PanelTooltipProvider>
   );
 }

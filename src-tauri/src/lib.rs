@@ -26,6 +26,21 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_store::StoreExt;
 
 #[cfg(target_os = "windows")]
+use std::{ffi::OsStr, iter};
+
+#[cfg(target_os = "windows")]
+use std::os::windows::ffi::OsStrExt;
+
+#[cfg(target_os = "windows")]
+use std::ptr;
+
+#[cfg(target_os = "windows")]
+use winapi::{
+    shared::windef::HWND,
+    um::{shellapi::ShellExecuteW, winuser::SW_SHOWNORMAL},
+};
+
+#[cfg(target_os = "windows")]
 use window_vibrancy::{apply_mica};
 
 const DEFAULT_SHORTCUT: &str = "Alt+Space";
@@ -131,6 +146,45 @@ fn set_main_window_mode(app: tauri::AppHandle, mode: String) -> Result<(), Strin
         _ => return Err("invalid mode".to_string()),
     };
     set_main_window_mode_impl(&app, parsed)
+}
+
+#[cfg(target_os = "windows")]
+fn to_wide_null(value: &str) -> Vec<u16> {
+    OsStr::new(value).encode_wide().chain(iter::once(0)).collect()
+}
+
+#[tauri::command]
+fn shell_execute_w(target: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let verb = to_wide_null("open");
+        let target_wide = to_wide_null(&target);
+
+        let result = unsafe {
+            ShellExecuteW(
+                ptr::null_mut() as HWND,
+                verb.as_ptr(),
+                target_wide.as_ptr(),
+                ptr::null(),
+                ptr::null(),
+                SW_SHOWNORMAL,
+            )
+        } as isize;
+
+        if result <= 32 {
+            return Err(format!(
+                "ShellExecuteW failed with code {result} for target '{target}'"
+            ));
+        }
+
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = target;
+        Err("shell_execute_w is only supported on Windows".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -264,6 +318,7 @@ pub fn run() {
             update_shortcut,
             show_settings,
             set_main_window_mode,
+            shell_execute_w,
             search_clipboard_history,
             clear_clipboard_history,
             toggle_clipboard_pin,

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, FolderOpen, Rocket, Settings2, Shield, Trash2, Wrench } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
@@ -36,6 +36,13 @@ import {
 import { usePanelRegistry } from "@/lib/panel-registry";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
+import {
+  SETTINGS_SEARCH_ALIAS_LIST,
+  extractSettingsAliasQuery,
+  loadSettingsCatalog,
+  searchSettingsEntries,
+  type SettingsSearchEntry,
+} from "@/plugins/core/internal/settings-search";
 
 type InstalledApp = {
   id: string;
@@ -83,6 +90,11 @@ type NavigationItem =
     }
   | {
       id: string;
+      kind: "setting";
+      setting: SettingsSearchEntry;
+    }
+  | {
+      id: string;
       kind: "panel-command";
       command: PanelCommandSuggestion;
     };
@@ -101,6 +113,7 @@ const launcherCommandScope: PanelCommandScope = {
     "apps.properties",
     "apps.location",
     "apps.icon",
+    "settings.read",
   ],
 };
 
@@ -248,6 +261,7 @@ export function AppsLauncherPanel({
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [navigationMode, setNavigationMode] = React.useState<NavigationMode>("list");
   const [iconCacheVersion, setIconCacheVersion] = React.useState(0);
+  const [settingsCatalog, setSettingsCatalog] = React.useState<SettingsSearchEntry[]>([]);
 
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
@@ -282,6 +296,23 @@ export function AppsLauncherPanel({
   React.useEffect(() => {
     void refreshAllApps();
   }, [refreshAllApps]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const hydrateSettings = async () => {
+      const catalog = await loadSettingsCatalog();
+      if (!cancelled) {
+        setSettingsCatalog(catalog);
+      }
+    };
+
+    void hydrateSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -452,6 +483,20 @@ export function AppsLauncherPanel({
     return suggestions.slice(0, 8);
   }, [commandQuery, panelRegistry]);
 
+  const settingsQuery = React.useMemo(
+    () => extractSettingsAliasQuery(debouncedQuery, SETTINGS_SEARCH_ALIAS_LIST),
+    [debouncedQuery],
+  );
+
+  const injectedSettingsResults = React.useMemo<SettingsSearchEntry[]>(() => {
+    if (!settingsQuery.usedAlias && !settingsQuery.query) {
+      return [];
+    }
+
+    const limit = settingsQuery.usedAlias ? 48 : 8;
+    return searchSettingsEntries(settingsCatalog, settingsQuery.query, limit);
+  }, [settingsCatalog, settingsQuery.query, settingsQuery.usedAlias]);
+
   const navigationList = React.useMemo<NavigationItem[]>(() => {
     const source = (debouncedQuery.trim() ? searchResults : allApps).slice(0, 72);
     const items: NavigationItem[] = source.map((app) => ({
@@ -459,6 +504,20 @@ export function AppsLauncherPanel({
       kind: "app",
       app,
     }));
+
+    const settingsItems: NavigationItem[] = injectedSettingsResults.map((setting) => ({
+      id: `setting:${setting.id}`,
+      kind: "setting",
+      setting,
+    }));
+
+    if (settingsItems.length > 0) {
+      if (items.length > 0) {
+        items.splice(1, 0, ...settingsItems);
+      } else {
+        items.push(...settingsItems);
+      }
+    }
 
     if (injectedPanelSuggestions.length > 0) {
       const injectedItems: NavigationItem[] = injectedPanelSuggestions.map((suggestion) => ({
@@ -475,7 +534,7 @@ export function AppsLauncherPanel({
     }
 
     return items;
-  }, [allApps, debouncedQuery, injectedPanelSuggestions, searchResults]);
+  }, [allApps, debouncedQuery, injectedPanelSuggestions, injectedSettingsResults, searchResults]);
 
   const selectedItem = React.useMemo<NavigationItem | null>(() => {
     if (!selectedId) {
@@ -499,54 +558,35 @@ export function AppsLauncherPanel({
   const selectedApp = selectedItem?.kind === "app" ? selectedItem.app : null;
   const useVirtualizedList = navigationList.length > 36;
 
-  const renderNavigationItem = (item: NavigationItem) => {
-      const active = selectedItem?.id === item.id;
-
-      if (item.kind === "panel-command") {
-        const CommandIcon = item.command.panel.commandIcon ?? Rocket;
-        return (
-          <PanelListItem
-            type="button"
-            ref={(el) => {
-              if (el) {
-                itemRefs.current.set(item.id, el);
-              } else {
-                itemRefs.current.delete(item.id);
-              }
-            }}
-            onMouseEnter={() => {
-              setNavigationMode("list");
-              setSelectedId(item.id);
-            }}
-            onFocus={() => {
-              setNavigationMode("list");
-              setSelectedId(item.id);
-            }}
-            onClick={() => {
-              setNavigationMode("list");
-              setSelectedId(item.id);
-              clearLauncherInput?.();
-              activatePanelSession?.(item.command.panel, item.command.commandQuery);
-            }}
-            className={cn(
-              "flex items-center justify-between gap-3 cursor-pointer",
-              active
-                ? "bg-primary/10"
-                : "border-transparent hover:bg-accent/50",
-            )}
-          >
-            <PanelContainer className="flex items-center gap-3 min-w-0">
-              <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
-                <CommandIcon className="size-3.5 text-muted-foreground" />
-              </PanelContainer>
-              <SingleLineTooltipText text={`Open ${item.command.label}`} className="text-sm" />
-            </PanelContainer>
-            <PanelInline className="text-[11px] text-muted-foreground font-mono">Command</PanelInline>
-          </PanelListItem>
-        );
+  const executeSettingOpen = React.useCallback(
+    async (setting: SettingsSearchEntry, uri?: string) => {
+      const targetUri = uri ?? setting.uris[0];
+      if (!targetUri) {
+        return;
       }
 
-      const app = item.app;
+      clearLauncherInput?.();
+      closeLauncherWindow?.();
+
+      try {
+        await backend.window.shellExecuteW(targetUri);
+      } catch (error) {
+        console.error("[apps-panel] settings launch failed", {
+          settingsPage: setting.settingsPage,
+          uri: targetUri,
+          message: getErrorMessage(error),
+          error,
+        });
+      }
+    },
+    [backend.window, clearLauncherInput, closeLauncherWindow],
+  );
+
+  const renderNavigationItem = (item: NavigationItem) => {
+    const active = selectedItem?.id === item.id;
+
+    if (item.kind === "panel-command") {
+      const CommandIcon = item.command.panel.commandIcon ?? Rocket;
       return (
         <PanelListItem
           type="button"
@@ -568,19 +608,105 @@ export function AppsLauncherPanel({
           onClick={() => {
             setNavigationMode("list");
             setSelectedId(item.id);
-            void executeAppAction("open", app);
+            clearLauncherInput?.();
+            activatePanelSession?.(item.command.panel, item.command.commandQuery);
           }}
           className={cn(
-            "flex items-center gap-3 cursor-pointer",
-            active
-              ? "bg-primary/10"
-              : "border-transparent hover:bg-accent/50",
+            "flex items-center justify-between gap-3 cursor-pointer",
+            active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
           )}
         >
-          <AppIcon appId={app.id} className="size-6 shrink-0" cacheVersion={iconCacheVersion} />
-          <SingleLineTooltipText text={app.name} className="text-sm" />
+          <PanelContainer className="flex items-center gap-3 min-w-0">
+            <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
+              <CommandIcon className="size-3.5 text-muted-foreground" />
+            </PanelContainer>
+            <SingleLineTooltipText text={`Open ${item.command.label}`} className="text-sm" />
+          </PanelContainer>
+          <PanelInline className="text-[11px] text-muted-foreground font-mono">Command</PanelInline>
         </PanelListItem>
       );
+    }
+
+    if (item.kind === "setting") {
+      const setting = item.setting;
+      return (
+        <PanelListItem
+          type="button"
+          ref={(el) => {
+            if (el) {
+              itemRefs.current.set(item.id, el);
+            } else {
+              itemRefs.current.delete(item.id);
+            }
+          }}
+          onMouseEnter={() => {
+            setNavigationMode("list");
+            setSelectedId(item.id);
+          }}
+          onFocus={() => {
+            setNavigationMode("list");
+            setSelectedId(item.id);
+          }}
+          onClick={() => {
+            setNavigationMode("list");
+            setSelectedId(item.id);
+            void executeSettingOpen(setting);
+          }}
+          className={cn(
+            "flex items-center justify-between gap-3 cursor-pointer",
+            active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
+          )}
+        >
+          <PanelContainer className="flex items-center gap-3 min-w-0">
+            <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
+              <Settings2 className="size-3.5 text-muted-foreground" />
+            </PanelContainer>
+            <PanelContainer className="min-w-0">
+              <SingleLineTooltipText text={`Open Setting ${setting.settingsPage}`} className="text-sm" />
+              <SingleLineTooltipText
+                text={setting.uris[0] ?? "ms-settings:"}
+                className="text-[11px] text-muted-foreground"
+              />
+            </PanelContainer>
+          </PanelContainer>
+          <PanelInline className="text-[11px] text-muted-foreground font-mono">Setting</PanelInline>
+        </PanelListItem>
+      );
+    }
+
+    const app = item.app;
+    return (
+      <PanelListItem
+        type="button"
+        ref={(el) => {
+          if (el) {
+            itemRefs.current.set(item.id, el);
+          } else {
+            itemRefs.current.delete(item.id);
+          }
+        }}
+        onMouseEnter={() => {
+          setNavigationMode("list");
+          setSelectedId(item.id);
+        }}
+        onFocus={() => {
+          setNavigationMode("list");
+          setSelectedId(item.id);
+        }}
+        onClick={() => {
+          setNavigationMode("list");
+          setSelectedId(item.id);
+          void executeAppAction("open", app);
+        }}
+        className={cn(
+          "flex items-center gap-3 cursor-pointer",
+          active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
+        )}
+      >
+        <AppIcon appId={app.id} className="size-6 shrink-0" cacheVersion={iconCacheVersion} />
+        <SingleLineTooltipText text={app.name} className="text-sm" />
+      </PanelListItem>
+    );
   };
 
   const appActions = React.useMemo<AppActionItem[]>(() => {
@@ -728,9 +854,14 @@ export function AppsLauncherPanel({
       return true;
     }
 
+    if (selectedItem.kind === "setting") {
+      void executeSettingOpen(selectedItem.setting);
+      return true;
+    }
+
     void executeAppAction("open", selectedItem.app);
     return true;
-  }, [activatePanelSession, clearLauncherInput, executeAppAction, selectedItem]);
+  }, [activatePanelSession, clearLauncherInput, executeAppAction, executeSettingOpen, selectedItem]);
 
   const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
     if (!selectedItem) {
@@ -754,6 +885,36 @@ export function AppsLauncherPanel({
           },
           shortcutHint: "Enter",
         },
+      };
+    }
+
+    if (selectedItem.kind === "setting") {
+      const currentSetting = selectedItem.setting;
+      const extraActions = currentSetting.uris.slice(1).map((uri, index) => ({
+        id: `open-setting-uri-${index + 2}`,
+        label: `Open Alternative URI ${index + 2}`,
+        icon: Settings2,
+        onSelect: () => {
+          void executeSettingOpen(currentSetting, uri);
+        },
+      }));
+
+      return {
+        panel: {
+          title: "Apps",
+          icon: Rocket,
+        },
+        registerControls: registerFooterControls,
+        primaryAction: {
+          id: "open-setting",
+          label: `Open ${currentSetting.settingsPage}`,
+          icon: Settings2,
+          onSelect: () => {
+            void executeSettingOpen(currentSetting);
+          },
+          shortcutHint: "Enter",
+        },
+        extraActions,
       };
     }
 
@@ -806,7 +967,17 @@ export function AppsLauncherPanel({
       },
       extraActions,
     };
-  }, [activatePanelSession, appActions, busy, busyActionId, clearLauncherInput, executeAppAction, registerFooterControls, selectedItem]);
+  }, [
+    activatePanelSession,
+    appActions,
+    busy,
+    busyActionId,
+    clearLauncherInput,
+    executeAppAction,
+    executeSettingOpen,
+    registerFooterControls,
+    selectedItem,
+  ]);
 
   usePanelFooter(registerPanelFooter, footerConfig);
 
@@ -988,6 +1159,11 @@ export function AppsLauncherPanel({
         return;
       }
 
+      if (selectedItem?.kind === "setting") {
+        selectFirstAppItem();
+        return;
+      }
+
       if (navigationMode !== "actions" || !selectedApp) {
         return;
       }
@@ -998,7 +1174,9 @@ export function AppsLauncherPanel({
     },
     {
       enabled:
-        (navigationMode === "actions" && !!selectedApp) || selectedItem?.kind === "panel-command",
+        (navigationMode === "actions" && !!selectedApp) ||
+        selectedItem?.kind === "panel-command" ||
+        selectedItem?.kind === "setting",
       preventDefault: true,
     },
   );
@@ -1091,6 +1269,38 @@ export function AppsLauncherPanel({
                 <PanelInline className="font-mono text-[11px] text-muted-foreground">Left Arrow</PanelInline>
               </PanelButton>
             </PanelContainer>
+          ) : selectedItem?.kind === "setting" ? (
+            <>
+              <PanelContainer className="space-y-2 min-w-0">
+                <PanelParagraph className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Selected Setting
+                </PanelParagraph>
+                <SingleLineTooltipText
+                  text={selectedItem.setting.settingsPage}
+                  className="text-xl font-semibold leading-tight"
+                />
+                <SingleLineTooltipText
+                  text={selectedItem.setting.uris[0] ?? "ms-settings:"}
+                  className="text-xs text-muted-foreground"
+                />
+              </PanelContainer>
+
+              <PanelContainer className="space-y-2 text-sm min-w-0">
+                <DetailRow label="URIs" value={String(selectedItem.setting.uris.length)} />
+                <DetailRow label="Primary URI" value={selectedItem.setting.uris[0] ?? "-"} />
+              </PanelContainer>
+
+              <PanelContainer className="mt-auto space-y-2 min-w-0">
+                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline>Open setting</PanelInline>
+                  <PanelInline className="font-mono">Enter</PanelInline>
+                </PanelContainer>
+                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline>Back to app list</PanelInline>
+                  <PanelInline className="font-mono">Left Arrow</PanelInline>
+                </PanelContainer>
+              </PanelContainer>
+            </>
           ) : selectedApp ? (
             <>
               <PanelContainer className="space-y-2 min-w-0">

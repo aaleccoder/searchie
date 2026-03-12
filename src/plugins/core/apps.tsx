@@ -15,6 +15,7 @@ export function createCoreAppsPlugin(): CorePluginDescriptor {
       "apps.properties",
       "apps.location",
       "apps.icon",
+      "settings.read",
     ],
     panels: buildAppsPanels(),
   };
