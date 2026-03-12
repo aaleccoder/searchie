@@ -1,5 +1,5 @@
 import type { CorePluginDescriptor } from "@/lib/plugin-contract";
-import { buildUtilityPanels } from "@/components/panels/utilities";
+import { buildUtilityPanels } from "./internal/utilities/descriptors";
 
 export function createCoreUtilitiesPlugin(): CorePluginDescriptor {
   return {

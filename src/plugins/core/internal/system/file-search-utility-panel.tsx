@@ -11,10 +11,10 @@ import {
   createPluginBackendSdk,
   usePanelArrowDownBridge,
 } from "@/plugins/sdk";
-import { registerFileSearchInputController } from "@/components/panels/utilities/file-search-keybindings";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { buildSearchRequest, rankFileSearchResults } from "@/lib/utilities/file-search-engine";
 import { cn } from "@/lib/utils";
+import { registerFileSearchInputController } from "../utilities/file-search-keybindings";
 
 type FileSearchUtilityPanelProps = {
   commandQuery: string;

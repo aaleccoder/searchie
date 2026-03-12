@@ -1,5 +1,5 @@
 import type { CorePluginDescriptor } from "@/lib/plugin-contract";
-import { buildAppsPanels } from "@/plugins/core/apps-panels";
+import { buildAppsPanels } from "./internal/apps/descriptors";
 
 export function createCoreAppsPlugin(): CorePluginDescriptor {
   return {

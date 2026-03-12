@@ -16,7 +16,7 @@ import {
   usePanelFooter,
   usePanelFooterControlsRef,
 } from "@/plugins/sdk";
-import { registerGlyphPickerInputController } from "@/components/panels/utilities/glyph-picker-keybindings";
+import { registerGlyphPickerInputController } from "@/plugins/core/internal/utilities/glyph-picker-keybindings";
 import type { PanelFooterConfig } from "@/lib/panel-contract";
 import {
   filterGlyphEntries,

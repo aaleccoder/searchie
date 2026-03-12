@@ -1,11 +1,5 @@
 import { FolderSearch, SmilePlus } from "lucide-react";
 import { definePluginPanel } from "@/plugins/sdk";
-import { CalcUtilityPanel } from "@/plugins/core/internal/calc-utility-panel";
-import { ConversionUtilityPanel } from "@/plugins/core/internal/conversion-utility-panel";
-import { onFileSearchInputKeyDown } from "@/components/panels/utilities/file-search-keybindings";
-import { FileSearchUtilityPanel } from "@/plugins/core/internal/file-search-utility-panel";
-import { onGlyphPickerInputKeyDown } from "@/components/panels/utilities/glyph-picker-keybindings";
-import { GlyphPickerUtilityPanel } from "@/plugins/core/internal/glyph-picker-utility-panel";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import {
@@ -14,7 +8,13 @@ import {
   FILE_SEARCH_ALIASES,
   GLYPH_PICKER_ALIASES,
   flattenAliases,
-} from "@/components/panels/utilities/aliases";
+} from "@/plugins/core/internal/utilities/aliases";
+import { CalcUtilityPanel } from "./calc-utility-panel";
+import { ConversionUtilityPanel } from "./conversion-utility-panel";
+import { onFileSearchInputKeyDown } from "./file-search-keybindings";
+import { FileSearchUtilityPanel } from "../system/file-search-utility-panel";
+import { onGlyphPickerInputKeyDown } from "./glyph-picker-keybindings";
+import { GlyphPickerUtilityPanel } from "./glyph-picker-utility-panel";
 
 function createCalcPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(CALC_ALIASES);

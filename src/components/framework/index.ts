@@ -1,10 +1,10 @@
-export { createPanelComponent, definePanel, isPanelFrameworkComponent } from "@/components/panels/framework/panel-builder";
+export { createPanelComponent, definePanel, isPanelFrameworkComponent } from "@/components/framework/panel-builder";
 export {
   usePanelArrowDownBridge,
   usePanelEnterBridge,
   usePanelFooter,
   usePanelFooterControlsRef,
-} from "@/components/panels/framework/panel-hooks";
+} from "@/components/framework/panel-hooks";
 export {
   PanelBadge,
   PanelButton,
@@ -44,4 +44,4 @@ export {
   PanelAside,
   PanelArticle,
   panelListItemVariants,
-} from "@/components/panels/framework/panel-primitives";
+} from "@/components/framework/panel-primitives";

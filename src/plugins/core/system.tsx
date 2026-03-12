@@ -1,9 +1,9 @@
 import { CircleHelp, Settings2 } from "lucide-react";
-import { HotkeysShortcutPanel } from "@/plugins/core/internal/hotkeys-shortcut-panel";
-import { SettingsShortcutPanel } from "@/plugins/core/internal/settings-shortcut-panel";
 import type { CorePluginDescriptor } from "@/lib/plugin-contract";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
+import { SettingsShortcutPanel } from "./internal/system/settings-shortcut-panel";
+import { HotkeysShortcutPanel } from "./internal/system/hotkeys-shortcut-panel";
 
 function createSettingsPanel(): ShortcutPanelDescriptor {
   return {

@@ -3,4 +3,4 @@ export {
   usePanelEnterBridge,
   usePanelFooter,
   usePanelFooterControlsRef,
-} from "@/components/panels/framework/panel-hooks";
+} from "@/components/framework/panel-hooks";

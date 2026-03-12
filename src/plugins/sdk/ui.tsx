@@ -36,4 +36,4 @@ export {
   PanelSection,
   PanelText,
   PanelTextButton,
-} from "@/components/panels/framework/panel-primitives";
+} from "@/components/framework/panel-primitives";
