@@ -4,6 +4,7 @@ import { createCoreClipboardPlugin } from "@/plugins/core/clipboard";
 import { createCoreSettingsSearchPlugin } from "@/plugins/core/settings-search";
 import { createCoreSystemPlugin } from "@/plugins/core/system";
 import { createCoreUtilitiesPlugin } from "@/plugins/core/utilities";
+import { createCorePluginSettingsPlugin } from "@/plugins/core/plugin-settings";
 
 export function buildCorePlugins(): CorePluginDescriptor[] {
   return [
@@ -12,5 +13,6 @@ export function buildCorePlugins(): CorePluginDescriptor[] {
     createCoreClipboardPlugin(),
     createCoreUtilitiesPlugin(),
     createCoreSystemPlugin(),
+    createCorePluginSettingsPlugin(),
   ];
 }

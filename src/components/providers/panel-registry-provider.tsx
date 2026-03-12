@@ -1,14 +1,25 @@
 import * as React from "react";
 import { createPanelRegistry, PanelRegistryContext } from "@/lib/panel-registry";
-import { createPluginRegistry } from "@/lib/plugin-registry";
+import { createPluginRegistry, type PluginRegistry } from "@/lib/plugin-registry";
 import { buildCorePlugins } from "@/plugins/core";
 
 type PanelRegistryProviderProps = {
   children: React.ReactNode;
 };
 
+const PluginRegistryContext = React.createContext<PluginRegistry | null>(null);
+
+export function usePluginRegistry(): PluginRegistry {
+  const context = React.useContext(PluginRegistryContext);
+  if (!context) {
+    throw new Error("PluginRegistryContext is not provided.");
+  }
+
+  return context;
+}
+
 export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) {
-  const [registry] = React.useState(() => {
+  const [state] = React.useState(() => {
     const pluginRegistry = createPluginRegistry({
       onAliasCollision: (message) => {
         console.warn(message);
@@ -29,8 +40,15 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
       nextRegistry.register(panel);
     }
 
-    return nextRegistry;
+    return {
+      panelRegistry: nextRegistry,
+      pluginRegistry,
+    };
   });
 
-  return <PanelRegistryContext.Provider value={registry}>{children}</PanelRegistryContext.Provider>;
+  return (
+    <PluginRegistryContext.Provider value={state.pluginRegistry}>
+      <PanelRegistryContext.Provider value={state.panelRegistry}>{children}</PanelRegistryContext.Provider>
+    </PluginRegistryContext.Provider>
+  );
 }

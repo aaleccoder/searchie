@@ -99,4 +99,72 @@ describe("createPluginRegistry", () => {
 
     expect(warn).toHaveBeenCalledTimes(1);
   });
+
+  it("registers plugin settings schema", () => {
+    const registry = createPluginRegistry();
+
+    registry.register(
+      createPlugin({
+        settings: [
+          {
+            key: "feature.enabled",
+            label: "Feature Enabled",
+            valueType: "boolean",
+            defaultValue: true,
+          },
+        ],
+      }),
+    );
+
+    expect(registry.listPluginSettings()).toEqual([
+      {
+        pluginId: "plugin.alpha",
+        pluginName: "Alpha",
+        definitions: [
+          {
+            key: "feature.enabled",
+            label: "Feature Enabled",
+            valueType: "boolean",
+            defaultValue: true,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("rejects duplicate config keys in the same plugin", () => {
+    const registry = createPluginRegistry();
+
+    expect(() => {
+      registry.register(
+        createPlugin({
+          settings: [
+            { key: "same", label: "One", valueType: "string" },
+            { key: "same", label: "Two", valueType: "number" },
+          ],
+        }),
+      );
+    }).toThrow(/duplicate config key/i);
+  });
+
+  it("rejects empty select options", () => {
+    const registry = createPluginRegistry();
+
+    expect(() => {
+      registry.register(
+        createPlugin({
+          settings: [
+            {
+              key: "choice",
+              label: "Choice",
+              valueType: {
+                kind: "select",
+                options: [],
+              },
+            },
+          ],
+        }),
+      );
+    }).toThrow(/at least one select option/i);
+  });
 });

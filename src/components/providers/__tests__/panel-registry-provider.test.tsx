@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { PanelRegistryProvider } from "@/components/providers/panel-registry-provider";
+import { PanelRegistryProvider, usePluginRegistry } from "@/components/providers/panel-registry-provider";
 import { usePanelRegistry } from "@/lib/panel-registry";
 
 function Probe() {
@@ -44,5 +44,21 @@ describe("PanelRegistryProvider", () => {
     expect(screen.getByText("apps-launcher")).toBeInTheDocument();
     expect(screen.getByText("utilities-file-search")).toBeInTheDocument();
     expect(screen.getByText("settings-search")).toBeInTheDocument();
+  });
+
+  it("exposes plugin settings from plugin registry context", () => {
+    function PluginSettingsProbe() {
+      const pluginRegistry = usePluginRegistry();
+      const settings = pluginRegistry.listPluginSettings();
+      return <div>{settings.some((entry) => entry.pluginId === "core.plugin-settings") ? "yes" : "no"}</div>;
+    }
+
+    render(
+      <PanelRegistryProvider>
+        <PluginSettingsProbe />
+      </PanelRegistryProvider>,
+    );
+
+    expect(screen.getByText("yes")).toBeInTheDocument();
   });
 });

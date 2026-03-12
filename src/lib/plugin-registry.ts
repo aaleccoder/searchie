@@ -1,5 +1,6 @@
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
-import type { CorePluginDescriptor } from "@/lib/plugin-contract";
+import type { CorePluginDescriptor, PluginConfigDefinition } from "@/lib/plugin-contract";
+import { registerPluginConfigDefinitions } from "@/lib/plugin-config-store";
 
 type PluginRegistryOptions = {
   onAliasCollision?: (message: string) => void;
@@ -9,6 +10,11 @@ export type PluginRegistry = {
   register: (plugin: CorePluginDescriptor) => void;
   listPlugins: () => CorePluginDescriptor[];
   listPanels: () => ShortcutPanelDescriptor[];
+  listPluginSettings: () => Array<{
+    pluginId: string;
+    pluginName: string;
+    definitions: PluginConfigDefinition[];
+  }>;
 };
 
 export function createPluginRegistry(options?: PluginRegistryOptions): PluginRegistry {
@@ -37,6 +43,33 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
       }
 
       const permissions = new Set(plugin.permissions);
+      const configKeys = new Set<string>();
+      const normalizedSettings = (plugin.settings ?? []).map((definition) => {
+        const key = definition.key.trim();
+        if (!key) {
+          throw new Error(`Plugin "${plugin.id}" declares an empty config key.`);
+        }
+
+        if (configKeys.has(key)) {
+          throw new Error(`Plugin "${plugin.id}" declares duplicate config key "${key}".`);
+        }
+
+        if (typeof definition.valueType !== "string") {
+          if (definition.valueType.kind !== "select") {
+            throw new Error(`Plugin "${plugin.id}" config key "${key}" has invalid select metadata.`);
+          }
+
+          if (!Array.isArray(definition.valueType.options) || definition.valueType.options.length === 0) {
+            throw new Error(`Plugin "${plugin.id}" config key "${key}" must declare at least one select option.`);
+          }
+        }
+
+        configKeys.add(key);
+        return {
+          ...definition,
+          key,
+        };
+      });
       const normalizedPanels = plugin.panels.map((panel) => {
         if (panelIds.has(panel.id)) {
           throw new Error(`Panel with id "${panel.id}" is already registered by another plugin.`);
@@ -76,7 +109,10 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
       plugins.push({
         ...plugin,
         panels: normalizedPanels,
+        settings: normalizedSettings,
       });
+
+      registerPluginConfigDefinitions(plugin.id, normalizedSettings);
     },
 
     listPlugins() {
@@ -85,6 +121,16 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
 
     listPanels() {
       return plugins.flatMap((plugin) => plugin.panels);
+    },
+
+    listPluginSettings() {
+      return plugins
+        .map((plugin) => ({
+          pluginId: plugin.id,
+          pluginName: plugin.name,
+          definitions: plugin.settings ?? [],
+        }))
+        .filter((entry) => entry.definitions.length > 0);
     },
   };
 }

@@ -23,6 +23,10 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(async () => () => undefined),
+}));
+
 function createTestRegistry(panel?: ShortcutPanelDescriptor) {
   const registry = createPanelRegistry();
   if (panel) {
@@ -425,6 +429,9 @@ describe("LauncherPanel with panel registry", () => {
       matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
       searchIntegration: {
         activationMode: "result-item",
+      },
+      appsLauncherIntegration: {
+        injectAsApp: true,
       },
       component: () => <div>Clipboard Panel</div>,
       priority: 30,

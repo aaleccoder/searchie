@@ -1,6 +1,14 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { invokePanelCommand } from "@/lib/tauri-commands";
+import {
+  listPluginConfigDefinitions,
+  readPluginConfig,
+  readPluginConfigSnapshot,
+  registerPluginConfigDefinitions,
+  writePluginConfig,
+} from "@/lib/plugin-config-store";
+import type { PluginConfigDefinition, PluginConfigValue } from "@/lib/plugin-contract";
 
 export type AppsSdk = {
   listInstalledApps: <T>() => Promise<T>;
@@ -39,9 +47,39 @@ export type PluginBackendSdk = {
   clipboard: ClipboardSdk;
   files: FilesSdk;
   window: WindowSdk;
+  config: {
+    defineConfig: (configKey: string, configValueType: PluginConfigDefinition["valueType"], optional?: boolean) => void;
+    listConfigDefinitions: () => PluginConfigDefinition[];
+    getConfig: <T extends PluginConfigValue = PluginConfigValue>(configKey: string) => Promise<T | undefined>;
+    setConfig: (configKey: string, value: PluginConfigValue) => Promise<void>;
+    listConfigValues: () => Promise<Record<string, PluginConfigValue>>;
+  };
 };
 
+const runtimeDefinitions = new Map<string, Map<string, PluginConfigDefinition>>();
+
+function getRequiredPluginId(scope: PanelCommandScope): string {
+  const pluginId = scope.pluginId?.trim();
+  if (!pluginId) {
+    throw new Error(`Panel "${scope.id}" does not include a pluginId scope.`);
+  }
+  return pluginId;
+}
+
+function getRuntimeDefinitionRegistry(pluginId: string): Map<string, PluginConfigDefinition> {
+  const existing = runtimeDefinitions.get(pluginId);
+  if (existing) {
+    return existing;
+  }
+
+  const next = new Map<string, PluginConfigDefinition>();
+  runtimeDefinitions.set(pluginId, next);
+  return next;
+}
+
 export function createPluginBackendSdk(scope: PanelCommandScope): PluginBackendSdk {
+  const pluginId = getRequiredPluginId(scope);
+
   return {
     apps: {
       listInstalledApps: <T>() => invokePanelCommand<T>(scope, "list_installed_apps", {}),
@@ -81,6 +119,62 @@ export function createPluginBackendSdk(scope: PanelCommandScope): PluginBackendS
       shellExecuteW: (target: string) => invokePanelCommand<void>(scope, "shell_execute_w", { target }),
       updateShortcut: (oldShortcut: string, newShortcut: string) =>
         invokePanelCommand<void>(scope, "update_shortcut", { oldShortcut, newShortcut }),
+    },
+    config: {
+      defineConfig: (configKey, configValueType, optional = false) => {
+        const key = configKey.trim();
+        if (!key) {
+          throw new Error("Config key cannot be empty.");
+        }
+
+        const registry = getRuntimeDefinitionRegistry(pluginId);
+        if (registry.has(key)) {
+          return;
+        }
+
+        registry.set(key, {
+          key,
+          label: key,
+          optional,
+          valueType: configValueType,
+        });
+
+        const persisted = listPluginConfigDefinitions(pluginId);
+        const merged = new Map<string, PluginConfigDefinition>();
+        for (const definition of persisted) {
+          merged.set(definition.key, definition);
+        }
+        for (const definition of registry.values()) {
+          if (!merged.has(definition.key)) {
+            merged.set(definition.key, definition);
+          }
+        }
+
+        registerPluginConfigDefinitions(pluginId, [...merged.values()]);
+      },
+      listConfigDefinitions: () => {
+        const declared = listPluginConfigDefinitions(pluginId);
+        const runtime = [...getRuntimeDefinitionRegistry(pluginId).values()];
+        if (runtime.length === 0) {
+          return declared;
+        }
+
+        const merged = new Map<string, PluginConfigDefinition>();
+        for (const definition of declared) {
+          merged.set(definition.key, definition);
+        }
+        for (const definition of runtime) {
+          if (!merged.has(definition.key)) {
+            merged.set(definition.key, definition);
+          }
+        }
+
+        return [...merged.values()];
+      },
+      getConfig: <T extends PluginConfigValue = PluginConfigValue>(configKey: string) =>
+        readPluginConfig(pluginId, configKey) as Promise<T | undefined>,
+      setConfig: (configKey: string, value: PluginConfigValue) => writePluginConfig(pluginId, configKey, value),
+      listConfigValues: () => readPluginConfigSnapshot(pluginId),
     },
   };
 }

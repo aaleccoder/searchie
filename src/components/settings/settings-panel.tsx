@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
+import {
+  ensurePluginConfigDefaults,
+  readPluginConfigSnapshot,
+  writePluginConfig,
+} from "@/lib/plugin-config-store";
+import type { PluginConfigDefinition, PluginConfigValue } from "@/lib/plugin-contract";
+import { usePluginRegistry } from "@/components/providers/panel-registry-provider";
 import { useTheme } from "@/components/theme-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -98,10 +107,63 @@ type SettingsPanelProps = {
   className?: string;
 };
 
+type PluginSettingsState = {
+  loading: boolean;
+  values: Record<string, PluginConfigValue>;
+};
+
+function pluginSettingId(pluginId: string, key: string): string {
+  return `${pluginId}:${key}`;
+}
+
 export function SettingsPanel({ className }: SettingsPanelProps) {
   const { settings, loading, updateSettings } = useSettingsStore();
+  const pluginRegistry = usePluginRegistry();
   const { setTheme } = useTheme();
   const [autostart, setAutostart] = useState<boolean | null>(null);
+  const [pluginStates, setPluginStates] = useState<Record<string, PluginSettingsState>>({});
+
+  const pluginSettings = useMemo(() => pluginRegistry.listPluginSettings(), [pluginRegistry]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPluginSettings = async () => {
+      const nextState: Record<string, PluginSettingsState> = {};
+      for (const plugin of pluginSettings) {
+        nextState[plugin.pluginId] = { loading: true, values: {} };
+      }
+      if (!cancelled) {
+        setPluginStates(nextState);
+      }
+
+      for (const plugin of pluginSettings) {
+        try {
+          await ensurePluginConfigDefaults(plugin.pluginId);
+          const values = await readPluginConfigSnapshot(plugin.pluginId);
+          if (!cancelled) {
+            setPluginStates((current) => ({
+              ...current,
+              [plugin.pluginId]: { loading: false, values },
+            }));
+          }
+        } catch (error) {
+          console.error(`[settings] Failed loading plugin settings for ${plugin.pluginId}:`, error);
+          if (!cancelled) {
+            setPluginStates((current) => ({
+              ...current,
+              [plugin.pluginId]: { loading: false, values: {} },
+            }));
+          }
+        }
+      }
+    };
+
+    void loadPluginSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [pluginSettings]);
 
   useEffect(() => {
     isEnabled().then(setAutostart).catch(() => setAutostart(false));
@@ -130,6 +192,34 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
     void updateSettings({ theme: value });
     setTheme(value);
   };
+
+  const handlePluginSettingChange = useCallback(
+    async (pluginId: string, definition: PluginConfigDefinition, value: PluginConfigValue) => {
+      const key = definition.key;
+      setPluginStates((current) => ({
+        ...current,
+        [pluginId]: {
+          loading: false,
+          values: {
+            ...(current[pluginId]?.values ?? {}),
+            [key]: value,
+          },
+        },
+      }));
+
+      try {
+        await writePluginConfig(pluginId, key, value);
+      } catch (error) {
+        console.error(`[settings] Failed saving plugin setting ${pluginId}:${key}:`, error);
+        const values = await readPluginConfigSnapshot(pluginId);
+        setPluginStates((current) => ({
+          ...current,
+          [pluginId]: { loading: false, values },
+        }));
+      }
+    },
+    [],
+  );
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -185,7 +275,14 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
         {loading ? (
           <Skeleton className="h-9 w-36" />
         ) : (
-          <Select value={settings.theme} onValueChange={handleThemeChange}>
+          <Select
+            value={settings.theme}
+            onValueChange={(value) => {
+              if (value) {
+                handleThemeChange(value);
+              }
+            }}
+          >
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
@@ -197,6 +294,106 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
           </Select>
         )}
       </div>
+
+      {pluginSettings.length > 0 ? (
+        <>
+          <Separator />
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-base font-medium">Plugin Settings</Label>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Configure plugin-specific options provided by installed plugins.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {pluginSettings.map((plugin) => {
+                const state = pluginStates[plugin.pluginId] ?? { loading: true, values: {} };
+
+                return (
+                  <Card key={plugin.pluginId} size="sm">
+                    <CardHeader>
+                      <CardTitle>{plugin.pluginName}</CardTitle>
+                      <CardDescription>{plugin.pluginId}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {plugin.definitions.map((definition) => {
+                        const id = pluginSettingId(plugin.pluginId, definition.key);
+                        const currentValue = state.values[definition.key] ?? definition.defaultValue;
+
+                        return (
+                          <div key={definition.key} className="space-y-2">
+                            <Label htmlFor={id} className="text-sm font-medium">
+                              {definition.label}
+                            </Label>
+                            {definition.description ? (
+                              <p className="text-xs text-muted-foreground">{definition.description}</p>
+                            ) : null}
+
+                            {state.loading ? (
+                              <Skeleton className="h-8 w-full" />
+                            ) : definition.valueType === "boolean" ? (
+                              <Switch
+                                id={id}
+                                checked={Boolean(currentValue)}
+                                onCheckedChange={(checked) => {
+                                  void handlePluginSettingChange(plugin.pluginId, definition, checked);
+                                }}
+                              />
+                            ) : definition.valueType === "number" ? (
+                              <Input
+                                id={id}
+                                type="number"
+                                value={typeof currentValue === "number" ? String(currentValue) : ""}
+                                onChange={(event) => {
+                                  const next = Number(event.target.value);
+                                  if (!Number.isNaN(next)) {
+                                    void handlePluginSettingChange(plugin.pluginId, definition, next);
+                                  }
+                                }}
+                              />
+                            ) : definition.valueType === "string" ? (
+                              <Input
+                                id={id}
+                                type="text"
+                                value={typeof currentValue === "string" ? currentValue : ""}
+                                onChange={(event) => {
+                                  void handlePluginSettingChange(plugin.pluginId, definition, event.target.value);
+                                }}
+                              />
+                            ) : (
+                                <Select
+                                  value={typeof currentValue === "string" ? currentValue : ""}
+                                  onValueChange={(value) => {
+                                  if (value !== null) {
+                                    void handlePluginSettingChange(plugin.pluginId, definition, value);
+                                  }
+                                  }}
+                                >
+                                <SelectTrigger id={id} className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {definition.valueType.options.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
