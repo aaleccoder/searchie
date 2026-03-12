@@ -48,78 +48,294 @@ type SectionProps = React.HTMLAttributes<HTMLElement>;
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 type ImageProps = React.ImgHTMLAttributes<HTMLImageElement>;
 
-export function PanelContainer({ className, ...props }: DivProps) {
-  return <div className={cn(className)} {...props} />;
-}
+type SpacingToken = "none" | "xs" | "sm" | "md" | "lg";
+type RadiusToken = "none" | "sm" | "md" | "lg";
+type SurfaceToken = "none" | "panel" | "muted";
 
-export function PanelFlex({ className, ...props }: DivProps) {
-  return <div className={cn("flex", className)} {...props} />;
-}
+const spacingClasses: Record<SpacingToken, string> = {
+  none: "",
+  xs: "gap-1",
+  sm: "gap-2",
+  md: "gap-3",
+  lg: "gap-4",
+};
 
-export function PanelSection({ className, ...props }: SectionProps) {
-  return <section className={cn(className)} {...props} />;
-}
+const paddingClasses: Record<SpacingToken, string> = {
+  none: "",
+  xs: "p-1",
+  sm: "p-2",
+  md: "p-3",
+  lg: "p-4",
+};
 
-export function PanelAside({ className, ...props }: SectionProps) {
-  return <aside className={cn(className)} {...props} />;
-}
+const radiusClasses: Record<RadiusToken, string> = {
+  none: "",
+  sm: "rounded-sm",
+  md: "rounded-md",
+  lg: "rounded-lg",
+};
 
-export function PanelArticle({ className, ...props }: SectionProps) {
-  return <article className={cn(className)} {...props} />;
-}
+const surfaceClasses: Record<SurfaceToken, string> = {
+  none: "",
+  panel: "rounded-xl border border-border/70 bg-card/92 shadow-lg",
+  muted: "rounded-lg border border-border/60 bg-muted/20",
+};
 
-export function PanelText({ className, ...props }: SpanProps) {
-  return <span className={cn(className)} {...props} />;
-}
+type PanelContainerProps = DivProps & {
+  surface?: SurfaceToken;
+  padding?: SpacingToken;
+  radius?: RadiusToken;
+};
 
-export function PanelInline({ className, ...props }: SpanProps) {
-  return <span className={cn(className)} {...props} />;
-}
+export const PanelContainer = React.forwardRef<HTMLDivElement, PanelContainerProps>(
+  ({ className, surface = "none", padding = "none", radius = "none", ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(surfaceClasses[surface], paddingClasses[padding], radiusClasses[radius], className)}
+        {...props}
+      />
+    );
+  },
+);
+PanelContainer.displayName = "PanelContainer";
 
-export function PanelParagraph({ className, ...props }: ParagraphProps) {
-  return <p className={cn(className)} {...props} />;
-}
+type PanelFlexProps = DivProps & {
+  direction?: "row" | "col";
+  align?: "start" | "center" | "end" | "stretch";
+  justify?: "start" | "center" | "between" | "end";
+  gap?: SpacingToken;
+};
+
+const flexAlignClasses = {
+  start: "items-start",
+  center: "items-center",
+  end: "items-end",
+  stretch: "items-stretch",
+} as const;
+
+const flexJustifyClasses = {
+  start: "justify-start",
+  center: "justify-center",
+  between: "justify-between",
+  end: "justify-end",
+} as const;
+
+export const PanelFlex = React.forwardRef<HTMLDivElement, PanelFlexProps>(
+  (
+    {
+      className,
+      direction = "row",
+      align = "stretch",
+      justify = "start",
+      gap = "none",
+      ...props
+    },
+    ref,
+  ) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "flex",
+          direction === "col" ? "flex-col" : "flex-row",
+          flexAlignClasses[align],
+          flexJustifyClasses[justify],
+          spacingClasses[gap],
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+PanelFlex.displayName = "PanelFlex";
+
+type PanelGridProps = DivProps & {
+  columns?: "single" | "two-pane" | "meta";
+  gap?: SpacingToken;
+};
+
+const gridColumnClasses = {
+  single: "grid-cols-1",
+  "two-pane": "grid-cols-[1.45fr_1fr]",
+  meta: "grid-cols-[auto_1fr]",
+} as const;
+
+export const PanelGrid = React.forwardRef<HTMLDivElement, PanelGridProps>(
+  ({ className, columns = "single", gap = "md", ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn("grid h-full items-stretch", gridColumnClasses[columns], spacingClasses[gap], className)}
+        {...props}
+      />
+    );
+  },
+);
+PanelGrid.displayName = "PanelGrid";
+
+export const PanelSection = React.forwardRef<HTMLElement, SectionProps>(({ className, ...props }, ref) => {
+  return <section ref={ref} className={cn(className)} {...props} />;
+});
+PanelSection.displayName = "PanelSection";
+
+export const PanelAside = React.forwardRef<HTMLElement, SectionProps>(({ className, ...props }, ref) => {
+  return <aside ref={ref} className={cn(className)} {...props} />;
+});
+PanelAside.displayName = "PanelAside";
+
+export const PanelArticle = React.forwardRef<HTMLElement, SectionProps>(({ className, ...props }, ref) => {
+  return <article ref={ref} className={cn(className)} {...props} />;
+});
+PanelArticle.displayName = "PanelArticle";
+
+type PanelTextProps = SpanProps & {
+  tone?: "default" | "muted";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  weight?: "normal" | "medium" | "semibold";
+  truncate?: boolean;
+  mono?: boolean;
+};
+
+const textToneClasses = {
+  default: "text-foreground",
+  muted: "text-muted-foreground",
+} as const;
+
+const textSizeClasses = {
+  xs: "text-xs",
+  sm: "text-sm",
+  md: "text-base",
+  lg: "text-lg",
+  xl: "text-xl",
+} as const;
+
+const textWeightClasses = {
+  normal: "font-normal",
+  medium: "font-medium",
+  semibold: "font-semibold",
+} as const;
+
+export const PanelText = React.forwardRef<HTMLSpanElement, PanelTextProps>(
+  (
+    {
+      className,
+      tone = "default",
+      size = "sm",
+      weight = "normal",
+      truncate = false,
+      mono = false,
+      ...props
+    },
+    ref,
+  ) => {
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          textToneClasses[tone],
+          textSizeClasses[size],
+          textWeightClasses[weight],
+          truncate && "truncate whitespace-nowrap",
+          mono && "font-mono",
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+PanelText.displayName = "PanelText";
+
+export const PanelInline = PanelText;
+
+type PanelParagraphProps = ParagraphProps & {
+  tone?: "default" | "muted";
+  size?: "xs" | "sm" | "md";
+};
+
+export const PanelParagraph = React.forwardRef<HTMLParagraphElement, PanelParagraphProps>(
+  ({ className, tone = "default", size = "sm", ...props }, ref) => {
+    return <p ref={ref} className={cn(textToneClasses[tone], textSizeClasses[size], className)} {...props} />;
+  },
+);
+PanelParagraph.displayName = "PanelParagraph";
 
 type PanelHeadingProps = React.HTMLAttributes<HTMLHeadingElement> & {
   level?: 1 | 2 | 3 | 4;
 };
 
 export function PanelHeading({ level = 3, className, ...props }: PanelHeadingProps) {
+  const headingClassName = cn("font-semibold leading-tight", className);
   if (level === 1) {
-    return <h1 className={cn(className)} {...props} />;
+    return <h1 className={cn("text-2xl", headingClassName)} {...props} />;
   }
   if (level === 2) {
-    return <h2 className={cn(className)} {...props} />;
+    return <h2 className={cn("text-xl", headingClassName)} {...props} />;
   }
   if (level === 4) {
-    return <h4 className={cn(className)} {...props} />;
+    return <h4 className={cn("text-sm", headingClassName)} {...props} />;
   }
-  return <h3 className={cn(className)} {...props} />;
+  return <h3 className={cn("text-lg", headingClassName)} {...props} />;
 }
 
-export function PanelCode({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
-  return <code className={cn(className)} {...props} />;
-}
+export const PanelCode = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+  ({ className, ...props }, ref) => {
+    return <code ref={ref} className={cn("font-mono text-xs", className)} {...props} />;
+  },
+);
+PanelCode.displayName = "PanelCode";
 
-export function PanelPre({ className, ...props }: React.HTMLAttributes<HTMLPreElement>) {
-  return <pre className={cn(className)} {...props} />;
-}
+export const PanelPre = React.forwardRef<HTMLPreElement, React.HTMLAttributes<HTMLPreElement>>(
+  ({ className, ...props }, ref) => {
+    return <pre ref={ref} className={cn("font-sans text-sm", className)} {...props} />;
+  },
+);
+PanelPre.displayName = "PanelPre";
 
-export function PanelTextButton({ className, ...props }: ButtonProps) {
-  return <button type="button" className={cn(className)} {...props} />;
-}
+type PanelTextButtonProps = ButtonProps & {
+  tone?: "ghost" | "subtle" | "active";
+};
 
-export function PanelFigureImage({ className, alt = "", ...props }: ImageProps) {
-  return <img className={cn(className)} alt={alt} {...props} />;
-}
+const textButtonToneClasses = {
+  ghost: "border-transparent hover:border-primary/40 hover:bg-accent/50",
+  subtle: "border-border/55 hover:border-primary/45 hover:bg-accent/40",
+  active: "border-primary/70 bg-primary/10",
+} as const;
 
-export function PanelGrid({ className, ...props }: DivProps) {
-  return <div className={cn("grid h-full items-stretch gap-2.5", className)} {...props} />;
-}
+export const PanelTextButton = React.forwardRef<HTMLButtonElement, PanelTextButtonProps>(
+  ({ className, tone = "ghost", type = "button", ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={cn(
+          "w-full rounded-lg border px-3 py-2 text-left transition cursor-pointer outline-none focus-visible:outline-none focus-visible:ring-0",
+          textButtonToneClasses[tone],
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+PanelTextButton.displayName = "PanelTextButton";
 
-export function PanelList({ className, ...props }: DivProps) {
-  return <div className={cn("space-y-2", className)} {...props} />;
-}
+export const PanelFigureImage = React.forwardRef<HTMLImageElement, ImageProps>(
+  ({ className, alt = "", ...props }, ref) => {
+    return <img ref={ref} className={cn(className)} alt={alt} {...props} />;
+  },
+);
+PanelFigureImage.displayName = "PanelFigureImage";
+type PanelListProps = DivProps & { gap?: SpacingToken };
+
+export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
+  ({ className, gap = "sm", ...props }, ref) => {
+    return <div ref={ref} className={cn(spacingClasses[gap], className)} {...props} />;
+  },
+);
+PanelList.displayName = "PanelList";
 
 type PanelListItemProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
@@ -128,20 +344,25 @@ export const panelListItemVariants = {
   idle: "border-border/55 hover:border-primary/45 hover:bg-accent/40",
 };
 
-export function PanelListItem({ className, ...props }: PanelListItemProps) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "w-full min-w-0 rounded-lg border px-3 py-2 text-left transition",
-        panelListItemVariants.idle,
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+export const PanelListItem = React.forwardRef<HTMLButtonElement, PanelListItemProps>(
+  ({ className, type = "button", ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={cn(
+          "w-full min-w-0 rounded-lg border px-3 py-2 text-left transition outline-none focus-visible:outline-none focus-visible:ring-0",
+          panelListItemVariants.idle,
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+PanelListItem.displayName = "PanelListItem";
 
-export function PanelMetaGrid({ className, ...props }: DivProps) {
-  return <div className={cn("grid grid-cols-[auto_1fr] items-center gap-4", className)} {...props} />;
-}
+export const PanelMetaGrid = React.forwardRef<HTMLDivElement, DivProps>(({ className, ...props }, ref) => {
+  return <div ref={ref} className={cn("grid grid-cols-[auto_1fr] items-center gap-4", className)} {...props} />;
+});
+PanelMetaGrid.displayName = "PanelMetaGrid";
