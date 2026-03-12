@@ -191,6 +191,31 @@ export function LauncherPanel({
     return () => window.removeEventListener('focus', onWindowFocus);
   }, []);
 
+  React.useEffect(() => {
+    const onGlobalSelectAll = (event: KeyboardEvent) => {
+      const isSelectAllShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "a";
+
+      if (!isSelectAllShortcut) {
+        return;
+      }
+
+      // Force global select-all to target launcher input only.
+      event.preventDefault();
+      event.stopPropagation();
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    };
+
+    document.addEventListener("keydown", onGlobalSelectAll, true);
+    return () => {
+      document.removeEventListener("keydown", onGlobalSelectAll, true);
+    };
+  }, []);
+
   const panelCommandSuggestions = React.useMemo<PanelCommandSuggestion[]>(() => {
     if (activePanel) {
       return [];

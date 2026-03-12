@@ -224,6 +224,77 @@ Follow these workspace rules consistently:
 	- Parse and react to `commandQuery` from `PanelRenderProps`.
 - Do not wrap panel root panes with heavy card wrappers by default (for example: `rounded-xl border border-border/70 bg-card/92 shadow-lg`) unless the existing panel family already uses that exact wrapper pattern.
 
+### Panel Primitives Styling (Required)
+
+Panel UI should be composed from `src/components/framework/panel-primitives.tsx` first, and only then use inline `style` for values that primitives do not currently expose.
+
+#### Preferred Layout Skeleton
+
+Use this baseline structure for list/detail panels:
+
+```tsx
+<PanelGrid columns="two-pane" gap="sm" style={{ height: "100%" }}>
+	<PanelSection style={{ height: "100%", overflow: "hidden" }}>
+		<PanelScrollArea style={{ height: "100%" }}>
+			<PanelContainer padding="md">
+				<PanelList gap="sm">{/* rows */}</PanelList>
+			</PanelContainer>
+		</PanelScrollArea>
+	</PanelSection>
+
+	<PanelAside>
+		<PanelContainer padding="md">{/* contextual details/actions */}</PanelContainer>
+	</PanelAside>
+</PanelGrid>
+```
+
+#### Primitive-First Styling Rules
+
+- Use `PanelContainer` tokens before custom CSS:
+	- `padding="xs|sm|md|lg"`
+	- `radius="sm|md|lg"`
+	- `surface="muted|panel"`
+- Use `PanelFlex` and `PanelGrid` for spacing/alignment instead of manual wrappers.
+- Use `PanelText` and `PanelParagraph` props (`size`, `tone`, `weight`, `truncate`, `mono`) before custom typography styles.
+- Keep inline `style` only for truly custom values such as exact pixel heights, `backdropFilter`, or non-token border/gradient values.
+
+#### List Item Selection (New Standard)
+
+`PanelListItem` supports `active` directly. Use it instead of manually setting selected row background/border styles.
+
+```tsx
+<PanelListItem
+	active={index === selectedIndex}
+	onMouseEnter={() => setSelectedIndex(index)}
+	onClick={() => runAction(items[index])}
+>
+	<PanelText truncate>{items[index].label}</PanelText>
+</PanelListItem>
+```
+
+Do not do this unless there is a deliberate visual exception:
+
+- manually setting selected state via `style={{ backgroundColor: ... }}` on each row
+- duplicating active/idle class logic outside primitives
+
+#### Interaction Composition Pattern
+
+- List area: `PanelScrollArea` + `PanelList` + `PanelListItem`.
+- Details area: `PanelMetaGrid` for label/value pairs and `PanelFlex` for action hints.
+- Empty state: `PanelEmpty`, `PanelEmptyHeader`, `PanelEmptyMedia`, `PanelEmptyTitle`, `PanelEmptyDescription`.
+- Keyboard hints: use `PanelKbd` and `PanelKbdGroup` when hints are shown in-panel.
+
+#### Build Checklist For New Panels
+
+1. Define matcher + aliases in descriptor (`createPrefixAliasMatcher` in most cases).
+2. Build UI with panel primitives only.
+3. Use launcher input (`commandQuery`) as the single query source.
+4. Add keyboard bridges (`registerInputArrowDownHandler`, `registerInputEnterHandler`) when needed.
+5. Publish footer actions through `registerPanelFooter` instead of launcher hardcoding.
+6. Keep selection state stable across result updates.
+7. Use `PanelListItem active={...}` for row selection visuals.
+8. Add/adjust tests (alias matching, descriptor registration, core behavior, failure path).
+
 ### Step-By-Step: Add A New Core Plugin Panel
 
 1. Choose the plugin scope (`apps`, `clipboard`, `system`, `utilities`).
