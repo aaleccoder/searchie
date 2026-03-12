@@ -384,6 +384,97 @@ If your panel has custom keyboard model, set `descriptor.shortcuts`.
 
 If omitted, `resolveLauncherShortcutHints` in `src/lib/panel-shortcuts.ts` falls back to panel-specific defaults only when provided in fallback map. If no panel-specific hints exist, users see a generic Escape hint.
 
+## Plugin Settings Injection Guide
+
+Searchie supports plugin-defined settings that render automatically inside `src/components/settings/settings-panel.tsx`.
+
+This is for internal/core plugins registered through the plugin registry. The plugin only defines keys and metadata. The settings UI and persistence are handled by shared infrastructure.
+
+### What Plugin Authors Define
+
+Define settings in your plugin descriptor with `defineCorePlugin` and `defineConfig`.
+
+Supported value types:
+
+- `boolean`
+- `string`
+- `number`
+- `select` (`{ kind: "select", options: [...] }`)
+
+Example:
+
+```tsx
+import { defineCorePlugin } from "@/plugins/sdk";
+
+export const myPlugin = defineCorePlugin({
+	id: "core.example",
+	name: "Core Example",
+	version: "0.1.0",
+	permissions: [],
+	panels: [],
+	settings: (defineConfig) => [
+		defineConfig("enabled", "boolean", false, {
+			label: "Enabled",
+			description: "Turn this feature on or off.",
+			defaultValue: true,
+		}),
+		defineConfig("tagline", "string", true, {
+			label: "Tagline",
+			defaultValue: "",
+		}),
+		defineConfig("maxRetries", "number", true, {
+			label: "Max Retries",
+			defaultValue: 3,
+		}),
+		defineConfig(
+			"mode",
+			{
+				kind: "select",
+				options: [
+					{ label: "Standard", value: "standard" },
+					{ label: "Safe", value: "safe" },
+				],
+			},
+			true,
+			{
+				label: "Mode",
+				defaultValue: "standard",
+			},
+		),
+	],
+});
+```
+
+### How Persistence Works
+
+- Plugin config definitions are validated and registered by `src/lib/plugin-registry.ts`.
+- Values are stored through `src/lib/plugin-config-store.ts` using Tauri Store.
+- Each plugin gets its own store file:
+	- `plugin-config.<normalized-plugin-id>.json`
+- Defaults are seeded automatically when missing.
+
+### How UI Rendering Works
+
+- `src/components/providers/panel-registry-provider.tsx` exposes plugin registry via `usePluginRegistry()`.
+- `src/components/settings/settings-panel.tsx` reads `pluginRegistry.listPluginSettings()`.
+- Controls are rendered automatically by value type:
+	- `boolean` -> switch
+	- `string` -> text input
+	- `number` -> numeric input
+	- `select` -> select dropdown
+
+### SDK Access For Plugin Runtime
+
+`src/plugins/sdk/backend.ts` provides `backend.config` helpers scoped to the current `pluginId`:
+
+- `defineConfig(configKey, configValueType, optional?)`
+- `listConfigDefinitions()`
+- `getConfig(configKey)`
+- `setConfig(configKey, value)`
+- `listConfigValues()`
+
+Use these when a panel needs to read/write plugin settings during runtime. Keep key declaration in plugin registration so settings remain discoverable and render correctly in the Settings panel.
+
 ## UX And UI Guidelines (Insignia Standard)
 
 Treat `AppsLauncherPanel` as the reference for quality and interaction maturity.
