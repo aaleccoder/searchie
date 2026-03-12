@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { definePanel } from "@/components/panels/framework";
 import { LauncherPanel } from "@/components/launcher/launcher-panel";
-import { buildAppsPanels } from "@/plugins/core/apps";
+import { buildAppsPanels } from "@/plugins/core/apps-panels";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
