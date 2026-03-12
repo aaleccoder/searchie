@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { definePanel } from "@/components/panels/framework";
+import { definePanel } from "@/components/framework";
 import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 

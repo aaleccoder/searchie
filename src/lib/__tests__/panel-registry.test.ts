@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { definePanel } from "@/components/panels/framework";
+import { definePanel } from "@/components/framework";
 import { createPanelRegistry } from "@/lib/panel-registry";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 

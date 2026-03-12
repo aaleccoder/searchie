@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildUtilityPanels } from "@/components/panels/utilities";
 import { createPanelRegistry } from "@/lib/panel-registry";
+import { buildUtilityPanels } from "../descriptors";
 
 describe("utility panel registration", () => {
   it("registers utility panels with multilingual aliases", () => {

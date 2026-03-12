@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { definePanel } from "@/components/panels/framework";
+import { definePanel } from "@/components/framework";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { invokePanelCommand, PanelCommandError } from "@/lib/tauri-commands";
 
