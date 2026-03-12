@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Toaster, toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 export const PanelBadge = Badge;
@@ -41,6 +42,8 @@ export const PanelTooltip = Tooltip;
 export const PanelTooltipContent = TooltipContent;
 export const PanelTooltipProvider = TooltipProvider;
 export const PanelTooltipTrigger = TooltipTrigger;
+export const PanelToaster = Toaster;
+export const panelToast = toast;
 
 type WithoutClassName<T> = Omit<T, "className">;
 

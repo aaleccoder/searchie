@@ -37,11 +37,13 @@ export {
   PanelSelectValue,
   PanelText,
   PanelTextButton,
+  PanelToaster,
   PanelTooltip,
   PanelTooltipContent,
   PanelTooltipProvider,
   PanelTooltipTrigger,
   PanelAside,
   PanelArticle,
+  panelToast,
   panelListItemVariants,
 } from "@/components/framework/panel-primitives";
