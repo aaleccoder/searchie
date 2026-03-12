@@ -9,12 +9,12 @@ import {
   GLYPH_PICKER_ALIASES,
   flattenAliases,
 } from "@/plugins/core/internal/utilities/aliases";
-import { CalcUtilityPanel } from "./calc-utility-panel";
-import { ConversionUtilityPanel } from "./conversion-utility-panel";
-import { onFileSearchInputKeyDown } from "./file-search-keybindings";
-import { FileSearchUtilityPanel } from "../system/file-search-utility-panel";
-import { onGlyphPickerInputKeyDown } from "./glyph-picker-keybindings";
-import { GlyphPickerUtilityPanel } from "./glyph-picker-utility-panel";
+import { CalcUtilityPanel } from "./features/calc/calc-utility-panel";
+import { ConversionUtilityPanel } from "./features/conversion/conversion-utility-panel";
+import { onFileSearchInputKeyDown } from "./features/file-search/file-search-keybindings";
+import { FileSearchUtilityPanel } from "./features/file-search/file-search-utility-panel";
+import { onGlyphPickerInputKeyDown } from "./features/glyph-picker/glyph-picker-keybindings";
+import { GlyphPickerUtilityPanel } from "./features/glyph-picker/glyph-picker-utility-panel";
 
 function createCalcPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(CALC_ALIASES);

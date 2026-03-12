@@ -14,7 +14,7 @@ import {
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { buildSearchRequest, rankFileSearchResults } from "@/lib/utilities/file-search-engine";
 import { cn } from "@/lib/utils";
-import { registerFileSearchInputController } from "../utilities/file-search-keybindings";
+import { registerFileSearchInputController } from "./file-search-keybindings";
 
 type FileSearchUtilityPanelProps = {
   commandQuery: string;

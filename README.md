@@ -28,7 +28,7 @@ This is a Tauri + React + TypeScript application.
 This is a personal project focused on what I need. Here's the reality:
 
 - **Windows only** - For now, I have no plans to support other platforms. macOS and Linux users will need to look elsewhere.
-- **No plugins** - I don't care about plugin systems and have no intention of adding one. The features you see are the features you get.
+- **No third-party plugins** - Searchie uses an internal core-plugin architecture, but does not expose external plugin loading.
 
 Built with Tauri, React, TypeScript, and shadcn/ui.
 
@@ -40,7 +40,7 @@ This document explains how to add a new launcher panel in Searchie and how to de
 
 - Build new panel features through the panel registry architecture, not by hardcoding logic into the launcher.
 - Keep behavior keyboard-first, fast, and predictable.
-- Match the visual and interaction standards established by `src/components/panels/apps/apps-launcher-panel.tsx`.
+- Match the visual and interaction standards established by `src/plugins/core/internal/apps/panels/apps-launcher-panel.tsx`.
 - Keep implementation modular and testable.
 
 ### Core Contracts You Must Use
@@ -50,8 +50,10 @@ These are the core files you should read before writing a panel.
 - `src/lib/panel-contract.ts`
 - `src/lib/panel-matchers.ts`
 - `src/lib/panel-shortcuts.ts`
+- `src/lib/plugin-contract.ts`
 - `src/components/providers/panel-registry-provider.tsx`
-- `src/components/panels/apps/apps-launcher-panel.tsx`
+- `src/plugins/core/index.ts`
+- `src/plugins/core/internal/apps/panels/apps-launcher-panel.tsx`
 
 #### `ShortcutPanelDescriptor` Checklist
 
@@ -210,30 +212,35 @@ function ExamplePanel({
 Follow these workspace rules consistently:
 
 - Do not hardcode panel-specific behavior in `src/components/launcher-panel.tsx`.
-- Register panel descriptors through `src/components/providers/panel-registry-provider.tsx`.
+- Register panels in plugin descriptors under `src/plugins/core/*` and `src/plugins/core/internal/*`; provider registration happens automatically through `buildCorePlugins()`.
 - Use `createPrefixAliasMatcher` from `src/lib/panel-matchers.ts` unless there is a strong reason not to.
+- Always use `src/components/framework/panel-primitives.tsx` for panel UI primitives (layout, text, list, buttons, empty states, scroll areas, etc.) instead of importing raw UI primitives directly.
 - If the panel calls Tauri commands, call `invokePanelCommand` from `src/lib/tauri-commands.ts` instead of direct `invoke(...)`.
 - Keep logic and UI separated for utility-style features:
 	- Core logic in `src/lib/utilities/<module>-engine.ts`
-	- Panel UI in `src/components/panels/utilities/<module>-utility-panel.tsx`
+	- Panel UI in `src/plugins/core/internal/<plugin>/...`
 - Utility panels must reuse the launcher input as the single query input source.
 	- Do not add a second, panel-local search field.
 	- Parse and react to `commandQuery` from `PanelRenderProps`.
 - Do not wrap panel root panes with heavy card wrappers by default (for example: `rounded-xl border border-border/70 bg-card/92 shadow-lg`) unless the existing panel family already uses that exact wrapper pattern.
 
-### Step-By-Step: Add A New Panel
+### Step-By-Step: Add A New Core Plugin Panel
 
-1. Create the panel component in the correct area.
-2. Define aliases (include multilingual aliases where relevant).
-3. Build a descriptor that satisfies `ShortcutPanelDescriptor`.
-4. Register the descriptor in `PanelRegistryProvider`.
-5. Add tests before implementation changes (TDD flow).
-6. Validate keyboard behavior, focus transitions, and shortcut hints.
+1. Choose the plugin scope (`apps`, `clipboard`, `system`, `utilities`).
+2. Create the panel component in the plugin's `panels/` or `features/<feature>/` directory.
+3. Define aliases (include multilingual aliases where relevant).
+4. Build a descriptor that satisfies `ShortcutPanelDescriptor`.
+5. Register/export the descriptor via the plugin's `descriptors.tsx` and plugin factory (`src/plugins/core/<plugin>.tsx`).
+6. Add tests before implementation changes (TDD flow).
+7. Validate keyboard behavior, focus transitions, and shortcut hints.
 
 #### 1) Create Panel UI Component
 
-- Put app-oriented panels under `src/components/panels/apps/...`.
-- Put utility panels under `src/components/panels/utilities/...`.
+- Put app-oriented panels under `src/plugins/core/internal/apps/panels/...`.
+- Put clipboard panels under `src/plugins/core/internal/clipboard/panels/...`.
+- Put system panels under `src/plugins/core/internal/system/panels/...`.
+- Put utility panels under `src/plugins/core/internal/utilities/features/<feature>/...`.
+- Build panel UI with primitives from `src/components/framework/panel-primitives.tsx`.
 - Use shadcn components from `src/components/ui/*`.
 - Keep components focused; avoid monolithic files.
 
@@ -283,13 +290,14 @@ export const examplePanel: ShortcutPanelDescriptor = {
 };
 ```
 
-#### 4) Register In Provider
+#### 4) Register In Plugin Descriptors
 
-Register in `src/components/providers/panel-registry-provider.tsx` using existing pattern:
+Register through the core plugin structure (not directly in the provider):
 
-- `nextRegistry.register(examplePanel)`
-- Keep registration order intentional.
-- Avoid conditional registration unless feature capability requires it.
+- Add descriptor to the plugin internal descriptor builder, for example `src/plugins/core/internal/utilities/descriptors.tsx`.
+- Ensure the plugin factory returns those panels in `src/plugins/core/<plugin>.tsx`.
+- Keep plugin order intentional in `src/plugins/core/index.ts` (`buildCorePlugins`).
+- `PanelRegistryProvider` already registers all plugin panels from `buildCorePlugins()`.
 
 #### 5) Integrate Search Behavior Correctly
 
@@ -333,7 +341,7 @@ Keyboard-first is mandatory.
 - `ArrowRight/ArrowLeft`: switch between list and action column when applicable.
 - `Escape`: return focus to launcher input or exit panel session based on `searchIntegration.exitOnEscape`.
 
-Required parity with `src/components/panels/apps/apps-launcher-panel.tsx` behavior:
+Required parity with `src/plugins/core/internal/apps/panels/apps-launcher-panel.tsx` behavior:
 
 - Wire panel-level hotkeys so navigation works even when focus shifts inside panel regions.
 - Implement both input-level interception (`onInputKeyDown` + input handler registration) and in-panel key handling when needed.
@@ -447,7 +455,13 @@ Also add integration coverage when panel behavior affects launcher flow.
 - `src/lib/panel-contract.ts`
 - `src/lib/panel-matchers.ts`
 - `src/lib/panel-shortcuts.ts`
+- `src/lib/plugin-contract.ts`
 - `src/components/providers/panel-registry-provider.tsx`
-- `src/components/panels/apps/apps-launcher-panel.tsx`
-- `src/components/panels/apps/index.tsx`
+- `src/components/framework/panel-primitives.tsx`
+- `src/plugins/core/index.ts`
+- `src/plugins/core/apps.tsx`
+- `src/plugins/core/clipboard.tsx`
+- `src/plugins/core/system.tsx`
+- `src/plugins/core/utilities.tsx`
+- `src/plugins/core/internal/apps/panels/apps-launcher-panel.tsx`
 - `src/components/launcher-panel.tsx`

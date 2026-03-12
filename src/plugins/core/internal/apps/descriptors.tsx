@@ -3,7 +3,7 @@ import { definePluginPanel } from "@/plugins/sdk";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 
 import { APPS_ALIASES, flattenAliases } from "./aliases";
-import { AppsLauncherPanel } from "./apps-launcher-panel";
+import { AppsLauncherPanel } from "./panels/apps-launcher-panel";
 
 function createAppsPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(APPS_ALIASES);

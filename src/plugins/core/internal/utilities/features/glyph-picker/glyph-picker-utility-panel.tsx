@@ -16,7 +16,6 @@ import {
   usePanelFooter,
   usePanelFooterControlsRef,
 } from "@/plugins/sdk";
-import { registerGlyphPickerInputController } from "@/plugins/core/internal/utilities/glyph-picker-keybindings";
 import type { PanelFooterConfig } from "@/lib/panel-contract";
 import {
   filterGlyphEntries,
@@ -27,6 +26,7 @@ import {
   type GlyphPickerQuery,
 } from "@/lib/utilities/glyph-picker-engine";
 import { cn } from "@/lib/utils";
+import { registerGlyphPickerInputController } from "./glyph-picker-keybindings";
 
 type GlyphPickerUtilityPanelProps = {
   commandQuery: string;

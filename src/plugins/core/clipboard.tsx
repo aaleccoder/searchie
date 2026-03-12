@@ -1,5 +1,5 @@
 import type { CorePluginDescriptor } from "@/lib/plugin-contract";
-import { clipboardShortcutPanel } from "./internal/clipboard/descriptor";
+import { clipboardShortcutPanel } from "./internal/clipboard/descriptors";
 
 export function createCoreClipboardPlugin(): CorePluginDescriptor {
   return {

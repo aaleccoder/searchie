@@ -1,4 +1,4 @@
-import { ClipboardPanel } from "@/plugins/core/internal/utilities/clipboard-panel";
+import { ClipboardPanel } from "@/plugins/core/internal/clipboard/panels/clipboard-panel";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
