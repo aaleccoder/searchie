@@ -5,6 +5,7 @@ pub mod db;
 pub mod features;
 pub mod file_search;
 pub mod icons;
+pub mod system_controls;
 
 use crate::apps::{
     bootstrap_app_index, get_app_icon, get_app_icons, launch_installed_app,
@@ -17,6 +18,13 @@ use crate::clipboard::{
     toggle_clipboard_pin, ClipboardState,
 };
 use crate::file_search::{open_file_path, search_files, FileIndexState};
+use crate::system_controls::{
+    change_brightness, change_system_volume, get_brightness, media_next, media_play_pause,
+    media_previous, open_system_settings_uri, set_airplane_mode, set_bluetooth_enabled,
+    set_brightness, set_hotspot_enabled, set_power_profile, set_system_mute, set_system_volume,
+    set_wifi_enabled, toggle_airplane_mode, toggle_bluetooth, toggle_hotspot, toggle_system_mute,
+    toggle_wifi,
+};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -333,7 +341,27 @@ pub fn run() {
             open_installed_app_properties,
             open_installed_app_install_location,
             get_app_icons,
-            get_app_icon
+            get_app_icon,
+            media_play_pause,
+            media_next,
+            media_previous,
+            set_system_volume,
+            change_system_volume,
+            set_system_mute,
+            toggle_system_mute,
+            get_brightness,
+            set_brightness,
+            change_brightness,
+            set_wifi_enabled,
+            toggle_wifi,
+            set_bluetooth_enabled,
+            toggle_bluetooth,
+            set_airplane_mode,
+            toggle_airplane_mode,
+            set_hotspot_enabled,
+            toggle_hotspot,
+            set_power_profile,
+            open_system_settings_uri
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

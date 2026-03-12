@@ -6,6 +6,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ export const PanelSelectContent = SelectContent;
 export const PanelSelectItem = SelectItem;
 export const PanelSelectTrigger = SelectTrigger;
 export const PanelSelectValue = SelectValue;
+export const PanelSlider = Slider;
 export const PanelTooltip = Tooltip;
 export const PanelTooltipContent = TooltipContent;
 export const PanelTooltipProvider = TooltipProvider;

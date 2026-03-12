@@ -71,6 +71,26 @@ describe("invokePanelCommand", () => {
     });
   });
 
+  it("invokes set_system_volume when system.volume capability allows", async () => {
+    const systemPanel: ShortcutPanelDescriptor = definePanel({
+      pluginId: "core.system",
+      id: "system-volume",
+      name: "System Volume",
+      aliases: ["volume"],
+      capabilities: ["system.volume"],
+      matcher: () => ({ matches: false, commandQuery: "" }),
+      component: () => null,
+    });
+
+    invokeMock.mockResolvedValueOnce(null);
+
+    await invokePanelCommand<void>(systemPanel, "set_system_volume", {
+      value: 42,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("set_system_volume", { value: 42 });
+  });
+
   it("allows batched icon command under apps.icon capability", async () => {
     invokeMock.mockResolvedValueOnce({ a: null });
 

@@ -42,11 +42,43 @@ export type WindowSdk = {
   updateShortcut: (oldShortcut: string, newShortcut: string) => Promise<void>;
 };
 
+export type SystemPowerProfile = "balanced" | "power-saver" | "performance";
+
+export type SystemBackendResult = {
+  applied: boolean;
+  usedFallback?: boolean;
+  message?: string;
+};
+
+export type SystemSdk = {
+  mediaPlayPause: () => Promise<SystemBackendResult>;
+  mediaNext: () => Promise<SystemBackendResult>;
+  mediaPrevious: () => Promise<SystemBackendResult>;
+  setVolume: (value: number) => Promise<SystemBackendResult>;
+  changeVolume: (delta: number) => Promise<SystemBackendResult>;
+  setMute: (muted: boolean) => Promise<SystemBackendResult>;
+  toggleMute: () => Promise<SystemBackendResult>;
+  getBrightness: () => Promise<number | null>;
+  setBrightness: (value: number) => Promise<SystemBackendResult>;
+  changeBrightness: (delta: number) => Promise<SystemBackendResult>;
+  setWifiEnabled: (enabled: boolean) => Promise<SystemBackendResult>;
+  toggleWifi: () => Promise<SystemBackendResult>;
+  setBluetoothEnabled: (enabled: boolean) => Promise<SystemBackendResult>;
+  toggleBluetooth: () => Promise<SystemBackendResult>;
+  setAirplaneMode: (enabled: boolean) => Promise<SystemBackendResult>;
+  toggleAirplaneMode: () => Promise<SystemBackendResult>;
+  setHotspotEnabled: (enabled: boolean) => Promise<SystemBackendResult>;
+  toggleHotspot: () => Promise<SystemBackendResult>;
+  setPowerProfile: (profile: SystemPowerProfile) => Promise<SystemBackendResult>;
+  openSettingsUri: (uri: string) => Promise<SystemBackendResult>;
+};
+
 export type PluginBackendSdk = {
   apps: AppsSdk;
   clipboard: ClipboardSdk;
   files: FilesSdk;
   window: WindowSdk;
+  system: SystemSdk;
   config: {
     defineConfig: (configKey: string, configValueType: PluginConfigDefinition["valueType"], optional?: boolean) => void;
     listConfigDefinitions: () => PluginConfigDefinition[];
@@ -119,6 +151,36 @@ export function createPluginBackendSdk(scope: PanelCommandScope): PluginBackendS
       shellExecuteW: (target: string) => invokePanelCommand<void>(scope, "shell_execute_w", { target }),
       updateShortcut: (oldShortcut: string, newShortcut: string) =>
         invokePanelCommand<void>(scope, "update_shortcut", { oldShortcut, newShortcut }),
+    },
+    system: {
+      mediaPlayPause: () => invokePanelCommand<SystemBackendResult>(scope, "media_play_pause", {}),
+      mediaNext: () => invokePanelCommand<SystemBackendResult>(scope, "media_next", {}),
+      mediaPrevious: () => invokePanelCommand<SystemBackendResult>(scope, "media_previous", {}),
+      setVolume: (value: number) => invokePanelCommand<SystemBackendResult>(scope, "set_system_volume", { value }),
+      changeVolume: (delta: number) =>
+        invokePanelCommand<SystemBackendResult>(scope, "change_system_volume", { delta }),
+      setMute: (muted: boolean) => invokePanelCommand<SystemBackendResult>(scope, "set_system_mute", { muted }),
+      toggleMute: () => invokePanelCommand<SystemBackendResult>(scope, "toggle_system_mute", {}),
+      getBrightness: () => invokePanelCommand<number | null>(scope, "get_brightness", {}),
+      setBrightness: (value: number) => invokePanelCommand<SystemBackendResult>(scope, "set_brightness", { value }),
+      changeBrightness: (delta: number) =>
+        invokePanelCommand<SystemBackendResult>(scope, "change_brightness", { delta }),
+      setWifiEnabled: (enabled: boolean) =>
+        invokePanelCommand<SystemBackendResult>(scope, "set_wifi_enabled", { enabled }),
+      toggleWifi: () => invokePanelCommand<SystemBackendResult>(scope, "toggle_wifi", {}),
+      setBluetoothEnabled: (enabled: boolean) =>
+        invokePanelCommand<SystemBackendResult>(scope, "set_bluetooth_enabled", { enabled }),
+      toggleBluetooth: () => invokePanelCommand<SystemBackendResult>(scope, "toggle_bluetooth", {}),
+      setAirplaneMode: (enabled: boolean) =>
+        invokePanelCommand<SystemBackendResult>(scope, "set_airplane_mode", { enabled }),
+      toggleAirplaneMode: () => invokePanelCommand<SystemBackendResult>(scope, "toggle_airplane_mode", {}),
+      setHotspotEnabled: (enabled: boolean) =>
+        invokePanelCommand<SystemBackendResult>(scope, "set_hotspot_enabled", { enabled }),
+      toggleHotspot: () => invokePanelCommand<SystemBackendResult>(scope, "toggle_hotspot", {}),
+      setPowerProfile: (profile: SystemPowerProfile) =>
+        invokePanelCommand<SystemBackendResult>(scope, "set_power_profile", { profile }),
+      openSettingsUri: (uri: string) =>
+        invokePanelCommand<SystemBackendResult>(scope, "open_system_settings_uri", { uri }),
     },
     config: {
       defineConfig: (configKey, configValueType, optional = false) => {

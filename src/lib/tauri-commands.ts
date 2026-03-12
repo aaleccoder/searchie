@@ -25,7 +25,27 @@ export type BackendCommand =
   | "set_main_window_mode"
   | "show_settings"
   | "shell_execute_w"
-  | "update_shortcut";
+  | "update_shortcut"
+  | "media_play_pause"
+  | "media_next"
+  | "media_previous"
+  | "set_system_volume"
+  | "change_system_volume"
+  | "set_system_mute"
+  | "toggle_system_mute"
+  | "get_brightness"
+  | "set_brightness"
+  | "change_brightness"
+  | "set_wifi_enabled"
+  | "toggle_wifi"
+  | "set_bluetooth_enabled"
+  | "toggle_bluetooth"
+  | "set_airplane_mode"
+  | "toggle_airplane_mode"
+  | "set_hotspot_enabled"
+  | "toggle_hotspot"
+  | "set_power_profile"
+  | "open_system_settings_uri";
 
 const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   list_installed_apps: "apps.list",
@@ -48,6 +68,26 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   show_settings: "settings.read",
   shell_execute_w: "settings.read",
   update_shortcut: "settings.write",
+  media_play_pause: "system.media",
+  media_next: "system.media",
+  media_previous: "system.media",
+  set_system_volume: "system.volume",
+  change_system_volume: "system.volume",
+  set_system_mute: "system.volume",
+  toggle_system_mute: "system.volume",
+  get_brightness: "system.brightness",
+  set_brightness: "system.brightness",
+  change_brightness: "system.brightness",
+  set_wifi_enabled: "system.wifi",
+  toggle_wifi: "system.wifi",
+  set_bluetooth_enabled: "system.bluetooth",
+  toggle_bluetooth: "system.bluetooth",
+  set_airplane_mode: "system.airplane",
+  toggle_airplane_mode: "system.airplane",
+  set_hotspot_enabled: "system.hotspot",
+  toggle_hotspot: "system.hotspot",
+  set_power_profile: "system.power",
+  open_system_settings_uri: "system.settings",
 };
 
 export class PanelCommandError extends Error {

@@ -31,11 +31,10 @@ png = "0.17"
 base64 = "0.22"
 winapi = { version = "0.3", features = ["shellapi", "wingdi", "winuser", "windef", "combaseapi", "objbase", "shlobj", "shobjidl_core", "shtypes"] }
 tokio = { version = "1", features = ["rt", "time"] }
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Com"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Com", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints"] }
 arboard = "3.6"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-window-state = "2"
-

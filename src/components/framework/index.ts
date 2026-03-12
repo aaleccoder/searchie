@@ -33,6 +33,7 @@ export {
   PanelSelect,
   PanelSelectContent,
   PanelSelectItem,
+  PanelSlider,
   PanelSelectTrigger,
   PanelSelectValue,
   PanelText,

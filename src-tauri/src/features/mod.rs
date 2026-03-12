@@ -2,6 +2,7 @@ pub mod apps;
 pub mod clipboard;
 pub mod events;
 pub mod files;
+pub mod system_controls;
 pub mod windows;
 
 use std::collections::{HashMap, HashSet};
@@ -115,6 +116,7 @@ pub fn build_builtin_feature_registry() -> Result<FeatureRegistry, String> {
     registry.register(clipboard::ClipboardFeatureProvider)?;
     registry.register(files::FilesFeatureProvider)?;
     registry.register(windows::WindowsFeatureProvider)?;
+    registry.register(system_controls::SystemControlsFeatureProvider)?;
     registry.validate_unique_commands()?;
     Ok(registry)
 }

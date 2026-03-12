@@ -9,7 +9,11 @@ export function createCorePluginSettingsPlugin(): CorePluginDescriptor {
     permissions: [],
     panels: [],
     settings: (defineConfig) => [
-      
+      defineConfig("enabled", "boolean", false, {
+        label: "Enabled",
+        description: "Enable plugin settings integration diagnostics.",
+        defaultValue: true,
+      }),
     ],
   });
 }

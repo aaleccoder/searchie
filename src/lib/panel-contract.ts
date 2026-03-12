@@ -17,7 +17,16 @@ export type PanelCapability =
   | "files.open"
   | "settings.read"
   | "settings.write"
-  | "window.mode";
+  | "window.mode"
+  | "system.media"
+  | "system.volume"
+  | "system.brightness"
+  | "system.wifi"
+  | "system.bluetooth"
+  | "system.airplane"
+  | "system.power"
+  | "system.hotspot"
+  | "system.settings";
 
 export type PanelMatcherResult = {
   matches: boolean;

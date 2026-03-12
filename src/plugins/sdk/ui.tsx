@@ -17,6 +17,7 @@ export {
   PanelSelect as Select,
   PanelSelectContent as SelectContent,
   PanelSelectItem as SelectItem,
+  PanelSlider as Slider,
   PanelSelectTrigger as SelectTrigger,
   PanelSelectValue as SelectValue,
   PanelTooltip as Tooltip,
