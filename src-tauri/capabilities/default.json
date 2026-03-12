@@ -25,6 +25,7 @@
     "window-state:allow-restore-state",
     "window-state:allow-save-window-state",
     "core:window:allow-start-dragging",
-    "core:window:allow-hide"
+    "core:window:allow-hide",
+    "http:default"
   ]
 }

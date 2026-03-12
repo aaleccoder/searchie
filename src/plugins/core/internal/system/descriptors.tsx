@@ -14,6 +14,7 @@ import { parseBrightnessCommand, parseConnectivityCommand, type ConnectivityTarg
 import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { createPluginBackendSdk, definePluginCommand, definePluginPanel } from "@/plugins/sdk";
+import { gotoCommand } from "./commands/goto-command";
 import {
   AIRPLANE_ALIAS_LIST,
   BLUETOOTH_ALIAS_LIST,
@@ -468,6 +469,7 @@ export function buildSystemControlPanels(): ShortcutPanelDescriptor[] {
 
 export function buildSystemDirectCommands(): ShortcutCommandDescriptor[] {
   return [
+    gotoCommand,
     createMediaActionCommand(),
     createBrightnessActionCommand(),
     createConnectivityActionCommand({

@@ -24,5 +24,9 @@ describe("utility panel registration", () => {
     expect(registry.find("emoji smile")?.panel.id).toBe("utilities-glyph-picker");
     expect(registry.find("emoticon shrug")?.panel.id).toBe("utilities-glyph-picker");
     expect(registry.find("else arrow")?.panel.id).toBe("utilities-glyph-picker");
+
+    expect(registry.find("google maps")?.panel.id).toBe("utilities-google-search");
+    expect(registry.find("gsearch weather")?.panel.id).toBe("utilities-google-search");
+    expect(registry.find("rechercher music")?.panel.id).toBe("utilities-google-search");
   });
 });

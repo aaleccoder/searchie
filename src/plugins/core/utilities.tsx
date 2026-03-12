@@ -6,7 +6,7 @@ export function createCoreUtilitiesPlugin(): CorePluginDescriptor {
     id: "core.utilities",
     name: "Core Utilities",
     version: "0.1.0",
-    permissions: ["files.search", "files.open"],
+    permissions: ["files.search", "files.open", "window.shell"],
     panels: buildUtilityPanels(),
   };
 }

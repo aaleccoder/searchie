@@ -39,6 +39,7 @@ export type WindowSdk = {
   setMainWindowMode: (mode: "compact" | "launcher" | "settings") => Promise<void>;
   showSettings: () => Promise<void>;
   shellExecuteW: (target: string) => Promise<void>;
+  openUrl: (target: string) => Promise<void>;
   updateShortcut: (oldShortcut: string, newShortcut: string) => Promise<void>;
 };
 
@@ -149,6 +150,7 @@ export function createPluginBackendSdk(scope: PanelCommandScope): PluginBackendS
         invokePanelCommand<void>(scope, "set_main_window_mode", { mode }),
       showSettings: () => invokePanelCommand<void>(scope, "show_settings", {}),
       shellExecuteW: (target: string) => invokePanelCommand<void>(scope, "shell_execute_w", { target }),
+      openUrl: (target: string) => invokePanelCommand<void>(scope, "shell_execute_w", { target }),
       updateShortcut: (oldShortcut: string, newShortcut: string) =>
         invokePanelCommand<void>(scope, "update_shortcut", { oldShortcut, newShortcut }),
     },

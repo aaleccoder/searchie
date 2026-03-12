@@ -56,6 +56,21 @@ describe("buildSystemControlPanels", () => {
     });
   });
 
+  it("registers goto direct command", () => {
+    const commands = buildSystemDirectCommands();
+    const goto = commands.find((command) => command.id === "system-goto");
+
+    expect(goto).toBeTruthy();
+    expect(goto?.matcher("goto example.com")).toEqual({
+      matches: true,
+      commandQuery: "example.com",
+    });
+    expect(goto?.matcher("goto")).toEqual({
+      matches: false,
+      commandQuery: "",
+    });
+  });
+
   it("registers actionable media direct commands", () => {
     const commands = buildSystemDirectCommands();
     const mediaCommand = commands.find((command) => command.id === "system-media-action");

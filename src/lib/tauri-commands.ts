@@ -66,7 +66,7 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   open_file_path: "files.open",
   set_main_window_mode: "window.mode",
   show_settings: "settings.read",
-  shell_execute_w: "settings.read",
+  shell_execute_w: "window.shell",
   update_shortcut: "settings.write",
   media_play_pause: "system.media",
   media_next: "system.media",

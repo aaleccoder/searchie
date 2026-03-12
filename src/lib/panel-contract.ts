@@ -18,6 +18,7 @@ export type PanelCapability =
   | "settings.read"
   | "settings.write"
   | "window.mode"
+  | "window.shell"
   | "system.media"
   | "system.volume"
   | "system.brightness"
