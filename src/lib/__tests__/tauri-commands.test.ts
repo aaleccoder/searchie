@@ -58,6 +58,16 @@ describe("invokePanelCommand", () => {
     expect(invokeMock).toHaveBeenCalledWith("open_installed_app_properties", { appId: "a" });
   });
 
+  it("allows batched icon command under apps.icon capability", async () => {
+    invokeMock.mockResolvedValueOnce({ a: null });
+
+    await invokePanelCommand<Record<string, string | null>>(launcherPanel, "get_app_icons", {
+      appIds: ["a"],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("get_app_icons", { appIds: ["a"] });
+  });
+
   it("rejects disallowed commands", async () => {
     await expect(
       invokePanelCommand(launcherPanel, "search_clipboard_history", { query: "x" }),

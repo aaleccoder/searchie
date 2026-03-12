@@ -3,6 +3,7 @@ import { ArrowLeft, FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-re
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   Button as PanelButton,
+  List as PanelList,
   ScrollArea as PanelScrollArea,
   Tooltip as PanelTooltip,
   TooltipContent as PanelTooltipContent,
@@ -15,6 +16,13 @@ import {
   usePanelFooterControlsRef,
 } from "@/plugins/sdk";
 import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import {
+  cacheAppIcons,
+  computeAppsIconFingerprint,
+  ensureAppsIconCacheBucket,
+  getCachedAppIcon,
+  hasCachedAppIcon,
+} from "@/lib/apps-icon-cache";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { cn } from "@/lib/utils";
@@ -69,8 +77,6 @@ type NavigationItem =
     };
 
   type NavigationMode = "list" | "actions";
-
-const iconCache = new Map<string, string | null>();
 
 const launcherCommandScope: PanelCommandScope = {
   pluginId: "core.apps",
@@ -140,40 +146,13 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-function AppIcon({ appId, className }: { appId: string; className?: string }) {
-  const backend = React.useMemo(() => createPluginBackendSdk(launcherCommandScope), []);
-  const [src, setSrc] = React.useState<string | null>(iconCache.get(appId) ?? null);
+function AppIcon({ appId, className, cacheVersion }: { appId: string; className?: string; cacheVersion: number }) {
   const [failed, setFailed] = React.useState(false);
+  const src = getCachedAppIcon(appId);
 
   React.useEffect(() => {
     setFailed(false);
-
-    const cached = iconCache.get(appId);
-    if (cached !== undefined) {
-      setSrc(cached);
-      return;
-    }
-
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const base64 = await backend.apps.getAppIcon(appId);
-        if (cancelled) return;
-        const next = base64 ? `data:image/png;base64,${base64}` : null;
-        iconCache.set(appId, next);
-        setSrc(next);
-      } catch {
-        if (cancelled) return;
-        iconCache.set(appId, null);
-        setSrc(null);
-      }
-    };
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [appId, backend.apps]);
+  }, [appId, cacheVersion]);
 
   if (!src || failed) {
     return (
@@ -255,10 +234,14 @@ export function AppsLauncherPanel({
   const [busyActionId, setBusyActionId] = React.useState<AppActionItem["id"] | null>(null);
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [navigationMode, setNavigationMode] = React.useState<NavigationMode>("list");
+  const [iconCacheVersion, setIconCacheVersion] = React.useState(0);
 
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const pendingIconIdsRef = React.useRef<Set<string>>(new Set());
   const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
+
+  const iconFingerprint = React.useMemo(() => computeAppsIconFingerprint(allApps), [allApps]);
 
   const refreshAllApps = React.useCallback(async () => {
     try {
@@ -312,6 +295,73 @@ export function AppsLauncherPanel({
       cancelled = true;
     };
   }, [allApps, backend.apps, debouncedQuery]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const hydrate = async () => {
+      await ensureAppsIconCacheBucket(iconFingerprint);
+      if (!cancelled) {
+        setIconCacheVersion((current) => current + 1);
+      }
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [iconFingerprint]);
+
+  React.useEffect(() => {
+    if (allApps.length === 0) {
+      return;
+    }
+
+    const missingIds = allApps
+      .map((app) => app.id)
+      .filter((appId) => !hasCachedAppIcon(appId) && !pendingIconIdsRef.current.has(appId));
+
+    if (missingIds.length === 0) {
+      return;
+    }
+
+    for (const appId of missingIds) {
+      pendingIconIdsRef.current.add(appId);
+    }
+
+    let cancelled = false;
+
+    const loadIcons = async () => {
+      try {
+        const response = await backend.apps.getAppIcons(missingIds);
+        const responseMap =
+          response && typeof response === "object" ? response : ({} as Record<string, string | null>);
+        const normalized = Object.fromEntries(
+          missingIds.map((appId) => {
+            const base64 = responseMap[appId] ?? null;
+            return [appId, base64 ? `data:image/png;base64,${base64}` : null];
+          }),
+        );
+        await cacheAppIcons(iconFingerprint, normalized);
+      } catch (error) {
+        console.error("[apps-panel] batched icon load failed", error);
+        const fallback = Object.fromEntries(missingIds.map((appId) => [appId, null]));
+        await cacheAppIcons(iconFingerprint, fallback);
+      } finally {
+        for (const appId of missingIds) {
+          pendingIconIdsRef.current.delete(appId);
+        }
+        if (!cancelled) {
+          setIconCacheVersion((current) => current + 1);
+        }
+      }
+    };
+
+    void loadIcons();
+    return () => {
+      cancelled = true;
+    };
+  }, [allApps, backend.apps, iconFingerprint]);
 
   const panelCommandSuggestion = React.useMemo<PanelCommandSuggestion | null>(() => {
     const trimmed = commandQuery.trim().toLowerCase();
@@ -397,6 +447,91 @@ export function AppsLauncherPanel({
   }, [navigationList, selectedItem]);
 
   const selectedApp = selectedItem?.kind === "app" ? selectedItem.app : null;
+  const useVirtualizedList = navigationList.length > 36;
+
+  const renderNavigationItem = (item: NavigationItem) => {
+      const active = selectedItem?.id === item.id;
+
+      if (item.kind === "panel-command") {
+        const CommandIcon = item.command.panel.commandIcon ?? Rocket;
+        return (
+          <button
+            type="button"
+            ref={(el) => {
+              if (el) {
+                itemRefs.current.set(item.id, el);
+              } else {
+                itemRefs.current.delete(item.id);
+              }
+            }}
+            onMouseEnter={() => {
+              setNavigationMode("list");
+              setSelectedId(item.id);
+            }}
+            onFocus={() => {
+              setNavigationMode("list");
+              setSelectedId(item.id);
+            }}
+            onClick={() => {
+              setNavigationMode("list");
+              setSelectedId(item.id);
+              clearLauncherInput?.();
+              activatePanelSession?.(item.command.panel, item.command.commandQuery);
+            }}
+            className={cn(
+              "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
+              active
+                ? "border-primary/70 bg-primary/10"
+                : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+            )}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
+                <CommandIcon className="size-3.5 text-muted-foreground" />
+              </div>
+              <SingleLineTooltipText text={`Open ${item.command.panel.name}`} className="text-sm" />
+            </div>
+            <span className="text-[11px] text-muted-foreground font-mono">Command</span>
+          </button>
+        );
+      }
+
+      const app = item.app;
+      return (
+        <button
+          type="button"
+          ref={(el) => {
+            if (el) {
+              itemRefs.current.set(item.id, el);
+            } else {
+              itemRefs.current.delete(item.id);
+            }
+          }}
+          onMouseEnter={() => {
+            setNavigationMode("list");
+            setSelectedId(item.id);
+          }}
+          onFocus={() => {
+            setNavigationMode("list");
+            setSelectedId(item.id);
+          }}
+          onClick={() => {
+            setNavigationMode("list");
+            setSelectedId(item.id);
+            void executeAppAction("open", app);
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
+            active
+              ? "border-primary/70 bg-primary/10"
+              : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+          )}
+        >
+          <AppIcon appId={app.id} className="size-6 shrink-0" cacheVersion={iconCacheVersion} />
+          <SingleLineTooltipText text={app.name} className="text-sm" />
+        </button>
+      );
+  };
 
   const appActions = React.useMemo<AppActionItem[]>(() => {
     if (!selectedApp) {
@@ -834,92 +969,34 @@ export function AppsLauncherPanel({
       <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
         <div className="overflow-hidden h-full">
           <PanelScrollArea className="h-full">
-            <div className="">
-              <div className="flex flex-col gap-1">
-                {navigationList.map((item) => {
-                  const active = selectedItem?.id === item.id;
-
-                  if (item.kind === "panel-command") {
-                    const CommandIcon = item.command.panel.commandIcon ?? Rocket;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        ref={(el) => {
-                          if (el) itemRefs.current.set(item.id, el);
-                          else itemRefs.current.delete(item.id);
-                        }}
-                        onMouseEnter={() => {
-                          setNavigationMode("list");
-                          setSelectedId(item.id);
-                        }}
-                        onFocus={() => {
-                          setNavigationMode("list");
-                          setSelectedId(item.id);
-                        }}
-                        onClick={() => {
-                          setNavigationMode("list");
-                          setSelectedId(item.id);
-                          clearLauncherInput?.();
-                          activatePanelSession?.(item.command.panel, item.command.commandQuery);
-                        }}
-                        className={cn(
-                          "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
-                          active
-                            ? "border-primary/70 bg-primary/10"
-                            : "border-transparent hover:border-primary/40 hover:bg-accent/50",
-                        )}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
-                            <CommandIcon className="size-3.5 text-muted-foreground" />
-                          </div>
-                          <SingleLineTooltipText
-                            text={`Open ${item.command.panel.name}`}
-                            className="text-sm"
-                          />
-                        </div>
-                        <span className="text-[11px] text-muted-foreground font-mono">Command</span>
-                      </button>
-                    );
-                  }
-
-                  const app = item.app;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      ref={(el) => {
-                        if (el) itemRefs.current.set(item.id, el);
-                        else itemRefs.current.delete(item.id);
-                      }}
-                      onMouseEnter={() => {
-                        setNavigationMode("list");
-                        setSelectedId(item.id);
-                      }}
-                      onFocus={() => {
-                        setNavigationMode("list");
-                        setSelectedId(item.id);
-                      }}
-                      onClick={() => {
-                        setNavigationMode("list");
-                        setSelectedId(item.id);
-                        void executeAppAction("open", app);
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
-                        active
-                          ? "border-primary/70 bg-primary/10"
-                          : "border-transparent hover:border-primary/40 hover:bg-accent/50",
-                      )}
-                    >
-                      <AppIcon appId={app.id} className="size-6 shrink-0" />
-                      <SingleLineTooltipText text={app.name} className="text-sm" />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <PanelList
+              className="p-0.5"
+              gap="xs"
+              virtualize={
+                useVirtualizedList
+                  ? {
+                      count: navigationList.length,
+                      estimateSize: 42,
+                      overscan: 10,
+                      scrollToIndex: selectedListIndex >= 0 ? selectedListIndex : undefined,
+                      getItemKey: (index) => navigationList[index]?.id ?? `nav-item-${index}`,
+                      renderItem: (index) => {
+                        const item = navigationList[index];
+                        if (!item) {
+                          return null;
+                        }
+                        return renderNavigationItem(item);
+                      },
+                    }
+                  : undefined
+              }
+            >
+              {!useVirtualizedList
+                ? navigationList.map((item) => (
+                    <React.Fragment key={item.id}>{renderNavigationItem(item)}</React.Fragment>
+                  ))
+                : null}
+            </PanelList>
           </PanelScrollArea>
         </div>
 

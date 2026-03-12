@@ -1,4 +1,4 @@
-import { ScrollArea as PanelScrollArea } from "@/plugins/sdk";
+import { PanelContainer, ScrollArea as PanelScrollArea } from "@/plugins/sdk";
 import { SettingsPanel } from "@/components/settings-panel";
 
 type SettingsShortcutPanelProps = {
@@ -7,12 +7,12 @@ type SettingsShortcutPanelProps = {
 
 export function SettingsShortcutPanel(_props: SettingsShortcutPanelProps) {
   return (
-    <div className="h-full overflow-hidden">
+    <PanelContainer className="h-full overflow-hidden">
       <PanelScrollArea className="h-full">
-        <div className="p-2">
+        <PanelContainer className="p-2">
           <SettingsPanel className="max-w-none" />
-        </div>
+        </PanelContainer>
       </PanelScrollArea>
-    </div>
+    </PanelContainer>
   );
 }

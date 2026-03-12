@@ -1,5 +1,12 @@
 import * as React from "react";
-import { Badge as PanelBadge, Input as PanelInput } from "@/plugins/sdk";
+import {
+  Badge as PanelBadge,
+  Input as PanelInput,
+  PanelContainer,
+  PanelHeading,
+  PanelParagraph,
+  PanelText,
+} from "@/plugins/sdk";
 import { convertValue, parseConversionQuery } from "@/lib/utilities/conversion-engine";
 
 type ConversionUtilityPanelProps = {
@@ -46,11 +53,11 @@ export function ConversionUtilityPanel({ commandQuery }: ConversionUtilityPanelP
   }, [query]);
 
   return (
-    <div className="h-full rounded-xl p-4 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Converter</h3>
+    <PanelContainer className="h-full rounded-xl p-4 flex flex-col gap-4">
+      <PanelContainer className="flex items-center justify-between">
+        <PanelHeading>Converter</PanelHeading>
         <PanelBadge variant="secondary">Utilities</PanelBadge>
-      </div>
+      </PanelContainer>
 
       <PanelInput
         value={query}
@@ -58,19 +65,19 @@ export function ConversionUtilityPanel({ commandQuery }: ConversionUtilityPanelP
         placeholder="10 km to mi"
       />
 
-      <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+      <PanelContainer className="rounded-lg border border-border/60 bg-background/60 p-3">
         {conversion.ok ? (
-          <p className="text-sm">
-            {conversion.fromLabel} = <span className="font-semibold">{conversion.toLabel}</span>
-          </p>
+          <PanelParagraph>
+            {conversion.fromLabel} = <PanelText weight="semibold">{conversion.toLabel}</PanelText>
+          </PanelParagraph>
         ) : (
-          <p className="text-sm text-muted-foreground">{conversion.message}</p>
+          <PanelParagraph tone="muted">{conversion.message}</PanelParagraph>
         )}
-      </div>
+      </PanelContainer>
 
-      <p className="text-xs text-muted-foreground">
+      <PanelParagraph size="xs" tone="muted">
         Supports length, weight, and temperature conversions.
-      </p>
-    </div>
+      </PanelParagraph>
+    </PanelContainer>
   );
 }

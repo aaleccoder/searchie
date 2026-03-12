@@ -7,7 +7,8 @@ pub mod file_search;
 pub mod icons;
 
 use crate::apps::{
-    bootstrap_app_index, get_app_icon, launch_installed_app, launch_installed_app_as_admin,
+    bootstrap_app_index, get_app_icon, get_app_icons, launch_installed_app,
+    launch_installed_app_as_admin,
     list_installed_apps, open_installed_app_install_location, open_installed_app_properties,
     search_installed_apps, uninstall_installed_app, AppIndexState,
 };
@@ -276,6 +277,7 @@ pub fn run() {
             uninstall_installed_app,
             open_installed_app_properties,
             open_installed_app_install_location,
+            get_app_icons,
             get_app_icon
         ])
         .run(tauri::generate_context!())

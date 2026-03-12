@@ -10,6 +10,7 @@ export type AppsSdk = {
   uninstallInstalledApp: (appId: string) => Promise<void>;
   openInstalledAppProperties: (appId: string) => Promise<void>;
   openInstalledAppInstallLocation: (appId: string) => Promise<void>;
+  getAppIcons: (appIds: string[]) => Promise<Record<string, string | null>>;
   getAppIcon: (appId: string) => Promise<string | null>;
 };
 
@@ -55,6 +56,8 @@ export function createPluginBackendSdk(scope: PanelCommandScope): PluginBackendS
         invokePanelCommand<void>(scope, "open_installed_app_properties", { appId }),
       openInstalledAppInstallLocation: (appId: string) =>
         invokePanelCommand<void>(scope, "open_installed_app_install_location", { appId }),
+      getAppIcons: (appIds: string[]) =>
+        invokePanelCommand<Record<string, string | null>>(scope, "get_app_icons", { appIds }),
       getAppIcon: (appId: string) => invokePanelCommand<string | null>(scope, "get_app_icon", { appId }),
     },
     clipboard: {

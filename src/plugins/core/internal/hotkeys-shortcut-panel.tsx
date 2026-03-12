@@ -1,5 +1,13 @@
 import * as React from "react";
-import { Kbd as PanelKbd, KbdGroup as PanelKbdGroup, ScrollArea as PanelScrollArea } from "@/plugins/sdk";
+import {
+  Kbd as PanelKbd,
+  KbdGroup as PanelKbdGroup,
+  PanelContainer,
+  PanelHeading,
+  PanelParagraph,
+  PanelText,
+  ScrollArea as PanelScrollArea,
+} from "@/plugins/sdk";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { resolveLauncherShortcutHints } from "@/lib/panel-shortcuts";
 import { usePanelRegistry } from "@/lib/panel-registry";
@@ -36,34 +44,40 @@ export function HotkeysShortcutPanel({ commandQuery }: HotkeysShortcutPanelProps
   const contextLabel = contextPanel?.name ?? "Launcher";
 
   return (
-    <div className="h-full overflow-hidden">
+    <PanelContainer className="h-full overflow-hidden">
       <PanelScrollArea className="h-full">
-        <div className="p-4 space-y-4">
-          <div className="space-y-1">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Hotkeys</p>
-            <h2 className="text-base font-semibold leading-tight">{contextLabel} keyboard shortcuts</h2>
-            <p className="text-xs text-muted-foreground">
+        <PanelContainer className="p-4 space-y-4">
+          <PanelContainer className="space-y-1">
+            <PanelText size="xs" tone="muted" className="uppercase tracking-wider">
+              Hotkeys
+            </PanelText>
+            <PanelHeading level={2} className="text-base">
+              {contextLabel} keyboard shortcuts
+            </PanelHeading>
+            <PanelParagraph size="xs" tone="muted">
               Shortcuts available for the current launcher context.
-            </p>
-          </div>
+            </PanelParagraph>
+          </PanelContainer>
 
-          <div className="space-y-2">
+          <PanelContainer className="space-y-2">
             {shortcutHints.map((hint) => (
-              <div
+              <PanelContainer
                 key={`${hint.keys}:${hint.description}`}
                 className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-background/60 px-3 py-2"
               >
-                <span className="text-xs text-muted-foreground">{hint.description}</span>
+                <PanelText size="xs" tone="muted">
+                  {hint.description}
+                </PanelText>
                 <PanelKbdGroup>
                   {hint.keys.split("+").map((part) => (
                     <PanelKbd key={`${hint.keys}:${part}`}>{formatShortcutPart(part)}</PanelKbd>
                   ))}
                 </PanelKbdGroup>
-              </div>
+              </PanelContainer>
             ))}
-          </div>
-        </div>
+          </PanelContainer>
+        </PanelContainer>
       </PanelScrollArea>
-    </div>
+    </PanelContainer>
   );
 }

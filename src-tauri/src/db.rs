@@ -1,4 +1,5 @@
-use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqliteJournalMode, Row, SqlitePool};
+use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqliteJournalMode, QueryBuilder, Row, Sqlite, SqlitePool};
+use std::collections::HashMap;
 use std::str::FromStr;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -240,4 +241,36 @@ pub async fn get_app_icon(pool: &SqlitePool, app_id: &str) -> Option<Vec<u8>> {
                 .ok()
                 .flatten()
         })
+}
+
+/// Returns raw icon PNG bytes for many apps in one query.
+pub async fn get_app_icons(pool: &SqlitePool, app_ids: &[String]) -> HashMap<String, Option<Vec<u8>>> {
+    let mut out = HashMap::new();
+    if app_ids.is_empty() {
+        return out;
+    }
+
+    let mut qb: QueryBuilder<'_, Sqlite> =
+        QueryBuilder::new("SELECT id, icon_blob FROM installed_apps WHERE id IN (");
+    let mut separated = qb.separated(", ");
+    for app_id in app_ids {
+        separated.push_bind(app_id);
+    }
+    separated.push_unseparated(")");
+
+    let rows = match qb.build().fetch_all(pool).await {
+        Ok(rows) => rows,
+        Err(_) => return out,
+    };
+
+    for row in rows {
+        let id: String = row.try_get("id").unwrap_or_default();
+        if id.is_empty() {
+            continue;
+        }
+        let bytes = row.try_get::<Option<Vec<u8>>, _>("icon_blob").ok().flatten();
+        out.insert(id, bytes);
+    }
+
+    out
 }

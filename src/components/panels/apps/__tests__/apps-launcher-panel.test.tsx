@@ -64,13 +64,18 @@ function renderPanel(props?: Partial<React.ComponentProps<typeof AppsLauncherPan
 describe("AppsLauncherPanel focus and keyboard UX", () => {
   beforeEach(() => {
     invokePanelCommandMock.mockReset();
-    invokePanelCommandMock.mockImplementation(async (_scope: unknown, command: string) => {
+    invokePanelCommandMock.mockImplementation(async (_scope: unknown, command: string, params: unknown) => {
       if (command === "list_installed_apps") {
         return apps;
       }
 
       if (command === "search_installed_apps") {
         return apps;
+      }
+
+      if (command === "get_app_icons") {
+        const input = params as { appIds?: string[] };
+        return Object.fromEntries((input.appIds ?? []).map((appId) => [appId, null]));
       }
 
       if (command === "get_app_icon") {
@@ -274,5 +279,35 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
       const footer = registerPanelFooter.mock.calls[registerPanelFooter.mock.calls.length - 1]?.[0];
       expect(footer?.panel?.title).toBe("Apps");
     });
+  });
+
+  it("loads app icons through the batched command", async () => {
+    renderPanel();
+
+    await screen.findByRole("button", { name: /Notepad/i });
+
+    await waitFor(() => {
+      expect(invokePanelCommandMock).toHaveBeenCalledWith(
+        expect.anything(),
+        "get_app_icons",
+        expect.objectContaining({ appIds: expect.arrayContaining(["app-1", "app-2"]) }),
+      );
+    });
+  });
+
+  it("does not request icons with per-item command", async () => {
+    renderPanel();
+
+    await screen.findByRole("button", { name: /Notepad/i });
+
+    await waitFor(() => {
+      expect(
+        invokePanelCommandMock.mock.calls.some(([, command]) => command === "get_app_icons"),
+      ).toBe(true);
+    });
+
+    expect(
+      invokePanelCommandMock.mock.calls.some(([, command]) => command === "get_app_icon"),
+    ).toBe(false);
   });
 });

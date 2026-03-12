@@ -1100,6 +1100,28 @@ pub async fn get_app_icon(
     Ok(bytes.map(|b| general_purpose::STANDARD.encode(b)))
 }
 
+#[tauri::command]
+pub async fn get_app_icons(
+    state: State<'_, AppIndexState>,
+    app_ids: Vec<String>,
+) -> Result<HashMap<String, Option<String>>, String> {
+    let pool = state.pool.get().ok_or_else(|| "db not ready".to_string())?;
+    if app_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let bytes_map = db::get_app_icons(pool, &app_ids).await;
+    let mut out = HashMap::new();
+    for app_id in app_ids {
+        let encoded = bytes_map
+            .get(&app_id)
+            .and_then(|bytes| bytes.as_ref().map(|raw| general_purpose::STANDARD.encode(raw)));
+        out.insert(app_id, encoded);
+    }
+
+    Ok(out)
+}
+
 pub async fn bootstrap_app_index(app: &AppHandle) {
     let pool = match db::open(app).await {
         Ok(p) => p,

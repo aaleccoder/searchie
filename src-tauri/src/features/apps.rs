@@ -20,6 +20,7 @@ impl FeatureProvider for AppsFeatureProvider {
             CommandMeta::new("uninstall_installed_app"),
             CommandMeta::new("open_installed_app_properties"),
             CommandMeta::new("open_installed_app_install_location"),
+            CommandMeta::new("get_app_icons"),
             CommandMeta::new("get_app_icon"),
         ]
     }

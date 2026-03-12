@@ -1,5 +1,12 @@
 import * as React from "react";
-import { Badge as PanelBadge, Input as PanelInput } from "@/plugins/sdk";
+import {
+  Badge as PanelBadge,
+  Input as PanelInput,
+  PanelContainer,
+  PanelHeading,
+  PanelParagraph,
+  PanelText,
+} from "@/plugins/sdk";
 import { evaluateExpression } from "@/lib/utilities/calc-engine";
 
 type CalcUtilityPanelProps = {
@@ -29,11 +36,11 @@ export function CalcUtilityPanel({ commandQuery }: CalcUtilityPanelProps) {
   }, [expression]);
 
   return (
-    <div className="h-full rounded-xl p-4 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Calculator</h3>
+    <PanelContainer className="h-full rounded-xl p-4 flex flex-col gap-4">
+      <PanelContainer className="flex items-center justify-between">
+        <PanelHeading>Calculator</PanelHeading>
         <PanelBadge variant="secondary">Utilities</PanelBadge>
-      </div>
+      </PanelContainer>
 
       <PanelInput
         value={expression}
@@ -41,17 +48,19 @@ export function CalcUtilityPanel({ commandQuery }: CalcUtilityPanelProps) {
         placeholder="2 + 2 * 3"
       />
 
-      <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+      <PanelContainer className="rounded-lg border border-border/60 bg-background/60 p-3">
         {evaluation.ok ? (
-          <p className="text-sm">
-            Result: <span className="font-semibold">{evaluation.value}</span>
-          </p>
+          <PanelParagraph>
+            Result: <PanelText weight="semibold">{evaluation.value}</PanelText>
+          </PanelParagraph>
         ) : (
-          <p className="text-sm text-muted-foreground">{evaluation.message}</p>
+          <PanelParagraph tone="muted">{evaluation.message}</PanelParagraph>
         )}
-      </div>
+      </PanelContainer>
 
-      <p className="text-xs text-muted-foreground">Supports +, -, *, / and parentheses.</p>
-    </div>
+      <PanelParagraph size="xs" tone="muted">
+        Supports +, -, *, / and parentheses.
+      </PanelParagraph>
+    </PanelContainer>
   );
 }

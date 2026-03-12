@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -328,11 +329,98 @@ export const PanelFigureImage = React.forwardRef<HTMLImageElement, ImageProps>(
   },
 );
 PanelFigureImage.displayName = "PanelFigureImage";
-type PanelListProps = DivProps & { gap?: SpacingToken };
+
+type PanelListVirtualizeConfig = {
+  count: number;
+  estimateSize: number;
+  overscan?: number;
+  getItemKey?: (index: number) => string | number;
+  renderItem: (index: number) => React.ReactNode;
+  scrollToIndex?: number;
+};
+
+type PanelListProps = DivProps & {
+  gap?: SpacingToken;
+  virtualize?: PanelListVirtualizeConfig;
+};
+
+const spacingPixels: Record<SpacingToken, number> = {
+  none: 0,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+};
 
 export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
-  ({ className, gap = "sm", ...props }, ref) => {
-    return <div ref={ref} className={cn(spacingClasses[gap], className)} {...props} />;
+  ({ className, gap = "sm", virtualize, ...props }, ref) => {
+    const scrollRef = React.useRef<HTMLDivElement | null>(null);
+    const itemGapPx = spacingPixels[gap];
+    const virtualizer = useVirtualizer({
+      count: virtualize?.count ?? 0,
+      getScrollElement: () => scrollRef.current,
+      estimateSize: () => (virtualize?.estimateSize ?? 0) + itemGapPx,
+      overscan: virtualize?.overscan ?? 6,
+      initialRect: { width: 0, height: 400 },
+      getItemKey: virtualize?.getItemKey,
+    });
+
+    React.useEffect(() => {
+      if (!virtualize) {
+        return;
+      }
+
+      virtualizer.measure();
+
+      if (typeof virtualize.scrollToIndex === "number" && virtualize.scrollToIndex >= 0) {
+        virtualizer.scrollToIndex(virtualize.scrollToIndex, { align: "auto" });
+      }
+    }, [virtualize, virtualizer]);
+
+    if (!virtualize) {
+      return <div ref={ref} className={cn(spacingClasses[gap], className)} {...props} />;
+    }
+
+    const virtualItems = virtualizer.getVirtualItems();
+    const fallbackItems =
+      virtualItems.length === 0 && virtualize.count > 0
+        ? [{ key: "fallback-0", index: 0, start: 0 }]
+        : [];
+
+    return (
+      <div
+        {...props}
+        ref={(node) => {
+          scrollRef.current = node;
+          if (typeof ref === "function") {
+            ref(node);
+            return;
+          }
+          if (ref) {
+            ref.current = node;
+          }
+        }}
+        className={cn("relative overflow-y-auto", className)}
+      >
+        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+          {(virtualItems.length > 0 ? virtualItems : fallbackItems).map((virtualItem) => {
+            const isLast = virtualItem.index === virtualize.count - 1;
+            return (
+              <div
+                key={virtualItem.key}
+                className="absolute left-0 top-0 w-full"
+                style={{
+                  transform: `translateY(${virtualItem.start}px)`,
+                  paddingBottom: isLast ? 0 : itemGapPx,
+                }}
+              >
+                {virtualize.renderItem(virtualItem.index)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   },
 );
 PanelList.displayName = "PanelList";

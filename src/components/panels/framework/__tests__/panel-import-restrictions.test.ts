@@ -70,7 +70,7 @@ describe("panel import restrictions", () => {
 
     for (const filePath of panelFiles) {
       const content = readFileSync(filePath, "utf8");
-      if (!content.includes("@/plugins/sdk")) {
+      if (!(content.includes("@/plugins/sdk") || content.includes("@/plugins/core/internal/"))) {
         missingSdkImports.push(path.relative(workspaceRoot, filePath));
       }
 
