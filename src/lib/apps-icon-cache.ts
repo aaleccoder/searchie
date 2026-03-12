@@ -15,7 +15,7 @@ type CacheRecord = {
 };
 
 const DB_NAME = "searchie-cache";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "apps-icon-cache";
 const CACHE_VERSION = 1;
 

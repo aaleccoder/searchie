@@ -16,12 +16,22 @@ const { listenMock } = vi.hoisted(() => ({
   listenMock: vi.fn(),
 }));
 
+const { loadCachedAppsListMock, cacheAppsListMock } = vi.hoisted(() => ({
+  loadCachedAppsListMock: vi.fn(),
+  cacheAppsListMock: vi.fn(),
+}));
+
 vi.mock("@/lib/tauri-commands", () => ({
   invokePanelCommand: invokePanelCommandMock,
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: listenMock,
+}));
+
+vi.mock("@/lib/apps-list-cache", () => ({
+  loadCachedAppsList: loadCachedAppsListMock,
+  cacheAppsList: cacheAppsListMock,
 }));
 
 type InstalledApp = {
@@ -73,6 +83,10 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
   beforeEach(() => {
     invokePanelCommandMock.mockReset();
     listenMock.mockReset();
+    loadCachedAppsListMock.mockReset();
+    cacheAppsListMock.mockReset();
+    loadCachedAppsListMock.mockResolvedValue([]);
+    cacheAppsListMock.mockResolvedValue(undefined);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -447,6 +461,35 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
         ([, command]) => command === "list_installed_apps",
       ).length;
       expect(listAfter).toBe(listBefore + 1);
+    });
+  });
+
+  it("renders cached apps immediately before backend refresh resolves", async () => {
+    let resolveList: ((value: InstalledApp[]) => void) | null = null;
+    loadCachedAppsListMock.mockResolvedValueOnce([{ ...apps[0], name: "Cached Notepad" }]);
+    invokePanelCommandMock.mockImplementationOnce(
+      () => new Promise<InstalledApp[]>((resolve) => {
+        resolveList = resolve;
+      }),
+    );
+
+    renderPanel();
+
+    expect(await screen.findByRole("button", { name: /Cached Notepad/i })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveList?.([{ ...apps[0], name: "Fresh Notepad" }, apps[1]]);
+    });
+
+    expect(await screen.findByRole("button", { name: /Fresh Notepad/i })).toBeInTheDocument();
+  });
+
+  it("persists refreshed installed apps snapshot", async () => {
+    renderPanel();
+    await screen.findByRole("button", { name: /Notepad/i });
+
+    await waitFor(() => {
+      expect(cacheAppsListMock).toHaveBeenCalledWith(apps);
     });
   });
 });
