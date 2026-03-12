@@ -32,6 +32,7 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_store::StoreExt;
+use serde_json::json;
 
 #[cfg(target_os = "windows")]
 use std::{ffi::OsStr, iter};
@@ -195,6 +196,34 @@ fn shell_execute_w(target: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn google_suggest(query: String) -> Result<serde_json::Value, String> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(json!(["", []]));
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://suggestqueries.google.com/complete/search")
+        .query(&[("client", "firefox"), ("q", trimmed)])
+        .send()
+        .await
+        .map_err(|error| format!("google_suggest request failed: {error}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "google_suggest failed with status {}",
+            response.status()
+        ));
+    }
+
+    response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("google_suggest response parse failed: {error}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -328,6 +357,7 @@ pub fn run() {
             show_settings,
             set_main_window_mode,
             shell_execute_w,
+            google_suggest,
             search_clipboard_history,
             clear_clipboard_history,
             toggle_clipboard_pin,

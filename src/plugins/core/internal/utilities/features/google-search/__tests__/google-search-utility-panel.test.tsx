@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { GoogleSearchUtilityPanel } from "../google-search-utility-panel";
 
@@ -14,17 +14,12 @@ describe("GoogleSearchUtilityPanel", () => {
   beforeEach(() => {
     invokeMock.mockReset();
     invokeMock.mockResolvedValue(null);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ["best coffee", ["best coffee near me", "best coffee beans"]],
-      })),
-    );
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "google_suggest") {
+        return ["best coffee", ["best coffee near me", "best coffee beans"]];
+      }
+      return null;
+    });
   });
 
   it("opens selected suggestion on Enter", async () => {

@@ -16,6 +16,7 @@ impl FeatureProvider for WindowsFeatureProvider {
             CommandMeta::new("set_main_window_mode"),
             CommandMeta::new("show_settings"),
             CommandMeta::new("shell_execute_w"),
+            CommandMeta::new("google_suggest"),
             CommandMeta::new("update_shortcut"),
         ]
     }

@@ -40,6 +40,7 @@ export type WindowSdk = {
   showSettings: () => Promise<void>;
   shellExecuteW: (target: string) => Promise<void>;
   openUrl: (target: string) => Promise<void>;
+  googleSuggest: (query: string) => Promise<unknown>;
   updateShortcut: (oldShortcut: string, newShortcut: string) => Promise<void>;
 };
 
@@ -151,6 +152,7 @@ export function createPluginBackendSdk(scope: PanelCommandScope): PluginBackendS
       showSettings: () => invokePanelCommand<void>(scope, "show_settings", {}),
       shellExecuteW: (target: string) => invokePanelCommand<void>(scope, "shell_execute_w", { target }),
       openUrl: (target: string) => invokePanelCommand<void>(scope, "shell_execute_w", { target }),
+      googleSuggest: (query: string) => invokePanelCommand<unknown>(scope, "google_suggest", { query }),
       updateShortcut: (oldShortcut: string, newShortcut: string) =>
         invokePanelCommand<void>(scope, "update_shortcut", { oldShortcut, newShortcut }),
     },

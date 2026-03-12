@@ -25,6 +25,7 @@ export type BackendCommand =
   | "set_main_window_mode"
   | "show_settings"
   | "shell_execute_w"
+  | "google_suggest"
   | "update_shortcut"
   | "media_play_pause"
   | "media_next"
@@ -67,6 +68,7 @@ const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
   set_main_window_mode: "window.mode",
   show_settings: "settings.read",
   shell_execute_w: "window.shell",
+  google_suggest: "window.shell",
   update_shortcut: "settings.write",
   media_play_pause: "system.media",
   media_next: "system.media",

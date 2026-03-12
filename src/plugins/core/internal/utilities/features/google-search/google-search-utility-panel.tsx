@@ -30,7 +30,6 @@ import type { PanelFooterConfig } from "@/lib/panel-contract";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import {
   buildGoogleSearchUrl,
-  buildGoogleSuggestUrl,
   parseGoogleSuggestResponse,
   normalizeGoogleQuery,
 } from "@/lib/utilities/google-search-engine";
@@ -120,13 +119,7 @@ export function GoogleSearchUtilityPanel({
       setErrorMessage(null);
 
       try {
-        const url = buildGoogleSuggestUrl(trimmed);
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Google suggest failed: ${response.status}`);
-        }
-
-        const payload = await response.json();
+        const payload = await backend.window.googleSuggest(trimmed);
         if (cancelled) {
           return;
         }
@@ -158,7 +151,7 @@ export function GoogleSearchUtilityPanel({
     return () => {
       cancelled = true;
     };
-  }, [normalizedQuery]);
+  }, [backend.window, normalizedQuery]);
 
   const openSuggestion = React.useCallback(
     async (query: string) => {

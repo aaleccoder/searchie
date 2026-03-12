@@ -69,6 +69,16 @@ describe("invokePanelCommand", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
+  it("rejects google_suggest when window.shell capability is missing", async () => {
+    await expect(
+      invokePanelCommand<void>(launcherPanel, "google_suggest", {
+        query: "best coffee",
+      }),
+    ).rejects.toBeInstanceOf(PanelCommandError);
+
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("invokes set_system_volume when system.volume capability allows", async () => {
     const systemPanel: ShortcutPanelDescriptor = definePanel({
       pluginId: "core.system",
