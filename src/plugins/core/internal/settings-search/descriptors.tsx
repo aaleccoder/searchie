@@ -14,7 +14,7 @@ function createSettingsSearchPanel(): ShortcutPanelDescriptor {
     capabilities: [],
     priority: 29,
     searchIntegration: {
-      activationMode: "immediate",
+      activationMode: "result-item",
       placeholder: "Search Windows settings...",
       exitOnEscape: true,
     },

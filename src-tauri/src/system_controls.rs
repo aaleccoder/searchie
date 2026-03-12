@@ -4,7 +4,6 @@ use std::process::Command;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
-
 #[cfg(target_os = "windows")]
 use winapi::um::winuser::{
     keybd_event, KEYEVENTF_KEYUP, VK_MEDIA_NEXT_TRACK, VK_MEDIA_PLAY_PAUSE, VK_MEDIA_PREV_TRACK,
@@ -89,7 +88,7 @@ fn run_powershell(script: &str) -> Result<String, String> {
 }
 
 fn open_settings_uri_internal(uri: &str) -> Result<SystemCommandResult, String> {
-    let _ = run_hidden_command("explorer.exe", &[uri])?;
+    let _ = run_hidden_command("cmd.exe", &["/c", "start", uri])?;
     Ok(SystemCommandResult::fallback(
         "Opened settings fallback URI.",
     ))
@@ -166,7 +165,10 @@ pub fn set_system_volume(value: u8) -> Result<SystemCommandResult, String> {
     let clamped = value.min(100);
     with_endpoint_volume(|endpoint| unsafe {
         endpoint
-            .SetMasterVolumeLevelScalar(clamped as f32 / 100.0, std::ptr::null() as *const windows::core::GUID)
+            .SetMasterVolumeLevelScalar(
+                clamped as f32 / 100.0,
+                std::ptr::null() as *const windows::core::GUID,
+            )
             .map_err(|error| format!("SetMasterVolumeLevelScalar failed: {error}"))?;
         Ok(SystemCommandResult::applied("Set system volume."))
     })
@@ -206,7 +208,10 @@ pub fn toggle_system_mute() -> Result<SystemCommandResult, String> {
             .map_err(|error| format!("GetMute failed: {error}"))?;
 
         endpoint
-            .SetMute(!current.as_bool(), std::ptr::null() as *const windows::core::GUID)
+            .SetMute(
+                !current.as_bool(),
+                std::ptr::null() as *const windows::core::GUID,
+            )
             .map_err(|error| format!("SetMute failed: {error}"))?;
 
         Ok(SystemCommandResult::applied("Toggled mute state."))

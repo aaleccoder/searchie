@@ -10,7 +10,7 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
-import { parseBrightnessCommand } from "@/lib/utilities/system-control-engine";
+import { parseBrightnessCommand, parseConnectivityCommand, type ConnectivityTarget } from "@/lib/utilities/system-control-engine";
 import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { createPluginBackendSdk, definePluginCommand, definePluginPanel } from "@/plugins/sdk";
@@ -186,6 +186,92 @@ function createBrightnessActionCommand(): ShortcutCommandDescriptor {
   });
 }
 
+function createConnectivityActionMatcher(
+  aliases: string[],
+  target: ConnectivityTarget,
+): ShortcutCommandDescriptor["matcher"] {
+  const aliasMatcher = createPrefixAliasMatcher(aliases);
+
+  return (query) => {
+    const match = aliasMatcher(query);
+    if (!match.matches) {
+      return match;
+    }
+
+    return parseConnectivityCommand(target, match.commandQuery)
+      ? match
+      : { matches: false, commandQuery: "" };
+  };
+}
+
+function formatConnectivityActionLabel(target: ConnectivityTarget, commandQuery: string): string {
+  const parsed = parseConnectivityCommand(target, commandQuery);
+  if (!parsed) {
+    return target === "hotspot" ? "Mobile Hotspot" : target.charAt(0).toUpperCase() + target.slice(1);
+  }
+
+  const name = target === "hotspot" ? "Mobile Hotspot" : target.charAt(0).toUpperCase() + target.slice(1);
+
+  if (parsed.action === "toggle") {
+    return `Toggle ${name}`;
+  }
+
+  return `${name} ${parsed.value ? "On" : "Off"}`;
+}
+
+function createConnectivityActionCommand(args: {
+  id: string;
+  name: string;
+  aliases: string[];
+  target: ConnectivityTarget;
+  icon: ShortcutCommandDescriptor["commandIcon"];
+  capability: ShortcutCommandDescriptor["capabilities"][number];
+  priority: number;
+}): ShortcutCommandDescriptor {
+  return definePluginCommand({
+    id: args.id,
+    name: args.name,
+    aliases: args.aliases,
+    commandIcon: args.icon,
+    capabilities: [args.capability],
+    priority: args.priority,
+    appsLauncherIntegration: {
+      injectAsApp: true,
+    },
+    matcher: createConnectivityActionMatcher(args.aliases, args.target),
+    getLabel: ({ commandQuery }) => formatConnectivityActionLabel(args.target, commandQuery),
+    execute: async ({ commandQuery }) => {
+      const parsed = parseConnectivityCommand(args.target, commandQuery);
+      if (!parsed) {
+        return;
+      }
+
+      if (parsed.action === "toggle") {
+        if (args.target === "wifi") {
+          await systemBackend.system.toggleWifi();
+        } else if (args.target === "bluetooth") {
+          await systemBackend.system.toggleBluetooth();
+        } else if (args.target === "airplane") {
+          await systemBackend.system.toggleAirplaneMode();
+        } else {
+          await systemBackend.system.toggleHotspot();
+        }
+        return;
+      }
+
+      if (args.target === "wifi") {
+        await systemBackend.system.setWifiEnabled(parsed.value);
+      } else if (args.target === "bluetooth") {
+        await systemBackend.system.setBluetoothEnabled(parsed.value);
+      } else if (args.target === "airplane") {
+        await systemBackend.system.setAirplaneMode(parsed.value);
+      } else {
+        await systemBackend.system.setHotspotEnabled(parsed.value);
+      }
+    },
+  });
+}
+
 function createConnectivityPanel(args: {
   id: string;
   name: string;
@@ -324,5 +410,43 @@ export function buildSystemControlPanels(): ShortcutPanelDescriptor[] {
 }
 
 export function buildSystemDirectCommands(): ShortcutCommandDescriptor[] {
-  return [createBrightnessActionCommand()];
+  return [
+    createBrightnessActionCommand(),
+    createConnectivityActionCommand({
+      id: "system-wifi-action",
+      name: "Wi-Fi",
+      aliases: WIFI_ALIAS_LIST,
+      target: "wifi",
+      icon: Wifi,
+      capability: "system.wifi",
+      priority: 45,
+    }),
+    createConnectivityActionCommand({
+      id: "system-bluetooth-action",
+      name: "Bluetooth",
+      aliases: BLUETOOTH_ALIAS_LIST,
+      target: "bluetooth",
+      icon: Bluetooth,
+      capability: "system.bluetooth",
+      priority: 46,
+    }),
+    createConnectivityActionCommand({
+      id: "system-airplane-action",
+      name: "Airplane Mode",
+      aliases: AIRPLANE_ALIAS_LIST,
+      target: "airplane",
+      icon: Plane,
+      capability: "system.airplane",
+      priority: 47,
+    }),
+    createConnectivityActionCommand({
+      id: "system-hotspot-action",
+      name: "Mobile Hotspot",
+      aliases: HOTSPOT_ALIAS_LIST,
+      target: "hotspot",
+      icon: Radio,
+      capability: "system.hotspot",
+      priority: 48,
+    }),
+  ];
 }

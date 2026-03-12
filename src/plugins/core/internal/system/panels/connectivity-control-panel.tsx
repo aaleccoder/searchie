@@ -6,6 +6,7 @@ import {
   ListItem as PanelListItem,
   PanelContainer,
   PanelFlex,
+  ScrollArea as PanelScrollArea,
   PanelText,
   createPluginBackendSdk,
   usePanelEnterBridge,
@@ -197,18 +198,19 @@ export function ConnectivityControlPanel({
 
   return (
     <PanelContainer padding="md" style={{ height: "100%" }}>
-      <PanelFlex direction="col" gap="sm">
-        <PanelText size="lg" weight="semibold">
-          {title}
-        </PanelText>
-        <PanelText size="xs" tone="muted">
-          Use Enter to run selected action.
-        </PanelText>
-      </PanelFlex>
+      <PanelFlex direction="col" gap="sm" style={{ height: "100%" }}>
+        <PanelFlex direction="col" gap="sm">
+          <PanelText size="lg" weight="semibold">
+            {title}
+          </PanelText>
+          <PanelText size="xs" tone="muted">
+            Use Enter to run selected action.
+          </PanelText>
+        </PanelFlex>
 
-      <PanelContainer style={{ marginTop: "0.75rem" }}>
-        <PanelList gap="sm">
-          {actions.map((action, index) => (
+        <PanelScrollArea style={{ flex: 1 }}>
+          <PanelList gap="sm">
+            {actions.map((action, index) => (
             <PanelListItem
               key={action.id}
               active={index === selectedIndex}
@@ -218,20 +220,22 @@ export function ConnectivityControlPanel({
               onMouseEnter={() => setSelectedIndex(index)}
               onClick={() => {
                 setSelectedIndex(index);
-                void runSelected();
+                action.run().catch((error) => {
+                  console.error("[system-connectivity] click action failed", { target, action: action.id, error });
+                  setLastMessage("Action failed. Check system permissions.");
+                });
               }}
             >
-              <PanelText>{action.label}</PanelText>
+              <PanelText truncate>{action.label}</PanelText>
             </PanelListItem>
-          ))}
-        </PanelList>
-      </PanelContainer>
+            ))}
+          </PanelList>
+        </PanelScrollArea>
 
-      <PanelContainer style={{ marginTop: "0.75rem" }}>
         <PanelText size="xs" tone="muted">
           {lastMessage || "No action executed yet."}
         </PanelText>
-      </PanelContainer>
+      </PanelFlex>
     </PanelContainer>
   );
 }
