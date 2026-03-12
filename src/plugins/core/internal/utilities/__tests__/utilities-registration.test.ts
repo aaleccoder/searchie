@@ -28,5 +28,9 @@ describe("utility panel registration", () => {
     expect(registry.find("google maps")?.panel.id).toBe("utilities-google-search");
     expect(registry.find("gsearch weather")?.panel.id).toBe("utilities-google-search");
     expect(registry.find("rechercher music")?.panel.id).toBe("utilities-google-search");
+
+    expect(registry.find("color #22c55e")?.panel.id).toBe("utilities-color");
+    expect(registry.find("couleur rgb(255 0 0)")?.panel.id).toBe("utilities-color");
+    expect(registry.find("farbe oklch(62.8% 0.258 29.23)")?.panel.id).toBe("utilities-color");
   });
 });

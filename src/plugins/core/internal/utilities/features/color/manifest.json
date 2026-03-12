@@ -1,0 +1,9 @@
+{
+  "id": "utilities-color",
+  "name": "Color Utility",
+  "entry": "./index.ts",
+  "wasm": {
+    "path": "/wasm/color-kernel.wasm",
+    "exports": ["add"]
+  }
+}

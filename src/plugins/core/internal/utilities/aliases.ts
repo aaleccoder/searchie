@@ -44,6 +44,15 @@ export const GOOGLE_SEARCH_ALIASES: LocalizedAliasMap = {
   pt: ["pesquisar"],
 };
 
+export const COLOR_ALIASES: LocalizedAliasMap = {
+  en: ["color", "colour", "palette"],
+  es: ["color"],
+  fr: ["couleur"],
+  de: ["farbe"],
+  it: ["colore"],
+  pt: ["cor"],
+};
+
 export function flattenAliases(map: LocalizedAliasMap): string[] {
   const merged = new Set<string>();
   for (const aliases of Object.values(map)) {
