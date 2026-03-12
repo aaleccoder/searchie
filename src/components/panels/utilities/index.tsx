@@ -1,11 +1,11 @@
 import { FolderSearch, SmilePlus } from "lucide-react";
 import { definePluginPanel } from "@/plugins/sdk";
-import { CalcUtilityPanel } from "@/components/panels/utilities/calc-utility-panel";
-import { ConversionUtilityPanel } from "@/components/panels/utilities/conversion-utility-panel";
+import { CalcUtilityPanel } from "@/plugins/core/panels/utilities/calc-utility-panel";
+import { ConversionUtilityPanel } from "@/plugins/core/panels/utilities/conversion-utility-panel";
 import { onFileSearchInputKeyDown } from "@/components/panels/utilities/file-search-keybindings";
-import { FileSearchUtilityPanel } from "@/components/panels/utilities/file-search-utility-panel";
+import { FileSearchUtilityPanel } from "@/plugins/core/panels/utilities/file-search-utility-panel";
 import { onGlyphPickerInputKeyDown } from "@/components/panels/utilities/glyph-picker-keybindings";
-import { GlyphPickerUtilityPanel } from "@/components/panels/utilities/glyph-picker-utility-panel";
+import { GlyphPickerUtilityPanel } from "@/plugins/core/panels/utilities/glyph-picker-utility-panel";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import {

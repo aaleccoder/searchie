@@ -1,4 +1,4 @@
-import { ClipboardPanel } from "@/components/clipboard-panel";
+import { ClipboardPanel } from "@/plugins/core/panels/clipboard/clipboard-panel";
 import { Clipboard } from "lucide-react";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const workspaceRoot = process.cwd();
@@ -30,13 +31,25 @@ function collectTsxFiles(rootDir: string): string[] {
 }
 
 describe("panel import restrictions", () => {
-  it("prevents panel implementations from importing raw ui components", () => {
-    const panelFiles = collectTsxFiles(path.resolve(workspaceRoot, "src/components/panels")).filter(
-      (filePath) => !toNormalizedPath(filePath).includes("/panels/framework/") && !toNormalizedPath(filePath).includes("/__tests__/"),
-    );
+  function collectPluginPanelFiles(): string[] {
+    const roots = [
+      path.resolve(workspaceRoot, "src/plugins/core/panels"),
+      path.resolve(workspaceRoot, "src/plugins/panels"),
+    ];
 
-    const extraPanelFiles = [path.resolve(workspaceRoot, "src/components/clipboard-panel.tsx")];
-    const filesToCheck = [...panelFiles, ...extraPanelFiles];
+    return roots.flatMap((rootPath) => {
+      try {
+        return collectTsxFiles(rootPath).filter(
+          (filePath) => !toNormalizedPath(filePath).includes("/__tests__/"),
+        );
+      } catch {
+        return [];
+      }
+    });
+  }
+
+  it("prevents plugin panel implementations from importing raw ui components", () => {
+    const filesToCheck = collectPluginPanelFiles();
     const offenders: string[] = [];
 
     for (const filePath of filesToCheck) {
@@ -50,11 +63,7 @@ describe("panel import restrictions", () => {
   });
 
   it("requires plugin panels to import SDK and avoid raw invoke", () => {
-    const corePanelFiles = collectTsxFiles(path.resolve(workspaceRoot, "src/components/panels")).filter(
-      (filePath) => !toNormalizedPath(filePath).includes("/panels/framework/") && !toNormalizedPath(filePath).includes("/__tests__/"),
-    );
-
-    const panelFiles = [...corePanelFiles, path.resolve(workspaceRoot, "src/components/clipboard-panel.tsx")];
+    const panelFiles = collectPluginPanelFiles();
     const missingSdkImports: string[] = [];
     const rawInvokeOffenders: string[] = [];
     const rawCommandOffenders: string[] = [];
@@ -80,24 +89,33 @@ describe("panel import restrictions", () => {
   });
 
   it("prevents JSX intrinsic elements in plugin panel implementations", () => {
-    const pluginPanelRoots = [
-      path.resolve(workspaceRoot, "src/plugins/core"),
-      path.resolve(workspaceRoot, "src/plugins/panels"),
-    ];
-    const panelFiles = pluginPanelRoots.flatMap((rootPath) => {
-      try {
-        return collectTsxFiles(rootPath).filter(
-          (filePath) => !toNormalizedPath(filePath).includes("/__tests__/"),
-        );
-      } catch {
-        return [];
-      }
-    });
+    const panelFiles = collectPluginPanelFiles();
     const intrinsicOffenders: string[] = [];
 
     for (const filePath of panelFiles) {
       const content = readFileSync(filePath, "utf8");
-      if (/<\/?[a-z][a-z0-9-]*\b/.test(content)) {
+      const source = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+      let hasIntrinsic = false;
+
+      const visit = (node: ts.Node) => {
+        if (hasIntrinsic) {
+          return;
+        }
+
+        if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+          const tagName = node.tagName.getText(source);
+          if (/^[a-z]/.test(tagName)) {
+            hasIntrinsic = true;
+            return;
+          }
+        }
+
+        ts.forEachChild(node, visit);
+      };
+
+      visit(source);
+
+      if (hasIntrinsic) {
         intrinsicOffenders.push(path.relative(workspaceRoot, filePath));
       }
     }
