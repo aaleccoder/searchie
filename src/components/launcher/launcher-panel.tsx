@@ -422,6 +422,17 @@ export function LauncherPanel({
     }
     if (event.key === "Escape") {
       if (activePanel) {
+        if (activePanel.isDefault) {
+          event.preventDefault();
+          if (query.trim()) {
+            setQuery("");
+            focusLauncherInput();
+          } else {
+            closeLauncherWindow();
+          }
+          return;
+        }
+
         const shouldExitPanel = activePanel.searchIntegration?.exitOnEscape ?? true;
         if (shouldExitPanel) {
           event.preventDefault();

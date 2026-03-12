@@ -10,8 +10,9 @@ import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { definePanel } from "../framework";
 import { buildAppsPanels } from "@/plugins/core/internal/apps";
 
-const { invokeMock } = vi.hoisted(() => ({
+const { invokeMock, hideMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
+  hideMock: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -20,7 +21,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
-    hide: vi.fn(),
+    hide: hideMock,
   }),
 }));
 
@@ -58,6 +59,7 @@ function renderLauncherWithRegistry(registry = createTestRegistry()) {
 describe("LauncherPanel with panel registry", () => {
   beforeEach(() => {
     invokeMock.mockReset();
+    hideMock.mockReset();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "list_installed_apps") return [];
       if (command === "search_installed_apps") return [];
@@ -478,6 +480,26 @@ describe("LauncherPanel with panel registry", () => {
     expect(screen.getByText("Command Panels")).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe("");
     expect(input).toHaveFocus();
+  });
+
+  it("closes the launcher on Escape when default panel query is empty", async () => {
+    const user = userEvent.setup();
+    const defaultPanel: ShortcutPanelDescriptor = {
+      id: "apps-launcher",
+      name: "Apps",
+      aliases: ["apps"],
+      isDefault: true,
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["apps"]),
+      component: () => <div>Apps Panel</div>,
+      priority: 20,
+    };
+
+    renderLauncherWithRegistry(createTestRegistry(defaultPanel));
+
+    await user.keyboard("{Escape}");
+
+    expect(hideMock).toHaveBeenCalledTimes(1);
   });
 
   it("injects result-item panel into apps results and activates it with Enter", async () => {

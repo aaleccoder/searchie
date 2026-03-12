@@ -33,10 +33,10 @@ export function RightPane({ selectedItem, selectFirstAppItem }: RightPaneProps) 
               selectFirstAppItem();
             }}
           >
-            <PanelInline>
+            <PanelFlex>
               <ArrowLeft size={14} />
               Back to Apps
-            </PanelInline>
+            </PanelFlex>
             <PanelInline size="xs" tone="muted" mono>Left Arrow</PanelInline>
           </PanelButton>
         </PanelFlex>
