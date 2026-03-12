@@ -85,6 +85,10 @@ export type PanelSearchIntegration = {
   exitOnEscape?: boolean;
 };
 
+export type PanelAppsLauncherIntegration = {
+  injectAsApp?: boolean;
+};
+
 export type PanelShortcutHint = {
   keys: string;
   description: string;
@@ -103,6 +107,7 @@ export type ShortcutPanelDescriptor = {
   shortcuts?: PanelShortcutHint[];
   onInputKeyDown?: PanelInputKeyDownHandler;
   searchIntegration?: PanelSearchIntegration;
+  appsLauncherIntegration?: PanelAppsLauncherIntegration;
   priority?: number;
 };
 

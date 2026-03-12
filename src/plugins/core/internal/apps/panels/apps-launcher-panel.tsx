@@ -1,14 +1,24 @@
 import * as React from "react";
 import { ArrowLeft, FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
-  Button as PanelButton,
-  List as PanelList,
-  ScrollArea as PanelScrollArea,
-  Tooltip as PanelTooltip,
-  TooltipContent as PanelTooltipContent,
-  TooltipProvider as PanelTooltipProvider,
-  TooltipTrigger as PanelTooltipTrigger,
+  PanelAside,
+  PanelButton,
+  PanelContainer,
+  PanelFigureImage,
+  PanelInline,
+  PanelList,
+  PanelListItem,
+  PanelMetaGrid,
+  PanelParagraph,
+  PanelScrollArea,
+  PanelTooltip,
+  PanelTooltipContent,
+  PanelTooltipProvider,
+  PanelTooltipTrigger,
+} from "@/components/framework/panel-primitives";
+import {
   createPluginBackendSdk,
   usePanelArrowDownBridge,
   usePanelEnterBridge,
@@ -62,6 +72,7 @@ type PanelCommandSuggestion = {
   id: string;
   panel: ShortcutPanelDescriptor;
   commandQuery: string;
+  label: string;
 };
 
 type NavigationItem =
@@ -156,14 +167,14 @@ function AppIcon({ appId, className, cacheVersion }: { appId: string; className?
 
   if (!src || failed) {
     return (
-      <div className={cn("rounded-sm bg-muted grid place-items-center", className)}>
+      <PanelContainer className={cn("rounded-sm bg-muted grid place-items-center", className)}>
         <Rocket className="size-3.5 text-muted-foreground" />
-      </div>
+      </PanelContainer>
     );
   }
 
   return (
-    <img
+    <PanelFigureImage
       src={src}
       alt=""
       className={cn("rounded-sm object-contain", className)}
@@ -188,9 +199,9 @@ function SingleLineTooltipText({
     <PanelTooltip>
       <PanelTooltipTrigger
         render={
-          <span className={cn("block min-w-0 truncate whitespace-nowrap", className)}>
+          <PanelInline className={cn("block min-w-0 truncate whitespace-nowrap", className)}>
             {text}
-          </span>
+          </PanelInline>
         }
       />
       <PanelTooltipContent className={cn("max-w-md break-all", tooltipClassName)}>
@@ -207,10 +218,10 @@ type DetailRowProps = {
 
 function DetailRow({ label, value }: DetailRowProps) {
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-4 min-w-0">
-      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
+    <PanelMetaGrid className="min-w-0">
+      <PanelInline className="text-muted-foreground whitespace-nowrap">{label}</PanelInline>
       <SingleLineTooltipText text={value} className="text-right" />
-    </div>
+    </PanelMetaGrid>
   );
 }
 
@@ -226,7 +237,9 @@ export function AppsLauncherPanel({
 }: AppsLauncherPanelProps) {
   const backend = React.useMemo(() => createPluginBackendSdk(launcherCommandScope), []);
   const panelRegistry = usePanelRegistry();
-  const debouncedQuery = useDebouncedValue(commandQuery, 120);
+  const deferredQuery = React.useDeferredValue(commandQuery);
+  const debouncedQuery = useDebouncedValue(deferredQuery, 120);
+  const [, startTransition] = React.useTransition();
   const [allApps, setAllApps] = React.useState<InstalledApp[]>([]);
   const [searchResults, setSearchResults] = React.useState<InstalledApp[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -239,7 +252,17 @@ export function AppsLauncherPanel({
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
   const actionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const pendingIconIdsRef = React.useRef<Set<string>>(new Set());
+  const listScrollHostRef = React.useRef<HTMLDivElement | null>(null);
   const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
+
+  const getListScrollViewport = React.useCallback((): HTMLElement | null => {
+    const host = listScrollHostRef.current;
+    if (!host) {
+      return null;
+    }
+
+    return host.querySelector<HTMLElement>("[data-slot='scroll-area-viewport']");
+  }, []);
 
   const iconFingerprint = React.useMemo(() => computeAppsIconFingerprint(allApps), [allApps]);
 
@@ -247,9 +270,6 @@ export function AppsLauncherPanel({
     try {
       const apps = await backend.apps.listInstalledApps<InstalledApp[]>();
       setAllApps(apps);
-      if (!commandQuery.trim()) {
-        setSearchResults(apps.slice(0, 120));
-      }
       setSelectedId((prev) => prev ?? apps[0]?.id ?? null);
     } catch (error) {
       console.error("[apps-panel] failed to refresh apps", error);
@@ -257,10 +277,24 @@ export function AppsLauncherPanel({
       setSearchResults([]);
       setSelectedId(null);
     }
-  }, [backend.apps, commandQuery]);
+  }, [backend.apps]);
 
   React.useEffect(() => {
     void refreshAllApps();
+  }, [refreshAllApps]);
+
+  React.useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const setup = async () => {
+      unlisten = await listen("searchie://apps-updated", () => {
+        void refreshAllApps();
+      });
+    };
+
+    void setup();
+    return () => {
+      unlisten?.();
+    };
   }, [refreshAllApps]);
 
   React.useEffect(() => {
@@ -270,8 +304,10 @@ export function AppsLauncherPanel({
       const q = debouncedQuery.trim();
 
       if (!q) {
-        setSearchResults(allApps.slice(0, 120));
-        setSelectedId((prev) => prev ?? allApps[0]?.id ?? null);
+        startTransition(() => {
+          setSearchResults(allApps.slice(0, 120));
+          setSelectedId((prev) => prev ?? allApps[0]?.id ?? null);
+        });
         return;
       }
 
@@ -283,10 +319,12 @@ export function AppsLauncherPanel({
       }
 
       if (cancelled) return;
-      setSearchResults(results);
-      setSelectedId((prev) => {
-        if (prev && results.some((app) => app.id === prev)) return prev;
-        return results[0]?.id ?? null;
+      startTransition(() => {
+        setSearchResults(results);
+        setSelectedId((prev) => {
+          if (prev && results.some((app) => app.id === prev)) return prev;
+          return results[0]?.id ?? null;
+        });
       });
     };
 
@@ -363,14 +401,13 @@ export function AppsLauncherPanel({
     };
   }, [allApps, backend.apps, iconFingerprint]);
 
-  const panelCommandSuggestion = React.useMemo<PanelCommandSuggestion | null>(() => {
-    const trimmed = commandQuery.trim().toLowerCase();
-    if (!trimmed) {
-      return null;
-    }
+  const injectedPanelSuggestions = React.useMemo<PanelCommandSuggestion[]>(() => {
+    const queryForFilter = commandQuery.trim().toLowerCase();
+
+    const suggestions: PanelCommandSuggestion[] = [];
 
     for (const panel of panelRegistry.list()) {
-      if (panel.isDefault) {
+      if (panel.isDefault || !panel.appsLauncherIntegration?.injectAsApp) {
         continue;
       }
 
@@ -381,25 +418,38 @@ export function AppsLauncherPanel({
 
       const match = panel.matcher(commandQuery);
       if (match.matches) {
-        return {
+        suggestions.push({
           id: `panel-command:${panel.id}`,
           panel,
           commandQuery: match.commandQuery,
-        };
+          label: panel.name,
+        });
+        continue;
       }
 
-      const aliasMatch = panel.aliases.some((alias) => alias.toLowerCase().includes(trimmed));
-      const nameMatch = panel.name.toLowerCase().includes(trimmed);
+      if (!queryForFilter) {
+        suggestions.push({
+          id: `panel-command:${panel.id}`,
+          panel,
+          commandQuery: queryForFilter,
+          label: panel.name,
+        });
+        continue;
+      }
+
+      const aliasMatch = panel.aliases.some((alias) => alias.toLowerCase().includes(queryForFilter));
+      const nameMatch = panel.name.toLowerCase().includes(queryForFilter);
       if (aliasMatch || nameMatch) {
-        return {
+        suggestions.push({
           id: `panel-command:${panel.id}`,
           panel,
           commandQuery,
-        };
+          label: panel.name,
+        });
       }
     }
 
-    return null;
+    return suggestions.slice(0, 8);
   }, [commandQuery, panelRegistry]);
 
   const navigationList = React.useMemo<NavigationItem[]>(() => {
@@ -410,22 +460,22 @@ export function AppsLauncherPanel({
       app,
     }));
 
-    if (panelCommandSuggestion) {
-      const commandItem: NavigationItem = {
-        id: panelCommandSuggestion.id,
+    if (injectedPanelSuggestions.length > 0) {
+      const injectedItems: NavigationItem[] = injectedPanelSuggestions.map((suggestion) => ({
+        id: suggestion.id,
         kind: "panel-command",
-        command: panelCommandSuggestion,
-      };
+        command: suggestion,
+      }));
 
       if (items.length > 0) {
-        items.splice(1, 0, commandItem);
+        items.splice(1, 0, ...injectedItems);
       } else {
-        items.unshift(commandItem);
+        items.push(...injectedItems);
       }
     }
 
     return items;
-  }, [allApps, debouncedQuery, panelCommandSuggestion, searchResults]);
+  }, [allApps, debouncedQuery, injectedPanelSuggestions, searchResults]);
 
   const selectedItem = React.useMemo<NavigationItem | null>(() => {
     if (!selectedId) {
@@ -455,7 +505,7 @@ export function AppsLauncherPanel({
       if (item.kind === "panel-command") {
         const CommandIcon = item.command.panel.commandIcon ?? Rocket;
         return (
-          <button
+          <PanelListItem
             type="button"
             ref={(el) => {
               if (el) {
@@ -479,26 +529,26 @@ export function AppsLauncherPanel({
               activatePanelSession?.(item.command.panel, item.command.commandQuery);
             }}
             className={cn(
-              "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
+              "flex items-center justify-between gap-3 cursor-pointer",
               active
-                ? "border-primary/70 bg-primary/10"
-                : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+                ? "bg-primary/10"
+                : "border-transparent hover:bg-accent/50",
             )}
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
+            <PanelContainer className="flex items-center gap-3 min-w-0">
+              <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
                 <CommandIcon className="size-3.5 text-muted-foreground" />
-              </div>
-              <SingleLineTooltipText text={`Open ${item.command.panel.name}`} className="text-sm" />
-            </div>
-            <span className="text-[11px] text-muted-foreground font-mono">Command</span>
-          </button>
+              </PanelContainer>
+              <SingleLineTooltipText text={`Open ${item.command.label}`} className="text-sm" />
+            </PanelContainer>
+            <PanelInline className="text-[11px] text-muted-foreground font-mono">Command</PanelInline>
+          </PanelListItem>
         );
       }
 
       const app = item.app;
       return (
-        <button
+        <PanelListItem
           type="button"
           ref={(el) => {
             if (el) {
@@ -521,15 +571,15 @@ export function AppsLauncherPanel({
             void executeAppAction("open", app);
           }}
           className={cn(
-            "flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer w-full outline-none focus-visible:outline-none focus-visible:ring-0",
+            "flex items-center gap-3 cursor-pointer",
             active
-              ? "border-primary/70 bg-primary/10"
-              : "border-transparent hover:border-primary/40 hover:bg-accent/50",
+              ? "bg-primary/10"
+              : "border-transparent hover:bg-accent/50",
           )}
         >
           <AppIcon appId={app.id} className="size-6 shrink-0" cacheVersion={iconCacheVersion} />
           <SingleLineTooltipText text={app.name} className="text-sm" />
-        </button>
+        </PanelListItem>
       );
   };
 
@@ -572,12 +622,16 @@ export function AppsLauncherPanel({
   }, [selectedApp]);
 
   React.useEffect(() => {
+    if (useVirtualizedList) {
+      return;
+    }
+
     if (!selectedId) return;
     const target = itemRefs.current.get(selectedId);
     if (target && typeof target.scrollIntoView === "function") {
       target.scrollIntoView({ block: "nearest" });
     }
-  }, [selectedId]);
+  }, [selectedId, useVirtualizedList]);
 
   React.useEffect(() => {
     if (!appActions.length) {
@@ -633,8 +687,18 @@ export function AppsLauncherPanel({
     [backend.apps, clearLauncherInput, closeLauncherWindow],
   );
 
-  const focusListItemById = React.useCallback((id: string) => {
-    itemRefs.current.get(id)?.focus();
+  const focusListItemById = React.useCallback((id: string, preventScroll = false) => {
+    const element = itemRefs.current.get(id);
+    if (!element) {
+      return;
+    }
+
+    if (preventScroll) {
+      element.focus({ preventScroll: true });
+      return;
+    }
+
+    element.focus();
   }, []);
 
   const focusActionByIndex = React.useCallback((index: number) => {
@@ -649,9 +713,9 @@ export function AppsLauncherPanel({
 
     setNavigationMode("list");
     setSelectedId(firstAppItem.id);
-    focusListItemById(firstAppItem.id);
+    focusListItemById(firstAppItem.id, useVirtualizedList);
     return true;
-  }, [focusListItemById, navigationList]);
+  }, [focusListItemById, navigationList, useVirtualizedList]);
 
   const activateSelectedItem = React.useCallback(() => {
     if (!selectedItem) {
@@ -760,12 +824,16 @@ export function AppsLauncherPanel({
     setNavigationMode("list");
     const target = itemRefs.current.get(first.id);
     if (target) {
-      target.focus();
+      if (useVirtualizedList) {
+        target.focus({ preventScroll: true });
+      } else {
+        target.focus();
+      }
       return true;
     }
 
     return false;
-  }, [navigationList]);
+  }, [navigationList, useVirtualizedList]);
 
   usePanelArrowDownBridge(registerInputArrowDownHandler, onInputArrowDown);
   usePanelEnterBridge(registerInputEnterHandler, activateSelectedItem);
@@ -850,7 +918,7 @@ export function AppsLauncherPanel({
 
       setNavigationMode("list");
       setSelectedId(nextItem.id);
-      focusListItemById(nextItem.id);
+      focusListItemById(nextItem.id, useVirtualizedList);
     },
     { enabled: navigationList.length > 0, preventDefault: true },
   );
@@ -872,7 +940,7 @@ export function AppsLauncherPanel({
 
           setNavigationMode("list");
           setSelectedId(selectedApp.id);
-          focusListItemById(selectedApp.id);
+          focusListItemById(selectedApp.id, useVirtualizedList);
           return 0;
         });
         return;
@@ -892,7 +960,7 @@ export function AppsLauncherPanel({
 
       setNavigationMode("list");
       setSelectedId(prevItem.id);
-      focusListItemById(prevItem.id);
+      focusListItemById(prevItem.id, useVirtualizedList);
     },
     { enabled: navigationList.length > 0, preventDefault: true },
   );
@@ -926,7 +994,7 @@ export function AppsLauncherPanel({
 
       setNavigationMode("list");
       setSelectedId(selectedApp.id);
-      focusListItemById(selectedApp.id);
+      focusListItemById(selectedApp.id, useVirtualizedList);
     },
     {
       enabled:
@@ -966,8 +1034,8 @@ export function AppsLauncherPanel({
 
   return (
     <PanelTooltipProvider>
-      <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-        <div className="overflow-hidden h-full">
+      <PanelContainer className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
+        <PanelContainer ref={listScrollHostRef} className="overflow-hidden h-full">
           <PanelScrollArea className="h-full">
             <PanelList
               className="p-0.5"
@@ -979,6 +1047,7 @@ export function AppsLauncherPanel({
                       estimateSize: 42,
                       overscan: 10,
                       scrollToIndex: selectedListIndex >= 0 ? selectedListIndex : undefined,
+                      getScrollElement: getListScrollViewport,
                       getItemKey: (index) => navigationList[index]?.id ?? `nav-item-${index}`,
                       renderItem: (index) => {
                         const item = navigationList[index];
@@ -998,14 +1067,14 @@ export function AppsLauncherPanel({
                 : null}
             </PanelList>
           </PanelScrollArea>
-        </div>
+        </PanelContainer>
 
-        <aside className="flex flex-col gap-3.5 overflow-hidden">
+        <PanelAside className="flex flex-col gap-3.5 overflow-hidden">
           {selectedItem?.kind === "panel-command" ? (
-            <div className="h-full flex flex-col justify-between text-muted-foreground text-sm text-center px-2 py-1">
-              <div className="flex-1 grid place-items-center">
+            <PanelContainer className="h-full flex flex-col justify-between text-muted-foreground text-sm text-center px-2 py-1">
+              <PanelContainer className="flex-1 grid place-items-center">
                 Press Enter to open {selectedItem.command.panel.name}.
-              </div>
+              </PanelContainer>
               <PanelButton
                 type="button"
                 variant="outline"
@@ -1015,17 +1084,19 @@ export function AppsLauncherPanel({
                   selectFirstAppItem();
                 }}
               >
-                <span className="inline-flex items-center gap-1.5">
+                <PanelInline className="inline-flex items-center gap-1.5">
                   <ArrowLeft className="size-3.5" />
                   Back to Apps
-                </span>
-                <span className="font-mono text-[11px] text-muted-foreground">Left Arrow</span>
+                </PanelInline>
+                <PanelInline className="font-mono text-[11px] text-muted-foreground">Left Arrow</PanelInline>
               </PanelButton>
-            </div>
+            </PanelContainer>
           ) : selectedApp ? (
             <>
-              <div className="space-y-2 min-w-0">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected App</p>
+              <PanelContainer className="space-y-2 min-w-0">
+                <PanelParagraph className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Selected App
+                </PanelParagraph>
                 <SingleLineTooltipText
                   text={selectedApp.name}
                   className="text-xl font-semibold leading-tight"
@@ -1034,38 +1105,37 @@ export function AppsLauncherPanel({
                   text={selectedApp.launchPath}
                   className="text-xs text-muted-foreground"
                 />
-              </div>
+              </PanelContainer>
 
-              <div className="space-y-2 text-sm min-w-0">
+              <PanelContainer className="space-y-2 text-sm min-w-0">
                 <DetailRow label="Publisher" value={selectedApp.publisher ?? "Unknown"} />
                 <DetailRow label="Version" value={selectedApp.version ?? "-"} />
                 <DetailRow label="Source" value={selectedApp.source} />
                 <DetailRow label="Install Path" value={selectedApp.installLocation ?? "-"} />
-              </div>
+              </PanelContainer>
 
-              <div className="mt-auto space-y-2 min-w-0">
-                
-                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                  <span>List to Actions</span>
-                  <span className="font-mono">Right Arrow</span>
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                  <span>Actions to List</span>
-                  <span className="font-mono">Left Arrow</span>
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                  <span>Navigate / Run</span>
-                  <span className="font-mono">Up Down + Enter</span>
-                </div>
-              </div>
+              <PanelContainer className="mt-auto space-y-2 min-w-0">
+                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline>List to Actions</PanelInline>
+                  <PanelInline className="font-mono">Right Arrow</PanelInline>
+                </PanelContainer>
+                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline>Actions to List</PanelInline>
+                  <PanelInline className="font-mono">Left Arrow</PanelInline>
+                </PanelContainer>
+                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline>Navigate / Run</PanelInline>
+                  <PanelInline className="font-mono">Up Down + Enter</PanelInline>
+                </PanelContainer>
+              </PanelContainer>
             </>
           ) : (
-            <div className="h-full grid place-items-center text-muted-foreground text-sm">
+            <PanelContainer className="h-full grid place-items-center text-muted-foreground text-sm">
               No apps found.
-            </div>
+            </PanelContainer>
           )}
-        </aside>
-      </div>
+        </PanelAside>
+      </PanelContainer>
     </PanelTooltipProvider>
   );
 }

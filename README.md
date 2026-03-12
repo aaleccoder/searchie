@@ -241,7 +241,6 @@ Follow these workspace rules consistently:
 - Put system panels under `src/plugins/core/internal/system/panels/...`.
 - Put utility panels under `src/plugins/core/internal/utilities/features/<feature>/...`.
 - Build panel UI with primitives from `src/components/framework/panel-primitives.tsx`.
-- Use shadcn components from `src/components/ui/*`.
 - Keep components focused; avoid monolithic files.
 
 #### 2) Define Aliases

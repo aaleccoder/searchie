@@ -16,6 +16,9 @@ export const clipboardShortcutPanel: ShortcutPanelDescriptor = definePluginPanel
     placeholder: "Search clipboard history...",
     exitOnEscape: true,
   },
+  appsLauncherIntegration: {
+    injectAsApp: true,
+  },
   shortcuts: [
     { keys: "Enter", description: "Copy selected item" },
     { keys: "Alt+K", description: "Open footer extra actions" },

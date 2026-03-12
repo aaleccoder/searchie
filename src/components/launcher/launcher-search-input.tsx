@@ -30,21 +30,6 @@ export function LauncherSearchInput({
 }: LauncherSearchInputProps) {
   return (
     <div className="flex h-11.25 w-full items-center backdrop-blur-md" data-tauri-drag-region>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
-        <HugeiconsIcon icon={SearchIcon} strokeWidth={2} className="pointer-events-none size-4" />
-      </div>
-      <Input
-        ref={inputRef}
-        value={value}
-        onChange={(event) => onValueChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        className="h-full flex-1 rounded-none border-0 bg-t ransparent pl-0 pr-0 shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent"
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="none"
-        spellCheck={false}
-      />
       {showBackButton ? (
         <Button
           type="button"
@@ -57,7 +42,23 @@ export function LauncherSearchInput({
         >
           <ArrowLeft className="size-4" />
         </Button>
-      ) : null}
+      ) : (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
+          <HugeiconsIcon icon={SearchIcon} strokeWidth={2} className="pointer-events-none size-4" />
+        </div>
+      )}
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        className="h-full flex-1 rounded-none border-0 bg-transparent pl-0 pr-0 shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+      />
       <Button
         variant="ghost"
         size="icon"

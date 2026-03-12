@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { definePanel } from "@/components/framework";
@@ -12,8 +12,16 @@ const { invokePanelCommandMock } = vi.hoisted(() => ({
   invokePanelCommandMock: vi.fn(),
 }));
 
+const { listenMock } = vi.hoisted(() => ({
+  listenMock: vi.fn(),
+}));
+
 vi.mock("@/lib/tauri-commands", () => ({
   invokePanelCommand: invokePanelCommandMock,
+}));
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: listenMock,
 }));
 
 type InstalledApp = {
@@ -64,6 +72,8 @@ function renderPanel(props?: Partial<React.ComponentProps<typeof AppsLauncherPan
 describe("AppsLauncherPanel focus and keyboard UX", () => {
   beforeEach(() => {
     invokePanelCommandMock.mockReset();
+    listenMock.mockReset();
+    listenMock.mockResolvedValue(() => undefined);
     invokePanelCommandMock.mockImplementation(async (_scope: unknown, command: string, params: unknown) => {
       if (command === "list_installed_apps") {
         return apps;
@@ -215,6 +225,7 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
       capabilities: [],
       matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
       searchIntegration: { activationMode: "result-item" as const },
+      appsLauncherIntegration: { injectAsApp: true },
       component: () => null,
     });
     registry.register(clipboardPanel);
@@ -246,13 +257,14 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
       capabilities: [],
       matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
       searchIntegration: { activationMode: "result-item" as const },
+      appsLauncherIntegration: { injectAsApp: true },
       component: () => null,
     });
     registry.register(clipboardPanel);
 
     render(
       <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel commandQuery="cl" />
+        <AppsLauncherPanel commandQuery="clip" />
       </PanelRegistryContext.Provider>,
     );
 
@@ -265,6 +277,29 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     await user.click(screen.getByRole("button", { name: /Back to Apps/i }));
 
     expect(screen.getByText("Selected App")).toBeInTheDocument();
+  });
+
+  it("renders injected plugin command icon results without waiting for app search", async () => {
+    const registry = createPanelRegistry();
+    const clipboardPanel: ShortcutPanelDescriptor = definePanel({
+      id: "clipboard",
+      name: "Clipboard",
+      aliases: ["cl", "clip", "clipboard"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["cl", "clip", "clipboard"]),
+      searchIntegration: { activationMode: "result-item" as const },
+      appsLauncherIntegration: { injectAsApp: true },
+      component: () => null,
+    });
+    registry.register(clipboardPanel);
+
+    render(
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel commandQuery="clip" />
+      </PanelRegistryContext.Provider>,
+    );
+
+    expect(await screen.findByRole("button", { name: /Open Clipboard/i })).toBeInTheDocument();
   });
 
   it("registers footer with panel title metadata", async () => {
@@ -309,5 +344,72 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     expect(
       invokePanelCommandMock.mock.calls.some(([, command]) => command === "get_app_icon"),
     ).toBe(false);
+  });
+
+  it("loads installed apps once while typing and searches on query updates", async () => {
+    const registry = createPanelRegistry();
+    const view = render(
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel commandQuery="" />
+      </PanelRegistryContext.Provider>,
+    );
+
+    await screen.findByRole("button", { name: /Notepad/i });
+
+    view.rerender(
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel commandQuery="n" />
+      </PanelRegistryContext.Provider>,
+    );
+
+    view.rerender(
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel commandQuery="no" />
+      </PanelRegistryContext.Provider>,
+    );
+
+    await waitFor(() => {
+      const listCalls = invokePanelCommandMock.mock.calls.filter(
+        ([, command]) => command === "list_installed_apps",
+      );
+      expect(listCalls).toHaveLength(1);
+    });
+
+    await waitFor(() => {
+      const searchCalls = invokePanelCommandMock.mock.calls.filter(
+        ([, command]) => command === "search_installed_apps",
+      );
+      expect(searchCalls.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("refreshes installed apps when apps-updated event fires", async () => {
+    let appsUpdatedHandler: (() => void | Promise<void>) | null = null;
+    listenMock.mockImplementation(async (eventName: string, handler: () => void | Promise<void>) => {
+      if (eventName === "searchie://apps-updated") {
+        appsUpdatedHandler = handler;
+      }
+      return () => undefined;
+    });
+
+    renderPanel();
+    await screen.findByRole("button", { name: /Notepad/i });
+
+    const listBefore = invokePanelCommandMock.mock.calls.filter(
+      ([, command]) => command === "list_installed_apps",
+    ).length;
+
+    expect(appsUpdatedHandler).not.toBeNull();
+
+    await act(async () => {
+      await appsUpdatedHandler?.();
+    });
+
+    await waitFor(() => {
+      const listAfter = invokePanelCommandMock.mock.calls.filter(
+        ([, command]) => command === "list_installed_apps",
+      ).length;
+      expect(listAfter).toBe(listBefore + 1);
+    });
   });
 });

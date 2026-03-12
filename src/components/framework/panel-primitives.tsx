@@ -335,6 +335,7 @@ type PanelListVirtualizeConfig = {
   estimateSize: number;
   overscan?: number;
   getItemKey?: (index: number) => string | number;
+  getScrollElement?: () => HTMLElement | null;
   renderItem: (index: number) => React.ReactNode;
   scrollToIndex?: number;
 };
@@ -356,13 +357,21 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
   ({ className, gap = "sm", virtualize, ...props }, ref) => {
     const scrollRef = React.useRef<HTMLDivElement | null>(null);
     const itemGapPx = spacingPixels[gap];
+    const virtualCount = virtualize?.count ?? 0;
+    const virtualEstimateSize = virtualize?.estimateSize ?? 0;
+    const virtualOverscan = virtualize?.overscan ?? 6;
+    const virtualGetItemKey = virtualize?.getItemKey;
+    const virtualGetScrollElement = virtualize?.getScrollElement;
+    const targetScrollIndex = virtualize?.scrollToIndex;
+    const hasExternalScrollElement = !!virtualGetScrollElement;
+
     const virtualizer = useVirtualizer({
-      count: virtualize?.count ?? 0,
-      getScrollElement: () => scrollRef.current,
-      estimateSize: () => (virtualize?.estimateSize ?? 0) + itemGapPx,
-      overscan: virtualize?.overscan ?? 6,
+      count: virtualCount,
+      getScrollElement: () => virtualGetScrollElement?.() ?? scrollRef.current,
+      estimateSize: () => virtualEstimateSize + itemGapPx,
+      overscan: virtualOverscan,
       initialRect: { width: 0, height: 400 },
-      getItemKey: virtualize?.getItemKey,
+      getItemKey: virtualGetItemKey,
     });
 
     React.useEffect(() => {
@@ -371,11 +380,35 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
       }
 
       virtualizer.measure();
+    }, [virtualCount, virtualEstimateSize, itemGapPx, virtualize, virtualizer]);
 
-      if (typeof virtualize.scrollToIndex === "number" && virtualize.scrollToIndex >= 0) {
-        virtualizer.scrollToIndex(virtualize.scrollToIndex, { align: "auto" });
+    React.useEffect(() => {
+      if (!virtualize || typeof targetScrollIndex !== "number" || targetScrollIndex < 0) {
+        return;
       }
-    }, [virtualize, virtualizer]);
+
+      const virtualItems = virtualizer.getVirtualItems();
+      const targetItem = virtualItems.find((item) => item.index === targetScrollIndex);
+      const viewportHeight = (virtualGetScrollElement?.() ?? scrollRef.current)?.clientHeight ?? 0;
+      const viewportStart = virtualizer.scrollOffset ?? 0;
+      const viewportEnd = viewportStart + viewportHeight;
+
+      if (targetItem && viewportHeight > 0) {
+        const isAboveViewport = targetItem.start < viewportStart;
+        const isBelowViewport = targetItem.end > viewportEnd;
+
+        if (!isAboveViewport && !isBelowViewport) {
+          return;
+        }
+
+        virtualizer.scrollToIndex(targetScrollIndex, {
+          align: isAboveViewport ? "start" : "end",
+        });
+        return;
+      }
+
+      virtualizer.scrollToIndex(targetScrollIndex, { align: "auto" });
+    }, [targetScrollIndex, virtualize, virtualizer]);
 
     if (!virtualize) {
       return <div ref={ref} className={cn(spacingClasses[gap], className)} {...props} />;
@@ -400,7 +433,7 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
             ref.current = node;
           }
         }}
-        className={cn("relative overflow-y-auto", className)}
+        className={cn("relative", !hasExternalScrollElement && "overflow-y-auto", className)}
       >
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {(virtualItems.length > 0 ? virtualItems : fallbackItems).map((virtualItem) => {
