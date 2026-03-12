@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ClipboardPanel } from "@/components/clipboard-panel";
+import { ClipboardPanel } from "@/plugins/core/internal/clipboard-panel";
 
 const { invokePanelCommandMock, openUrlMock, listenMock } = vi.hoisted(() => ({
   invokePanelCommandMock: vi.fn(),

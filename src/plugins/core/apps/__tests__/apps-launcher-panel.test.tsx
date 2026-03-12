@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { definePanel } from "@/components/panels/framework";
-import { AppsLauncherPanel } from "@/components/panels/apps/apps-launcher-panel";
+import { AppsLauncherPanel } from "@/plugins/core/internal/apps-launcher-panel";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";

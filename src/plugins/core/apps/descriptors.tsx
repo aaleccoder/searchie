@@ -1,8 +1,8 @@
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { definePluginPanel } from "@/plugins/sdk";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
-import { AppsLauncherPanel } from "@/plugins/core/panels/apps/apps-launcher-panel";
-import { APPS_ALIASES, flattenAliases } from "@/components/panels/apps/aliases";
+import { AppsLauncherPanel } from "@/plugins/core/internal/apps-launcher-panel";
+import { APPS_ALIASES, flattenAliases } from "./aliases";
 
 function createAppsPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(APPS_ALIASES);

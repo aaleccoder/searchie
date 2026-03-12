@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { GlyphPickerUtilityPanel } from "@/components/panels/utilities/glyph-picker-utility-panel";
+import { GlyphPickerUtilityPanel } from "@/plugins/core/internal/glyph-picker-utility-panel";
 
 vi.mock("@/lib/utilities/glyph-picker-engine", async () => {
   const actual = await vi.importActual<typeof import("@/lib/utilities/glyph-picker-engine")>(

@@ -1,0 +1,1 @@
+export { buildAppsPanels } from "./descriptors";

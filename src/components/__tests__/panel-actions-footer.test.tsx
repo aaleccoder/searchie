@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClipboardList, Rocket } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
-import { PanelActionsFooter } from "@/components/panel-actions-footer";
+import { PanelActionsFooter } from "@/components/launcher/panel-actions-footer";
 
 describe("PanelActionsFooter", () => {
   it("renders panel title/icon, Enter affordance, and Alt+K hint for More", async () => {

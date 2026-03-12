@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import * as React from 'react'
-import { LauncherPanel } from '@/components/launcher-panel'
+import { LauncherPanel } from '@/components/launcher/launcher-panel'
 
 export const Route = createFileRoute('/')({
   component: Index,

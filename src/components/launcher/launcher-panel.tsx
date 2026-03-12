@@ -1,8 +1,9 @@
 import * as React from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Rocket } from "lucide-react";
-import { LauncherSearchInput } from "@/components/launcher-search-input";
-import { PanelActionsFooter } from "@/components/panel-actions-footer";
+import { LauncherSearchInput } from "./launcher-search-input";
+import { PanelActionsFooter } from "./panel-actions-footer";
+import { useDebouncedValue } from "./use-debounced-value";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
@@ -21,17 +22,6 @@ type LauncherPanelProps = {
   onOpenSettings: () => void;
   openSettingsRequestKey?: number;
 };
-
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = React.useState(value);
-
-  React.useEffect(() => {
-    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [value, delayMs]);
-
-  return debounced;
-}
 
 export function LauncherPanel({
   expanded,

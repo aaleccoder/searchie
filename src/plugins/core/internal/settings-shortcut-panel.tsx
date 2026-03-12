@@ -1,5 +1,5 @@
 import { PanelContainer, ScrollArea as PanelScrollArea } from "@/plugins/sdk";
-import { SettingsPanel } from "@/components/settings-panel";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 
 type SettingsShortcutPanelProps = {
   commandQuery: string;

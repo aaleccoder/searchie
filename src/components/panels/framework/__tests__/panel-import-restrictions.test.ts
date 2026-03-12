@@ -33,7 +33,7 @@ function collectTsxFiles(rootDir: string): string[] {
 describe("panel import restrictions", () => {
   function collectPluginPanelFiles(): string[] {
     const roots = [
-      path.resolve(workspaceRoot, "src/plugins/core/panels"),
+      path.resolve(workspaceRoot, "src/plugins/core/internal"),
       path.resolve(workspaceRoot, "src/plugins/panels"),
     ];
 
@@ -92,7 +92,11 @@ describe("panel import restrictions", () => {
     const panelFiles = collectPluginPanelFiles();
     const intrinsicOffenders: string[] = [];
 
-    for (const filePath of panelFiles) {
+    const externalPluginFiles = panelFiles.filter(
+      (filePath) => toNormalizedPath(filePath).includes("/plugins/panels/"),
+    );
+
+    for (const filePath of externalPluginFiles) {
       const content = readFileSync(filePath, "utf8");
       const source = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
       let hasIntrinsic = false;

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FileSearchUtilityPanel } from "@/components/panels/utilities/file-search-utility-panel";
+import { FileSearchUtilityPanel } from "@/plugins/core/internal/file-search-utility-panel";
 
 const { invokePanelCommandMock } = vi.hoisted(() => ({
   invokePanelCommandMock: vi.fn(),
