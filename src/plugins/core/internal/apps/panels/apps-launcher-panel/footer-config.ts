@@ -1,7 +1,6 @@
-import { FolderOpen, Rocket, Settings2, Shield, Trash2, Wrench } from "lucide-react";
+import { FolderOpen, Rocket, Shield, Trash2, Wrench } from "lucide-react";
 import type { PanelFooterConfig } from "@/lib/panel-contract";
 import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
-import type { SettingsSearchEntry } from "@/plugins/core/internal/settings-search";
 import type { AppActionItem, InstalledApp, NavigationItem } from "./types";
 
 type BuildFooterConfigArgs = {
@@ -12,7 +11,6 @@ type BuildFooterConfigArgs = {
   registerFooterControls: PanelFooterConfig["registerControls"];
   clearLauncherInput?: (() => void) | undefined;
   activatePanelSession?: ((panel: ShortcutPanelDescriptor, nextQuery: string) => void) | undefined;
-  executeSettingOpen: (setting: SettingsSearchEntry, uri?: string) => Promise<void>;
   executeAppAction: (actionId: AppActionItem["id"], app: InstalledApp) => Promise<void>;
 };
 
@@ -24,7 +22,6 @@ export function buildFooterConfig({
   registerFooterControls,
   clearLauncherInput,
   activatePanelSession,
-  executeSettingOpen,
   executeAppAction,
 }: BuildFooterConfigArgs): PanelFooterConfig | null {
   if (!selectedItem) {
@@ -48,36 +45,6 @@ export function buildFooterConfig({
         },
         shortcutHint: "Enter",
       },
-    };
-  }
-
-  if (selectedItem.kind === "setting") {
-    const currentSetting = selectedItem.setting;
-    const extraActions = currentSetting.uris.slice(1).map((uri, index) => ({
-      id: `open-setting-uri-${index + 2}`,
-      label: `Open Alternative URI ${index + 2}`,
-      icon: Settings2,
-      onSelect: () => {
-        void executeSettingOpen(currentSetting, uri);
-      },
-    }));
-
-    return {
-      panel: {
-        title: "Apps",
-        icon: Rocket,
-      },
-      registerControls: registerFooterControls,
-      primaryAction: {
-        id: "open-setting",
-        label: `Open ${currentSetting.settingsPage}`,
-        icon: Settings2,
-        onSelect: () => {
-          void executeSettingOpen(currentSetting);
-        },
-        shortcutHint: "Enter",
-      },
-      extraActions,
     };
   }
 

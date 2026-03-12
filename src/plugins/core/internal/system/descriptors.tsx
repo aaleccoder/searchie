@@ -272,6 +272,91 @@ function createConnectivityActionCommand(args: {
   });
 }
 
+type MediaIntent = { action: "play-pause" | "next" | "previous" };
+
+function parseMediaCommand(rawCommandQuery: string): MediaIntent | null {
+  const command = rawCommandQuery.trim().toLowerCase();
+  if (!command) {
+    return null;
+  }
+
+  if (["play", "pause", "toggle", "playpause"].includes(command)) {
+    return { action: "play-pause" };
+  }
+
+  if (["next", "skip"].includes(command)) {
+    return { action: "next" };
+  }
+
+  if (["previous", "prev", "back"].includes(command)) {
+    return { action: "previous" };
+  }
+
+  return null;
+}
+
+function createMediaActionMatcher(): ShortcutCommandDescriptor["matcher"] {
+  const aliasMatcher = createPrefixAliasMatcher(MEDIA_ALIAS_LIST);
+
+  return (query) => {
+    const match = aliasMatcher(query);
+    if (!match.matches) {
+      return match;
+    }
+
+    return parseMediaCommand(match.commandQuery)
+      ? match
+      : { matches: false, commandQuery: "" };
+  };
+}
+
+function formatMediaActionLabel(commandQuery: string): string {
+  const parsed = parseMediaCommand(commandQuery);
+  if (!parsed) {
+    return "Media Controls";
+  }
+
+  if (parsed.action === "play-pause") {
+    return "Play/Pause";
+  }
+
+  if (parsed.action === "next") {
+    return "Next Track";
+  }
+
+  return "Previous Track";
+}
+
+function createMediaActionCommand(): ShortcutCommandDescriptor {
+  return definePluginCommand({
+    id: "system-media-action",
+    name: "Media Controls",
+    aliases: MEDIA_ALIAS_LIST,
+    commandIcon: Music2,
+    capabilities: ["system.media"],
+    priority: 43,
+    appsLauncherIntegration: {
+      injectAsApp: true,
+    },
+    matcher: createMediaActionMatcher(),
+    getLabel: ({ commandQuery }) => formatMediaActionLabel(commandQuery),
+    execute: async ({ commandQuery }) => {
+      const parsed = parseMediaCommand(commandQuery);
+      if (!parsed) {
+        return;
+      }
+
+      if (parsed.action === "play-pause") {
+        await systemBackend.system.mediaPlayPause();
+      } else if (parsed.action === "next") {
+        await systemBackend.system.mediaNext();
+      } else {
+        await systemBackend.system.mediaPrevious();
+      }
+    },
+  });
+}
+
 function createConnectivityPanel(args: {
   id: string;
   name: string;
@@ -411,6 +496,7 @@ export function buildSystemControlPanels(): ShortcutPanelDescriptor[] {
 
 export function buildSystemDirectCommands(): ShortcutCommandDescriptor[] {
   return [
+    createMediaActionCommand(),
     createBrightnessActionCommand(),
     createConnectivityActionCommand({
       id: "system-wifi-action",

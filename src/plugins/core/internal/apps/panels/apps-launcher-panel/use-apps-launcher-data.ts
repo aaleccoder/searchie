@@ -10,13 +10,6 @@ import {
   hasCachedAppIcon,
 } from "@/lib/apps-icon-cache";
 import { usePanelRegistry } from "@/lib/panel-registry";
-import {
-  SETTINGS_SEARCH_ALIAS_LIST,
-  extractSettingsAliasQuery,
-  loadSettingsCatalog,
-  searchSettingsEntries,
-  type SettingsSearchEntry,
-} from "@/plugins/core/internal/settings-search";
 import { getErrorMessage } from "./helpers";
 import { useDebouncedValue } from "./hooks";
 import { launcherCommandScope } from "./panel-scope";
@@ -49,7 +42,6 @@ export function useAppsLauncherData({
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [navigationMode, setNavigationMode] = React.useState<NavigationMode>("list");
   const [iconCacheVersion, setIconCacheVersion] = React.useState(0);
-  const [settingsCatalog, setSettingsCatalog] = React.useState<SettingsSearchEntry[]>([]);
   const [appsSnapshotHydrated, setAppsSnapshotHydrated] = React.useState(false);
 
   const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -111,21 +103,7 @@ export function useAppsLauncherData({
     };
   }, [refreshAllApps]);
 
-  React.useEffect(() => {
-    let cancelled = false;
 
-    const hydrateSettings = async () => {
-      const catalog = await loadSettingsCatalog();
-      if (!cancelled) {
-        setSettingsCatalog(catalog);
-      }
-    };
-
-    void hydrateSettings();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   React.useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -266,19 +244,7 @@ export function useAppsLauncherData({
     [commandQuery, commandRegistry],
   );
 
-  const settingsQuery = React.useMemo(
-    () => extractSettingsAliasQuery(debouncedQuery, SETTINGS_SEARCH_ALIAS_LIST),
-    [debouncedQuery],
-  );
 
-  const injectedSettingsResults = React.useMemo<SettingsSearchEntry[]>(() => {
-    if (!settingsQuery.usedAlias && !settingsQuery.query) {
-      return [];
-    }
-
-    const limit = settingsQuery.usedAlias ? 48 : 8;
-    return searchSettingsEntries(settingsCatalog, settingsQuery.query, limit);
-  }, [settingsCatalog, settingsQuery.query, settingsQuery.usedAlias]);
 
   const navigationList = React.useMemo(
     () =>
@@ -288,9 +254,8 @@ export function useAppsLauncherData({
         debouncedQuery,
         injectedPanelSuggestions,
         injectedCommandSuggestions,
-        injectedSettingsResults,
       }),
-    [allApps, debouncedQuery, injectedCommandSuggestions, injectedPanelSuggestions, injectedSettingsResults, searchResults],
+    [allApps, debouncedQuery, injectedCommandSuggestions, injectedPanelSuggestions, searchResults],
   );
 
   const selectedItem = React.useMemo<NavigationItem | null>(() => {
@@ -315,30 +280,6 @@ export function useAppsLauncherData({
   const selectedApp = selectedItem?.kind === "app" ? selectedItem.app : null;
   const useVirtualizedList = navigationList.length > 36;
   const appActions = React.useMemo(() => buildAppActions(selectedApp), [selectedApp]);
-
-  const executeSettingOpen = React.useCallback(
-    async (setting: SettingsSearchEntry, uri?: string) => {
-      const targetUri = uri ?? setting.uris[0];
-      if (!targetUri) {
-        return;
-      }
-
-      clearLauncherInput?.();
-      closeLauncherWindow?.();
-
-      try {
-        await backend.window.shellExecuteW(targetUri);
-      } catch (error) {
-        console.error("[apps-panel] settings launch failed", {
-          settingsPage: setting.settingsPage,
-          uri: targetUri,
-          message: getErrorMessage(error),
-          error,
-        });
-      }
-    },
-    [backend.window, clearLauncherInput, closeLauncherWindow],
-  );
 
   const executeAppAction = React.useCallback(
     async (actionId: AppActionItem["id"], app: InstalledApp) => {
@@ -472,7 +413,6 @@ export function useAppsLauncherData({
     appActions,
     busy,
     busyActionId,
-    executeSettingOpen,
     executeAppAction,
     executeDirectCommand,
     focusListItemById,

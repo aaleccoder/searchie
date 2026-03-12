@@ -37,7 +37,6 @@ export function AppsLauncherPanel({
     appActions,
     busy,
     busyActionId,
-    executeSettingOpen,
     executeAppAction,
     executeDirectCommand,
     focusListItemById,
@@ -65,14 +64,9 @@ export function AppsLauncherPanel({
       return true;
     }
 
-    if (selectedItem.kind === "setting") {
-      void executeSettingOpen(selectedItem.setting);
-      return true;
-    }
-
     void executeAppAction("open", selectedItem.app);
     return true;
-  }, [activatePanelSession, clearLauncherInput, executeAppAction, executeDirectCommand, executeSettingOpen, selectedItem]);
+  }, [activatePanelSession, clearLauncherInput, executeAppAction, executeDirectCommand, selectedItem]);
 
   const footerConfig = React.useMemo(
     () =>
@@ -84,7 +78,6 @@ export function AppsLauncherPanel({
         registerFooterControls,
         clearLauncherInput,
         activatePanelSession,
-        executeSettingOpen,
         executeAppAction,
       }),
     [
@@ -95,7 +88,6 @@ export function AppsLauncherPanel({
       registerFooterControls,
       clearLauncherInput,
       activatePanelSession,
-      executeSettingOpen,
       executeAppAction,
     ],
   );
@@ -142,7 +134,6 @@ export function AppsLauncherPanel({
           activatePanelSession={activatePanelSession}
           setNavigationMode={setNavigationMode}
           setSelectedId={setSelectedId}
-          executeSettingOpen={executeSettingOpen}
           executeAppOpen={(app) => {
             void executeAppAction("open", app);
           }}

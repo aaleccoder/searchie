@@ -1,5 +1,4 @@
 import type { PanelFooterConfig, ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
-import type { SettingsSearchEntry } from "@/plugins/core/internal/settings-search";
 
 export type InstalledApp = {
   id: string;
@@ -51,11 +50,6 @@ export type NavigationItem =
       id: string;
       kind: "app";
       app: InstalledApp;
-    }
-  | {
-      id: string;
-      kind: "setting";
-      setting: SettingsSearchEntry;
     }
   | {
       id: string;

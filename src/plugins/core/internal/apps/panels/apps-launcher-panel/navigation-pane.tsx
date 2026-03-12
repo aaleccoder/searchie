@@ -4,7 +4,7 @@ import {
   PanelList,
   PanelScrollArea,
 } from "@/components/framework/panel-primitives";
-import type { SettingsSearchEntry } from "@/plugins/core/internal/settings-search";
+
 import { NavigationListItem } from "./navigation-list";
 import type { InstalledApp, NavigationItem } from "./types";
 

@@ -1,5 +1,5 @@
 import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
-import type { SettingsSearchEntry } from "@/plugins/core/internal/settings-search";
+
 import type { AppActionItem, DirectCommandSuggestion, InstalledApp, NavigationItem, PanelCommandSuggestion } from "./types";
 import { supportsRunAsAdmin } from "./helpers";
 
@@ -109,7 +109,6 @@ export function buildNavigationList(args: {
   debouncedQuery: string;
   injectedPanelSuggestions: PanelCommandSuggestion[];
   injectedCommandSuggestions: DirectCommandSuggestion[];
-  injectedSettingsResults: SettingsSearchEntry[];
 }): NavigationItem[] {
   const source = (args.debouncedQuery.trim() ? args.searchResults : args.allApps).slice(0, 72);
   const items: NavigationItem[] = source.map((app) => ({
@@ -117,20 +116,6 @@ export function buildNavigationList(args: {
     kind: "app",
     app,
   }));
-
-  const settingsItems: NavigationItem[] = args.injectedSettingsResults.map((setting) => ({
-    id: `setting:${setting.id}`,
-    kind: "setting",
-    setting,
-  }));
-
-  if (settingsItems.length > 0) {
-    if (items.length > 0) {
-      items.splice(1, 0, ...settingsItems);
-    } else {
-      items.push(...settingsItems);
-    }
-  }
 
   if (args.injectedPanelSuggestions.length > 0) {
     const injectedItems: NavigationItem[] = args.injectedPanelSuggestions.map((suggestion) => ({

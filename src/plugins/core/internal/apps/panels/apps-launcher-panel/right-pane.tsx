@@ -60,30 +60,6 @@ export function RightPane({ selectedItem, selectFirstAppItem }: RightPaneProps) 
             <PanelInline size="xs" tone="muted" mono>Left Arrow</PanelInline>
           </PanelButton>
         </PanelFlex>
-      ) : selectedItem?.kind === "setting" ? (
-        <PanelFlex direction="col" gap="md">
-          <PanelContainer>
-            <PanelParagraph size="xs" tone="muted">Selected Setting</PanelParagraph>
-            <SingleLineTooltipText text={selectedItem.setting.settingsPage} size="xl" />
-            <SingleLineTooltipText text={selectedItem.setting.uris[0] ?? "ms-settings:"} size="xs" tone="muted" />
-          </PanelContainer>
-
-          <PanelFlex direction="col" gap="sm">
-            <DetailRow label="URIs" value={String(selectedItem.setting.uris.length)} />
-            <DetailRow label="Primary URI" value={selectedItem.setting.uris[0] ?? "-"} />
-          </PanelFlex>
-
-          <PanelFlex direction="col" gap="sm">
-            <PanelFlex align="center" justify="between">
-              <PanelInline>Open setting</PanelInline>
-              <PanelInline mono>Enter</PanelInline>
-            </PanelFlex>
-            <PanelFlex align="center" justify="between">
-              <PanelInline>Back to app list</PanelInline>
-              <PanelInline mono>Left Arrow</PanelInline>
-            </PanelFlex>
-          </PanelFlex>
-        </PanelFlex>
       ) : selectedApp ? (
         <PanelFlex direction="col" gap="md">
           <PanelContainer>

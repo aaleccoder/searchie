@@ -464,33 +464,6 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     ).toBe(false);
   });
 
-  it("injects matching Windows settings entries into default app results", async () => {
-    renderPanel({ commandQuery: "camera" });
-
-    expect(await screen.findByRole("button", { name: /Open Setting Camera/i })).toBeInTheDocument();
-  });
-
-  it("supports msettings-prefixed query in the default apps panel", async () => {
-    renderPanel({ commandQuery: "msettings microphone" });
-
-    expect(await screen.findByRole("button", { name: /Open Setting Microphone/i })).toBeInTheDocument();
-  });
-
-  it("opens Windows settings URI when selecting a settings entry", async () => {
-    const user = userEvent.setup();
-
-    renderPanel({ commandQuery: "camera" });
-
-    const settingsButton = await screen.findByRole("button", { name: /Open Setting Camera/i });
-    await user.click(settingsButton);
-
-    expect(invokePanelCommandMock).toHaveBeenCalledWith(
-      expect.anything(),
-      "shell_execute_w",
-      { target: "ms-settings:privacy-webcam" },
-    );
-  });
-
   it("loads installed apps once while typing and searches on query updates", async () => {
     const registry = createPanelRegistry();
     const view = render(

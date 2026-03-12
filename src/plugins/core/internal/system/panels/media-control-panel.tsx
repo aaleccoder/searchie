@@ -6,6 +6,7 @@ import {
   ListItem as PanelListItem,
   PanelContainer,
   PanelFlex,
+  ScrollArea as PanelScrollArea,
   PanelText,
   createPluginBackendSdk,
   usePanelEnterBridge,
@@ -151,41 +152,41 @@ export function MediaControlPanel({
 
   return (
     <PanelContainer padding="md" style={{ height: "100%" }}>
-      <PanelFlex direction="col" gap="sm">
-        <PanelText size="lg" weight="semibold">
-          Media Controls
-        </PanelText>
-        <PanelText size="xs" tone="muted">
-          Keyboard-first playback control.
-        </PanelText>
-      </PanelFlex>
+      <PanelFlex direction="col" gap="sm" style={{ height: "100%" }}>
+        <PanelFlex direction="col" gap="sm">
+          <PanelText size="lg" weight="semibold">
+            Media Controls
+          </PanelText>
+          <PanelText size="xs" tone="muted">
+            Keyboard-first playback control.
+          </PanelText>
+        </PanelFlex>
 
-      <PanelContainer style={{ marginTop: "0.75rem" }}>
-        <PanelList gap="sm">
-          {ACTIONS.map((action, index) => (
-            <PanelListItem
-              key={action.id}
-              active={index === selectedIndex}
-              ref={(el) => {
-                itemRefs.current[index] = el;
-              }}
-              onMouseEnter={() => setSelectedIndex(index)}
-              onClick={() => {
-                setSelectedIndex(index);
-                void runAction(action);
-              }}
-            >
-              <PanelText>{action.label}</PanelText>
-            </PanelListItem>
-          ))}
-        </PanelList>
-      </PanelContainer>
+        <PanelScrollArea style={{ flex: 1 }}>
+          <PanelList gap="sm">
+            {ACTIONS.map((action, index) => (
+              <PanelListItem
+                key={action.id}
+                active={index === selectedIndex}
+                ref={(el) => {
+                  itemRefs.current[index] = el;
+                }}
+                onMouseEnter={() => setSelectedIndex(index)}
+                onClick={() => {
+                  setSelectedIndex(index);
+                  void runAction(action);
+                }}
+              >
+                <PanelText truncate>{action.label}</PanelText>
+              </PanelListItem>
+            ))}
+          </PanelList>
+        </PanelScrollArea>
 
-      <PanelContainer style={{ marginTop: "0.75rem" }}>
         <PanelText size="xs" tone="muted">
           {message || "No command sent yet."}
         </PanelText>
-      </PanelContainer>
+      </PanelFlex>
     </PanelContainer>
   );
 }
