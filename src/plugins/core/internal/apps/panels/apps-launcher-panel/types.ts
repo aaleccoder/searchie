@@ -1,4 +1,4 @@
-import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { PanelFooterConfig, ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import type { SettingsSearchEntry } from "@/plugins/core/internal/settings-search";
 
 export type InstalledApp = {
@@ -39,6 +39,13 @@ export type PanelCommandSuggestion = {
   label: string;
 };
 
+export type DirectCommandSuggestion = {
+  id: string;
+  command: ShortcutCommandDescriptor;
+  commandQuery: string;
+  label: string;
+};
+
 export type NavigationItem =
   | {
       id: string;
@@ -54,6 +61,11 @@ export type NavigationItem =
       id: string;
       kind: "panel-command";
       command: PanelCommandSuggestion;
+    }
+  | {
+      id: string;
+      kind: "direct-command";
+      command: DirectCommandSuggestion;
     };
 
 export type NavigationMode = "list" | "actions";

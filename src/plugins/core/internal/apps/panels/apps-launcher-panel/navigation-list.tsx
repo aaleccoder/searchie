@@ -19,6 +19,7 @@ type NavigationListItemProps = {
   clearLauncherInput?: (() => void) | undefined;
   executeSettingOpen: (setting: SettingsSearchEntry, uri?: string) => Promise<void>;
   executeAppOpen: (app: InstalledApp) => void;
+  executeDirectCommand: (command: Extract<NavigationItem, { kind: "direct-command" }>) => void;
   activatePanelSession?: ((panel: ShortcutPanelDescriptor, nextQuery: string) => void) | undefined;
   setNavigationMode: (mode: "list" | "actions") => void;
   setSelectedId: (id: string) => void;
@@ -32,6 +33,7 @@ export function NavigationListItem({
   clearLauncherInput,
   executeSettingOpen,
   executeAppOpen,
+  executeDirectCommand,
   activatePanelSession,
   setNavigationMode,
   setSelectedId,
@@ -78,6 +80,37 @@ export function NavigationListItem({
             <SingleLineTooltipText text={`Open ${item.command.label}`} size="sm" />
           </PanelFlex>
           <PanelInline size="xs" tone="muted" mono>Command</PanelInline>
+        </PanelFlex>
+      </PanelListItem>
+    );
+  }
+
+  if (item.kind === "direct-command") {
+    const CommandIcon = item.command.command.commandIcon ?? Rocket;
+    return (
+      <PanelListItem
+        type="button"
+        active={active}
+        ref={registerRef}
+        onMouseEnter={selectCurrent}
+        onFocus={selectCurrent}
+        onClick={() => {
+          selectCurrent();
+          executeDirectCommand(item);
+        }}
+      >
+        <PanelFlex align="center" justify="between" style={{ width: "100%" }}>
+          <PanelFlex align="center" gap="sm">
+            <PanelContainer
+              surface="muted"
+              radius="sm"
+              style={{ width: 24, height: 24, display: "grid", placeItems: "center", flexShrink: 0 }}
+            >
+              <CommandIcon size={14} />
+            </PanelContainer>
+            <SingleLineTooltipText text={`Run ${item.command.label}`} size="sm" />
+          </PanelFlex>
+          <PanelInline size="xs" tone="muted" mono>Action</PanelInline>
         </PanelFlex>
       </PanelListItem>
     );

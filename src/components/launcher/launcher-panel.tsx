@@ -5,16 +5,29 @@ import { LauncherSearchInput } from "./launcher-search-input";
 import { PanelActionsFooter } from "./panel-actions-footer";
 import { useDebouncedValue } from "./use-debounced-value";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PanelFooterConfig, ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { useCommandRegistry } from "@/lib/command-registry";
+import type { PanelFooterConfig, ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import { cn } from "@/lib/utils";
 
 type PanelCommandSuggestion = {
   id: string;
+  kind: "panel";
   panel: ShortcutPanelDescriptor;
   commandQuery: string;
   matchAlias?: string;
 };
+
+type DirectCommandSuggestion = {
+  id: string;
+  kind: "command";
+  command: ShortcutCommandDescriptor;
+  commandQuery: string;
+  matchAlias?: string;
+  label: string;
+};
+
+type LauncherSuggestion = PanelCommandSuggestion | DirectCommandSuggestion;
 
 type LauncherPanelProps = {
   expanded: boolean;
@@ -29,8 +42,10 @@ export function LauncherPanel({
   onOpenSettings,
   openSettingsRequestKey = 0,
 }: LauncherPanelProps) {
+  const commandRegistry = useCommandRegistry();
   const panelRegistry = usePanelRegistry();
   const registeredPanels = React.useMemo(() => panelRegistry.list(), [panelRegistry]);
+  const registeredCommands = React.useMemo(() => commandRegistry.list(), [commandRegistry]);
   const [query, setQuery] = React.useState("");
   const debouncedQuery = useDebouncedValue(query, 80);
   const [selectedCommandId, setSelectedCommandId] = React.useState<string | null>(null);
@@ -225,6 +240,7 @@ export function LauncherPanel({
     const allPanels = registeredPanels.filter((panel) => !panel.isDefault);
     const toSuggestion = (panel: ShortcutPanelDescriptor, commandQuery: string, matchAlias?: string) => ({
       id: `panel-command:${panel.id}`,
+      kind: "panel" as const,
       panel,
       commandQuery,
       matchAlias,
@@ -254,14 +270,66 @@ export function LauncherPanel({
     return [...exactMatches, ...fuzzyMatches].slice(0, 24);
   }, [activePanel, debouncedQuery, query, registeredPanels]);
 
+  const directCommandSuggestions = React.useMemo<DirectCommandSuggestion[]>(() => {
+    if (activePanel) {
+      return [];
+    }
+
+    const trimmed = debouncedQuery.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    const lower = trimmed.toLowerCase();
+    const exactMatches: DirectCommandSuggestion[] = [];
+    const fuzzyMatches: DirectCommandSuggestion[] = [];
+
+    for (const command of registeredCommands) {
+      const match = command.matcher(query);
+      const buildLabel = (commandQuery: string) =>
+        command.getLabel?.({ rawQuery: query, commandQuery }) ?? command.name;
+
+      if (match.matches) {
+        exactMatches.push({
+          id: `direct-command:${command.id}`,
+          kind: "command",
+          command,
+          commandQuery: match.commandQuery,
+          matchAlias: command.aliases[0],
+          label: buildLabel(match.commandQuery),
+        });
+        continue;
+      }
+
+      const aliasMatch = command.aliases.some((alias) => alias.toLowerCase().includes(lower));
+      const nameMatch = command.name.toLowerCase().includes(lower);
+      if (aliasMatch || nameMatch) {
+        fuzzyMatches.push({
+          id: `direct-command:${command.id}`,
+          kind: "command",
+          command,
+          commandQuery: query,
+          matchAlias: command.aliases[0],
+          label: buildLabel(query),
+        });
+      }
+    }
+
+    return [...exactMatches, ...fuzzyMatches].slice(0, 24);
+  }, [activePanel, debouncedQuery, query, registeredCommands]);
+
+  const launcherSuggestions = React.useMemo<LauncherSuggestion[]>(() => {
+    return [...directCommandSuggestions, ...panelCommandSuggestions];
+  }, [directCommandSuggestions, panelCommandSuggestions]);
+
   React.useEffect(() => {
     setSelectedCommandId((previous) => {
-      if (previous && panelCommandSuggestions.some((suggestion) => suggestion.id === previous)) {
+      if (previous && launcherSuggestions.some((suggestion) => suggestion.id === previous)) {
         return previous;
       }
-      return panelCommandSuggestions[0]?.id ?? null;
+      return launcherSuggestions[0]?.id ?? null;
     });
-  }, [panelCommandSuggestions]);
+  }, [launcherSuggestions]);
 
   React.useEffect(() => {
     if (!selectedCommandId) return;
@@ -272,31 +340,43 @@ export function LauncherPanel({
   }, [selectedCommandId]);
 
   const activateSelectedCommand = React.useCallback(() => {
-    if (!panelCommandSuggestions.length) {
+    if (!launcherSuggestions.length) {
       return;
     }
 
     const selected =
-      panelCommandSuggestions.find((suggestion) => suggestion.id === selectedCommandId) ??
-      panelCommandSuggestions[0];
+      launcherSuggestions.find((suggestion) => suggestion.id === selectedCommandId) ??
+      launcherSuggestions[0];
     if (!selected) {
       return;
     }
 
+    if (selected.kind === "command") {
+      void selected.command.execute({
+        source: "launcher",
+        rawQuery: query,
+        commandQuery: selected.commandQuery,
+        clearLauncherInput,
+        closeLauncherWindow,
+        focusLauncherInput,
+      });
+      return;
+    }
+
     activatePanelSession(selected.panel, selected.commandQuery);
-  }, [activatePanelSession, panelCommandSuggestions, selectedCommandId]);
+  }, [activatePanelSession, clearLauncherInput, closeLauncherWindow, focusLauncherInput, launcherSuggestions, query, selectedCommandId]);
 
   const moveSelection = React.useCallback(
     (delta: number) => {
-      if (!panelCommandSuggestions.length) return;
+      if (!launcherSuggestions.length) return;
       const index = Math.max(
         0,
-        panelCommandSuggestions.findIndex((item) => item.id === (selectedCommandId ?? "")),
+        launcherSuggestions.findIndex((item) => item.id === (selectedCommandId ?? "")),
       );
-      const next = Math.max(0, Math.min(panelCommandSuggestions.length - 1, index + delta));
-      setSelectedCommandId(panelCommandSuggestions[next]?.id ?? null);
+      const next = Math.max(0, Math.min(launcherSuggestions.length - 1, index + delta));
+      setSelectedCommandId(launcherSuggestions[next]?.id ?? null);
     },
-    [panelCommandSuggestions, selectedCommandId],
+    [launcherSuggestions, selectedCommandId],
   );
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -394,15 +474,15 @@ export function LauncherPanel({
 
   const selectedCommand = React.useMemo(() => {
     if (!selectedCommandId) {
-      return panelCommandSuggestions[0] ?? null;
+      return launcherSuggestions[0] ?? null;
     }
 
     return (
-      panelCommandSuggestions.find((suggestion) => suggestion.id === selectedCommandId) ??
-      panelCommandSuggestions[0] ??
+      launcherSuggestions.find((suggestion) => suggestion.id === selectedCommandId) ??
+      launcherSuggestions[0] ??
       null
     );
-  }, [panelCommandSuggestions, selectedCommandId]);
+  }, [launcherSuggestions, selectedCommandId]);
 
   const shouldShowPanelFooter = expanded && !!activePanel && !!panelFooter;
 
@@ -459,10 +539,13 @@ export function LauncherPanel({
                     </p>
                   </div>
 
-                  {panelCommandSuggestions.length > 0 ? (
+                  {launcherSuggestions.length > 0 ? (
                     <div className="flex flex-col gap-1.5">
-                      {panelCommandSuggestions.map((suggestion) => {
-                        const CommandIcon = suggestion.panel.commandIcon ?? Rocket;
+                      {launcherSuggestions.map((suggestion) => {
+                        const CommandIcon =
+                          suggestion.kind === "command"
+                            ? suggestion.command.commandIcon ?? Rocket
+                            : suggestion.panel.commandIcon ?? Rocket;
                         const active = selectedCommand?.id === suggestion.id;
                         return (
                           <button
@@ -475,6 +558,18 @@ export function LauncherPanel({
                             onMouseEnter={() => setSelectedCommandId(suggestion.id)}
                             onClick={() => {
                               setSelectedCommandId(suggestion.id);
+                              if (suggestion.kind === "command") {
+                                void suggestion.command.execute({
+                                  source: "launcher",
+                                  rawQuery: query,
+                                  commandQuery: suggestion.commandQuery,
+                                  clearLauncherInput,
+                                  closeLauncherWindow,
+                                  focusLauncherInput,
+                                });
+                                return;
+                              }
+
                               activatePanelSession(suggestion.panel, suggestion.commandQuery);
                             }}
                             className={cn(
@@ -489,7 +584,11 @@ export function LauncherPanel({
                                 <CommandIcon className="size-3.5 text-muted-foreground" />
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm line-clamp-1">Open {suggestion.panel.name}</p>
+                                <p className="text-sm line-clamp-1">
+                                  {suggestion.kind === "command"
+                                    ? `Run ${suggestion.label}`
+                                    : `Open ${suggestion.panel.name}`}
+                                </p>
                                 {suggestion.matchAlias ? (
                                   <p className="text-[11px] text-muted-foreground font-mono line-clamp-1">
                                     {suggestion.matchAlias}
@@ -497,7 +596,9 @@ export function LauncherPanel({
                                 ) : null}
                               </div>
                             </div>
-                            <span className="text-[11px] text-muted-foreground font-mono">Command</span>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {suggestion.kind === "command" ? "Action" : "Command"}
+                            </span>
                           </button>
                         );
                       })}

@@ -1,4 +1,4 @@
-import type { PanelCapability, ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { PanelCapability, ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 
 export type PluginPermission = PanelCapability;
 
@@ -33,5 +33,6 @@ export type CorePluginDescriptor = {
   version: string;
   permissions: PluginPermission[];
   panels: ShortcutPanelDescriptor[];
+  commands?: ShortcutCommandDescriptor[];
   settings?: PluginConfigDefinition[];
 };

@@ -8,10 +8,12 @@ import {
   Settings2,
   Volume2,
   Wifi,
+  Zap,
 } from "lucide-react";
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import { parseBrightnessCommand } from "@/lib/utilities/system-control-engine";
+import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
-import { definePluginPanel } from "@/plugins/sdk";
+import { createPluginBackendSdk, definePluginCommand, definePluginPanel } from "@/plugins/sdk";
 import {
   AIRPLANE_ALIAS_LIST,
   BLUETOOTH_ALIAS_LIST,
@@ -23,12 +25,15 @@ import {
   VOLUME_ALIAS_LIST,
   WIFI_ALIAS_LIST,
 } from "./system-control-aliases";
+import { systemCommandScope } from "./system-command-scope";
 import { BrightnessControlPanel } from "./panels/brightness-control-panel";
 import { ConnectivityControlPanel } from "./panels/connectivity-control-panel";
 import { MediaControlPanel } from "./panels/media-control-panel";
 import { PowerControlPanel } from "./panels/power-control-panel";
 import { SystemSettingsPanel } from "./panels/system-settings-panel";
 import { VolumeControlPanel } from "./panels/volume-control-panel";
+
+const systemBackend = createPluginBackendSdk(systemCommandScope);
 
 function makeResultPanel(descriptor: ShortcutPanelDescriptor): ShortcutPanelDescriptor {
   return definePluginPanel({
@@ -121,6 +126,63 @@ function createBrightnessPanel(): ShortcutPanelDescriptor {
         registerPanelFooter={registerPanelFooter}
       />
     ),
+  });
+}
+
+function createBrightnessActionMatcher(): ShortcutCommandDescriptor["matcher"] {
+  const aliasMatcher = createPrefixAliasMatcher(BRIGHTNESS_ALIAS_LIST);
+
+  return (query) => {
+    const match = aliasMatcher(query);
+    if (!match.matches) {
+      return match;
+    }
+
+    return parseBrightnessCommand(match.commandQuery)
+      ? match
+      : { matches: false, commandQuery: "" };
+  };
+}
+
+function formatBrightnessActionLabel(commandQuery: string): string {
+  const parsed = parseBrightnessCommand(commandQuery);
+  if (!parsed) {
+    return "Brightness";
+  }
+
+  if (parsed.kind === "set") {
+    return `Set Brightness to ${parsed.value}%`;
+  }
+
+  return parsed.delta > 0 ? "Brightness Up" : "Brightness Down";
+}
+
+function createBrightnessActionCommand(): ShortcutCommandDescriptor {
+  return definePluginCommand({
+    id: "system-brightness-action",
+    name: "Brightness",
+    aliases: BRIGHTNESS_ALIAS_LIST,
+    commandIcon: Zap,
+    capabilities: ["system.brightness"],
+    priority: 44,
+    appsLauncherIntegration: {
+      injectAsApp: true,
+    },
+    matcher: createBrightnessActionMatcher(),
+    getLabel: ({ commandQuery }) => formatBrightnessActionLabel(commandQuery),
+    execute: async ({ commandQuery }) => {
+      const parsed = parseBrightnessCommand(commandQuery);
+      if (!parsed) {
+        return;
+      }
+
+      if (parsed.kind === "set") {
+        await systemBackend.system.setBrightness(parsed.value);
+        return;
+      }
+
+      await systemBackend.system.changeBrightness(parsed.delta);
+    },
   });
 }
 
@@ -259,4 +321,8 @@ export function buildSystemControlPanels(): ShortcutPanelDescriptor[] {
     createPowerPanel(),
     createSystemSettingsPanel(),
   ];
+}
+
+export function buildSystemDirectCommands(): ShortcutCommandDescriptor[] {
+  return [createBrightnessActionCommand()];
 }

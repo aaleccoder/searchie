@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSystemControlPanels } from "@/plugins/core/internal/system";
+import { buildSystemControlPanels, buildSystemDirectCommands } from "@/plugins/core/internal/system";
 
 describe("buildSystemControlPanels", () => {
   it("registers all expected system panels", () => {
@@ -36,5 +36,24 @@ describe("buildSystemControlPanels", () => {
     const result = volumePanel?.matcher("volume 65");
     expect(result?.matches).toBe(true);
     expect(result?.commandQuery).toBe("65");
+  });
+
+  it("registers actionable brightness direct commands", () => {
+    const commands = buildSystemDirectCommands();
+    const brightnessCommand = commands.find((command) => command.id === "system-brightness-action");
+
+    expect(brightnessCommand).toBeTruthy();
+    expect(brightnessCommand?.matcher("brightness up")).toEqual({
+      matches: true,
+      commandQuery: "up",
+    });
+    expect(brightnessCommand?.matcher("brightness 55")).toEqual({
+      matches: true,
+      commandQuery: "55",
+    });
+    expect(brightnessCommand?.matcher("brightness")).toEqual({
+      matches: false,
+      commandQuery: "",
+    });
   });
 });

@@ -3,8 +3,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LauncherPanel } from "@/components/launcher/launcher-panel";
+import { CommandRegistryContext, createCommandRegistry } from "@/lib/command-registry";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { definePanel } from "../framework";
 import { buildAppsPanels } from "@/plugins/core/internal/apps";
@@ -44,10 +45,13 @@ function createRegistryWithPanels(panels: ShortcutPanelDescriptor[]) {
 }
 
 function renderLauncherWithRegistry(registry = createTestRegistry()) {
+  const commandRegistry = createCommandRegistry();
   return render(
-    <PanelRegistryContext.Provider value={registry}>
-      <LauncherPanel expanded onExpandedChange={vi.fn()} onOpenSettings={vi.fn()} />
-    </PanelRegistryContext.Provider>,
+    <CommandRegistryContext.Provider value={commandRegistry}>
+      <PanelRegistryContext.Provider value={registry}>
+        <LauncherPanel expanded onExpandedChange={vi.fn()} onOpenSettings={vi.fn()} />
+      </PanelRegistryContext.Provider>
+    </CommandRegistryContext.Provider>,
   );
 }
 
@@ -109,6 +113,92 @@ describe("LauncherPanel with panel registry", () => {
     await user.type(input, "test");
 
     expect(screen.getByText("Open Test Panel")).toBeInTheDocument();
+  });
+
+  it("executes a direct command from the top-level launcher on Enter", async () => {
+    const user = userEvent.setup();
+    const execute = vi.fn(async () => undefined);
+    const commandRegistry = createCommandRegistry();
+    const command: ShortcutCommandDescriptor = {
+      id: "brightness-up",
+      name: "Brightness Up",
+      aliases: ["brightness up", "bright up"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["brightness up", "bright up"]),
+      execute,
+    };
+    commandRegistry.register(command);
+
+    render(
+      <CommandRegistryContext.Provider value={commandRegistry}>
+        <PanelRegistryContext.Provider value={createTestRegistry()}>
+          <LauncherPanel expanded onExpandedChange={vi.fn()} onOpenSettings={vi.fn()} />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
+    );
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "brightness up");
+
+    expect(await screen.findByRole("button", { name: /Run Brightness Up/i })).toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rawQuery: "brightness up",
+        commandQuery: "",
+      }),
+    );
+  });
+
+  it("does not show direct commands when the launcher query is empty", () => {
+    const commandRegistry = createCommandRegistry();
+    commandRegistry.register({
+      id: "brightness-up",
+      name: "Brightness Up",
+      aliases: ["brightness up"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["brightness up"]),
+      execute: async () => undefined,
+    });
+
+    render(
+      <CommandRegistryContext.Provider value={commandRegistry}>
+        <PanelRegistryContext.Provider value={createTestRegistry()}>
+          <LauncherPanel expanded onExpandedChange={vi.fn()} onOpenSettings={vi.fn()} />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
+    );
+
+    expect(screen.queryByText("Run Brightness Up")).not.toBeInTheDocument();
+  });
+
+  it("shows direct commands for similar launcher queries", async () => {
+    const user = userEvent.setup();
+    const commandRegistry = createCommandRegistry();
+    commandRegistry.register({
+      id: "brightness-up",
+      name: "Brightness Up",
+      aliases: ["brightness up", "bright up"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["brightness up", "bright up"]),
+      execute: async () => undefined,
+    });
+
+    render(
+      <CommandRegistryContext.Provider value={commandRegistry}>
+        <PanelRegistryContext.Provider value={createTestRegistry()}>
+          <LauncherPanel expanded onExpandedChange={vi.fn()} onOpenSettings={vi.fn()} />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
+    );
+
+    const input = screen.getByPlaceholderText("Search apps...");
+    await user.type(input, "brig");
+
+    expect(await screen.findByRole("button", { name: /Run Brightness Up/i })).toBeInTheDocument();
   });
 
   it("routes plain text query into default panel without needing alias", async () => {
@@ -508,9 +598,11 @@ describe("LauncherPanel with panel registry", () => {
     const user = userEvent.setup();
 
     render(
-      <PanelRegistryContext.Provider value={registry}>
-        <LauncherPanel expanded onExpandedChange={onExpandedChange} onOpenSettings={vi.fn()} />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <LauncherPanel expanded onExpandedChange={onExpandedChange} onOpenSettings={vi.fn()} />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     const input = screen.getByPlaceholderText("Search apps...");

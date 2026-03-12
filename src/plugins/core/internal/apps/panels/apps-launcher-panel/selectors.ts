@@ -1,6 +1,6 @@
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import type { SettingsSearchEntry } from "@/plugins/core/internal/settings-search";
-import type { AppActionItem, InstalledApp, NavigationItem, PanelCommandSuggestion } from "./types";
+import type { AppActionItem, DirectCommandSuggestion, InstalledApp, NavigationItem, PanelCommandSuggestion } from "./types";
 import { supportsRunAsAdmin } from "./helpers";
 
 export function buildInjectedPanelSuggestions(
@@ -56,11 +56,59 @@ export function buildInjectedPanelSuggestions(
   return suggestions.slice(0, 8);
 }
 
+export function buildInjectedCommandSuggestions(
+  commandQuery: string,
+  commands: ShortcutCommandDescriptor[],
+): DirectCommandSuggestion[] {
+  const trimmed = commandQuery.trim();
+  const queryForFilter = trimmed.toLowerCase();
+  if (!queryForFilter) {
+    return [];
+  }
+
+  const exactMatches: DirectCommandSuggestion[] = [];
+  const fuzzyMatches: DirectCommandSuggestion[] = [];
+
+  for (const command of commands) {
+    if (!command.appsLauncherIntegration?.injectAsApp) {
+      continue;
+    }
+
+    const match = command.matcher(commandQuery);
+    const resolveLabel = (nextCommandQuery: string) =>
+      command.getLabel?.({ rawQuery: commandQuery, commandQuery: nextCommandQuery }) ?? command.name;
+
+    if (match.matches) {
+      exactMatches.push({
+        id: `direct-command:${command.id}`,
+        command,
+        commandQuery: match.commandQuery,
+        label: resolveLabel(match.commandQuery),
+      });
+      continue;
+    }
+
+    const aliasMatch = command.aliases.some((alias) => alias.toLowerCase().includes(queryForFilter));
+    const nameMatch = command.name.toLowerCase().includes(queryForFilter);
+    if (aliasMatch || nameMatch) {
+      fuzzyMatches.push({
+        id: `direct-command:${command.id}`,
+        command,
+        commandQuery,
+        label: resolveLabel(commandQuery),
+      });
+    }
+  }
+
+  return [...exactMatches, ...fuzzyMatches].slice(0, 8);
+}
+
 export function buildNavigationList(args: {
   allApps: InstalledApp[];
   searchResults: InstalledApp[];
   debouncedQuery: string;
   injectedPanelSuggestions: PanelCommandSuggestion[];
+  injectedCommandSuggestions: DirectCommandSuggestion[];
   injectedSettingsResults: SettingsSearchEntry[];
 }): NavigationItem[] {
   const source = (args.debouncedQuery.trim() ? args.searchResults : args.allApps).slice(0, 72);
@@ -88,6 +136,20 @@ export function buildNavigationList(args: {
     const injectedItems: NavigationItem[] = args.injectedPanelSuggestions.map((suggestion) => ({
       id: suggestion.id,
       kind: "panel-command",
+      command: suggestion,
+    }));
+
+    if (items.length > 0) {
+      items.splice(1, 0, ...injectedItems);
+    } else {
+      items.push(...injectedItems);
+    }
+  }
+
+  if (args.injectedCommandSuggestions.length > 0) {
+    const injectedItems: NavigationItem[] = args.injectedCommandSuggestions.map((suggestion) => ({
+      id: suggestion.id,
+      kind: "direct-command",
       command: suggestion,
     }));
 

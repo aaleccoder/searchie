@@ -1,4 +1,5 @@
 import * as React from "react";
+import { CommandRegistryContext, createCommandRegistry } from "@/lib/command-registry";
 import { createPanelRegistry, PanelRegistryContext } from "@/lib/panel-registry";
 import { createPluginRegistry, type PluginRegistry } from "@/lib/plugin-registry";
 import { buildCorePlugins } from "@/plugins/core";
@@ -36,19 +37,32 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
       },
     });
 
+    const nextCommandRegistry = createCommandRegistry({
+      onAliasCollision: (message) => {
+        console.warn(message);
+      },
+    });
+
     for (const panel of pluginRegistry.listPanels()) {
       nextRegistry.register(panel);
     }
 
+    for (const command of pluginRegistry.listCommands()) {
+      nextCommandRegistry.register(command);
+    }
+
     return {
       panelRegistry: nextRegistry,
+      commandRegistry: nextCommandRegistry,
       pluginRegistry,
     };
   });
 
   return (
     <PluginRegistryContext.Provider value={state.pluginRegistry}>
-      <PanelRegistryContext.Provider value={state.panelRegistry}>{children}</PanelRegistryContext.Provider>
+      <CommandRegistryContext.Provider value={state.commandRegistry}>
+        <PanelRegistryContext.Provider value={state.panelRegistry}>{children}</PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>
     </PluginRegistryContext.Provider>
   );
 }

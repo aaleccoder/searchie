@@ -1,4 +1,4 @@
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import type {
   CorePluginDescriptor,
   PluginConfigDefinition,
@@ -24,6 +24,10 @@ type CorePluginWithSettingsBuilder = Omit<CorePluginDescriptor, "settings"> & {
 };
 
 export function definePluginPanel(descriptor: ShortcutPanelDescriptor): ShortcutPanelDescriptor {
+  return descriptor;
+}
+
+export function definePluginCommand(descriptor: ShortcutCommandDescriptor): ShortcutCommandDescriptor {
   return descriptor;
 }
 

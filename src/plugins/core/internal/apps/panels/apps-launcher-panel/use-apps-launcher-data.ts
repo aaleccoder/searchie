@@ -1,5 +1,6 @@
 import * as React from "react";
 import { listen } from "@tauri-apps/api/event";
+import { useCommandRegistry } from "@/lib/command-registry";
 import { createPluginBackendSdk } from "@/plugins/sdk";
 import { cacheAppsList, loadCachedAppsList } from "@/lib/apps-list-cache";
 import {
@@ -20,7 +21,7 @@ import { getErrorMessage } from "./helpers";
 import { useDebouncedValue } from "./hooks";
 import { launcherCommandScope } from "./panel-scope";
 import { mergeAppsList } from "./apps-list-diff";
-import { buildAppActions, buildInjectedPanelSuggestions, buildNavigationList } from "./selectors";
+import { buildAppActions, buildInjectedCommandSuggestions, buildInjectedPanelSuggestions, buildNavigationList } from "./selectors";
 import type { AppActionItem, InstalledApp, NavigationItem, NavigationMode } from "./types";
 
 type UseAppsLauncherDataArgs = {
@@ -35,6 +36,7 @@ export function useAppsLauncherData({
   closeLauncherWindow,
 }: UseAppsLauncherDataArgs) {
   const backend = React.useMemo(() => createPluginBackendSdk(launcherCommandScope), []);
+  const commandRegistry = useCommandRegistry();
   const panelRegistry = usePanelRegistry();
   const deferredQuery = React.useDeferredValue(commandQuery);
   const debouncedQuery = useDebouncedValue(deferredQuery, 120);
@@ -259,6 +261,11 @@ export function useAppsLauncherData({
     [commandQuery, panelRegistry],
   );
 
+  const injectedCommandSuggestions = React.useMemo(
+    () => buildInjectedCommandSuggestions(commandQuery, commandRegistry.list()),
+    [commandQuery, commandRegistry],
+  );
+
   const settingsQuery = React.useMemo(
     () => extractSettingsAliasQuery(debouncedQuery, SETTINGS_SEARCH_ALIAS_LIST),
     [debouncedQuery],
@@ -280,9 +287,10 @@ export function useAppsLauncherData({
         searchResults,
         debouncedQuery,
         injectedPanelSuggestions,
+        injectedCommandSuggestions,
         injectedSettingsResults,
       }),
-    [allApps, debouncedQuery, injectedPanelSuggestions, injectedSettingsResults, searchResults],
+    [allApps, debouncedQuery, injectedCommandSuggestions, injectedPanelSuggestions, injectedSettingsResults, searchResults],
   );
 
   const selectedItem = React.useMemo<NavigationItem | null>(() => {
@@ -376,6 +384,19 @@ export function useAppsLauncherData({
     [backend.apps, clearLauncherInput, closeLauncherWindow],
   );
 
+  const executeDirectCommand = React.useCallback(
+    async (command: NavigationItem & { kind: "direct-command" }) => {
+      await command.command.command.execute({
+        source: "apps",
+        rawQuery: commandQuery,
+        commandQuery: command.command.commandQuery,
+        clearLauncherInput,
+        closeLauncherWindow,
+      });
+    },
+    [clearLauncherInput, closeLauncherWindow, commandQuery],
+  );
+
   React.useEffect(() => {
     if (useVirtualizedList) {
       return;
@@ -453,6 +474,7 @@ export function useAppsLauncherData({
     busyActionId,
     executeSettingOpen,
     executeAppAction,
+    executeDirectCommand,
     focusListItemById,
     focusActionByIndex,
     selectFirstAppItem,

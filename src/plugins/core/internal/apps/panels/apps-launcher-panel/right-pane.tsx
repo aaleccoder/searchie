@@ -40,6 +40,26 @@ export function RightPane({ selectedItem, selectFirstAppItem }: RightPaneProps) 
             <PanelInline size="xs" tone="muted" mono>Left Arrow</PanelInline>
           </PanelButton>
         </PanelFlex>
+      ) : selectedItem?.kind === "direct-command" ? (
+        <PanelFlex direction="col" justify="between" gap="sm" style={{ height: "100%" }}>
+          <PanelContainer>
+            <PanelParagraph size="sm" tone="muted">Press Enter to run {selectedItem.command.label}.</PanelParagraph>
+          </PanelContainer>
+          <PanelButton
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              selectFirstAppItem();
+            }}
+          >
+            <PanelInline>
+              <ArrowLeft size={14} />
+              Back to Apps
+            </PanelInline>
+            <PanelInline size="xs" tone="muted" mono>Left Arrow</PanelInline>
+          </PanelButton>
+        </PanelFlex>
       ) : selectedItem?.kind === "setting" ? (
         <PanelFlex direction="col" gap="md">
           <PanelContainer>

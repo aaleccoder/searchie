@@ -2,8 +2,9 @@ import type * as React from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CommandRegistryContext, createCommandRegistry } from "@/lib/command-registry";
 import { definePanel } from "@/components/framework";
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { PanelRegistryContext, createPanelRegistry } from "@/lib/panel-registry";
 import { AppsLauncherPanel } from "../panels/apps-launcher-panel";
@@ -71,11 +72,14 @@ const apps: InstalledApp[] = [
 
 function renderPanel(props?: Partial<React.ComponentProps<typeof AppsLauncherPanel>>) {
   const registry = createPanelRegistry();
+  const commandRegistry = createCommandRegistry();
 
   return render(
-    <PanelRegistryContext.Provider value={registry}>
-      <AppsLauncherPanel commandQuery="" {...props} />
-    </PanelRegistryContext.Provider>,
+    <CommandRegistryContext.Provider value={commandRegistry}>
+      <PanelRegistryContext.Provider value={registry}>
+        <AppsLauncherPanel commandQuery="" {...props} />
+      </PanelRegistryContext.Provider>
+    </CommandRegistryContext.Provider>,
   );
 }
 
@@ -255,13 +259,15 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     registry.register(clipboardPanel);
 
     render(
-      <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel
-          commandQuery="cl"
-          clearLauncherInput={clearLauncherInput}
-          activatePanelSession={activatePanelSession}
-        />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel
+            commandQuery="cl"
+            clearLauncherInput={clearLauncherInput}
+            activatePanelSession={activatePanelSession}
+          />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     const panelCommand = await screen.findByRole("button", { name: /Open Clipboard/i });
@@ -287,9 +293,11 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     registry.register(clipboardPanel);
 
     render(
-      <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel commandQuery="clip" />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel commandQuery="clip" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     const panelCommand = await screen.findByRole("button", { name: /Open Clipboard/i });
@@ -318,12 +326,98 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
     registry.register(clipboardPanel);
 
     render(
-      <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel commandQuery="clip" />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel commandQuery="clip" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     expect(await screen.findByRole("button", { name: /Open Clipboard/i })).toBeInTheDocument();
+  });
+
+  it("injects matching direct commands into default app results and executes them", async () => {
+    const execute = vi.fn(async () => undefined);
+    const registry = createPanelRegistry();
+    const commandRegistry = createCommandRegistry();
+    const command: ShortcutCommandDescriptor = {
+      id: "brightness-up",
+      name: "Brightness Up",
+      aliases: ["brightness up", "bright up"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["brightness up", "bright up"]),
+      appsLauncherIntegration: { injectAsApp: true },
+      execute,
+    };
+    commandRegistry.register(command);
+
+    const user = userEvent.setup();
+    render(
+      <CommandRegistryContext.Provider value={commandRegistry}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel commandQuery="brightness up" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
+    );
+
+    const commandButton = await screen.findByRole("button", { name: /Run Brightness Up/i });
+    await user.click(commandButton);
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rawQuery: "brightness up",
+        commandQuery: "",
+      }),
+    );
+  });
+
+  it("does not inject direct commands into app results for an empty query", async () => {
+    const commandRegistry = createCommandRegistry();
+    commandRegistry.register({
+      id: "brightness-up",
+      name: "Brightness Up",
+      aliases: ["brightness up"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["brightness up"]),
+      appsLauncherIntegration: { injectAsApp: true },
+      execute: async () => undefined,
+    });
+
+    render(
+      <CommandRegistryContext.Provider value={commandRegistry}>
+        <PanelRegistryContext.Provider value={createPanelRegistry()}>
+          <AppsLauncherPanel commandQuery="" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
+    );
+
+    await screen.findByRole("button", { name: /Notepad/i });
+
+    expect(screen.queryByRole("button", { name: /Run Brightness Up/i })).not.toBeInTheDocument();
+  });
+
+  it("shows injected direct commands for similar app queries", async () => {
+    const commandRegistry = createCommandRegistry();
+    commandRegistry.register({
+      id: "brightness-up",
+      name: "Brightness Up",
+      aliases: ["brightness up", "bright up"],
+      capabilities: [],
+      matcher: createPrefixAliasMatcher(["brightness up", "bright up"]),
+      appsLauncherIntegration: { injectAsApp: true },
+      execute: async () => undefined,
+    });
+
+    render(
+      <CommandRegistryContext.Provider value={commandRegistry}>
+        <PanelRegistryContext.Provider value={createPanelRegistry()}>
+          <AppsLauncherPanel commandQuery="brig" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
+    );
+
+    expect(await screen.findByRole("button", { name: /Run Brightness Up/i })).toBeInTheDocument();
   });
 
   it("registers footer with panel title metadata", async () => {
@@ -400,23 +494,29 @@ describe("AppsLauncherPanel focus and keyboard UX", () => {
   it("loads installed apps once while typing and searches on query updates", async () => {
     const registry = createPanelRegistry();
     const view = render(
-      <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel commandQuery="" />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel commandQuery="" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     await screen.findByRole("button", { name: /Notepad/i });
 
     view.rerender(
-      <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel commandQuery="n" />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel commandQuery="n" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     view.rerender(
-      <PanelRegistryContext.Provider value={registry}>
-        <AppsLauncherPanel commandQuery="no" />
-      </PanelRegistryContext.Provider>,
+      <CommandRegistryContext.Provider value={createCommandRegistry()}>
+        <PanelRegistryContext.Provider value={registry}>
+          <AppsLauncherPanel commandQuery="no" />
+        </PanelRegistryContext.Provider>
+      </CommandRegistryContext.Provider>,
     );
 
     await waitFor(() => {

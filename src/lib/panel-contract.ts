@@ -35,6 +35,22 @@ export type PanelMatcherResult = {
 
 export type PanelMatcher = (query: string) => PanelMatcherResult;
 
+export type ShortcutCommandRenderContext = {
+  rawQuery: string;
+  commandQuery: string;
+};
+
+export type ShortcutCommandExecutionContext = ShortcutCommandRenderContext & {
+  source: "launcher" | "apps";
+  clearLauncherInput?: (() => void) | undefined;
+  closeLauncherWindow?: (() => void) | undefined;
+  focusLauncherInput?: (() => void) | undefined;
+};
+
+export type ShortcutCommandExecute = (
+  context: ShortcutCommandExecutionContext,
+) => void | Promise<void>;
+
 export type PanelRenderProps = {
   commandQuery: string;
   rawQuery: string;
@@ -98,6 +114,10 @@ export type PanelAppsLauncherIntegration = {
   injectAsApp?: boolean;
 };
 
+export type CommandAppsLauncherIntegration = {
+  injectAsApp?: boolean;
+};
+
 export type PanelShortcutHint = {
   keys: string;
   description: string;
@@ -120,7 +140,26 @@ export type ShortcutPanelDescriptor = {
   priority?: number;
 };
 
+export type ShortcutCommandDescriptor = {
+  pluginId?: string;
+  id: string;
+  name: string;
+  aliases: string[];
+  capabilities: PanelCapability[];
+  matcher: PanelMatcher;
+  execute: ShortcutCommandExecute;
+  commandIcon?: React.ComponentType<{ className?: string }>;
+  getLabel?: ((context: ShortcutCommandRenderContext) => string) | undefined;
+  appsLauncherIntegration?: CommandAppsLauncherIntegration;
+  priority?: number;
+};
+
 export type PanelResolution = {
   panel: ShortcutPanelDescriptor;
+  match: PanelMatcherResult;
+};
+
+export type ShortcutCommandResolution = {
+  command: ShortcutCommandDescriptor;
   match: PanelMatcherResult;
 };

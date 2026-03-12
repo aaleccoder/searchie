@@ -1,4 +1,4 @@
-import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
+import type { ShortcutCommandDescriptor, ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import type { CorePluginDescriptor, PluginConfigDefinition } from "@/lib/plugin-contract";
 import { registerPluginConfigDefinitions } from "@/lib/plugin-config-store";
 
@@ -10,6 +10,7 @@ export type PluginRegistry = {
   register: (plugin: CorePluginDescriptor) => void;
   listPlugins: () => CorePluginDescriptor[];
   listPanels: () => ShortcutPanelDescriptor[];
+  listCommands: () => ShortcutCommandDescriptor[];
   listPluginSettings: () => Array<{
     pluginId: string;
     pluginName: string;
@@ -28,6 +29,7 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
       }
 
       const panelIds = new Set<string>();
+      const commandIds = new Set<string>();
       const seenAliases = new Map<string, string>();
 
       for (const existingPlugin of plugins) {
@@ -37,6 +39,16 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
             const normalized = alias.trim().toLowerCase();
             if (normalized) {
               seenAliases.set(normalized, panel.id);
+            }
+          }
+        }
+
+        for (const command of existingPlugin.commands ?? []) {
+          commandIds.add(command.id);
+          for (const alias of command.aliases) {
+            const normalized = alias.trim().toLowerCase();
+            if (normalized) {
+              seenAliases.set(normalized, command.id);
             }
           }
         }
@@ -106,9 +118,46 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
         };
       });
 
+      const normalizedCommands = (plugin.commands ?? []).map((command) => {
+        if (commandIds.has(command.id)) {
+          throw new Error(`Command with id "${command.id}" is already registered by another plugin.`);
+        }
+
+        for (const capability of command.capabilities) {
+          if (!permissions.has(capability)) {
+            throw new Error(
+              `Command "${command.id}" declares capability "${capability}" which is not allowed by plugin "${plugin.id}" permissions.`,
+            );
+          }
+        }
+
+        for (const alias of command.aliases) {
+          const normalizedAlias = alias.trim().toLowerCase();
+          if (!normalizedAlias) {
+            continue;
+          }
+
+          const existingEntryId = seenAliases.get(normalizedAlias);
+          if (existingEntryId && options?.onAliasCollision) {
+            options.onAliasCollision(
+              `Alias collision on "${normalizedAlias}" between entries "${existingEntryId}" and "${command.id}".`,
+            );
+          }
+
+          seenAliases.set(normalizedAlias, command.id);
+        }
+
+        commandIds.add(command.id);
+        return {
+          ...command,
+          pluginId: plugin.id,
+        };
+      });
+
       plugins.push({
         ...plugin,
         panels: normalizedPanels,
+        commands: normalizedCommands,
         settings: normalizedSettings,
       });
 
@@ -121,6 +170,10 @@ export function createPluginRegistry(options?: PluginRegistryOptions): PluginReg
 
     listPanels() {
       return plugins.flatMap((plugin) => plugin.panels);
+    },
+
+    listCommands() {
+      return plugins.flatMap((plugin) => plugin.commands ?? []);
     },
 
     listPluginSettings() {

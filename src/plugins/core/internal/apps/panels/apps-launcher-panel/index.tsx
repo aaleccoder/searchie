@@ -39,6 +39,7 @@ export function AppsLauncherPanel({
     busyActionId,
     executeSettingOpen,
     executeAppAction,
+    executeDirectCommand,
     focusListItemById,
     focusActionByIndex,
     selectFirstAppItem,
@@ -59,6 +60,11 @@ export function AppsLauncherPanel({
       return true;
     }
 
+    if (selectedItem.kind === "direct-command") {
+      void executeDirectCommand(selectedItem);
+      return true;
+    }
+
     if (selectedItem.kind === "setting") {
       void executeSettingOpen(selectedItem.setting);
       return true;
@@ -66,7 +72,7 @@ export function AppsLauncherPanel({
 
     void executeAppAction("open", selectedItem.app);
     return true;
-  }, [activatePanelSession, clearLauncherInput, executeAppAction, executeSettingOpen, selectedItem]);
+  }, [activatePanelSession, clearLauncherInput, executeAppAction, executeDirectCommand, executeSettingOpen, selectedItem]);
 
   const footerConfig = React.useMemo(
     () =>
@@ -139,6 +145,9 @@ export function AppsLauncherPanel({
           executeSettingOpen={executeSettingOpen}
           executeAppOpen={(app) => {
             void executeAppAction("open", app);
+          }}
+          executeDirectCommand={(command) => {
+            void executeDirectCommand(command);
           }}
           getListScrollViewport={getListScrollViewport}
         />

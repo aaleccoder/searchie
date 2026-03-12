@@ -4,7 +4,7 @@ import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import { SettingsShortcutPanel } from "./internal/system/panels/settings-shortcut-panel";
 import { HotkeysShortcutPanel } from "./internal/system/panels/hotkeys-shortcut-panel";
-import { buildSystemControlPanels } from "./internal/system";
+import { buildSystemControlPanels, buildSystemDirectCommands } from "./internal/system";
 
 function createSettingsPanel(): ShortcutPanelDescriptor {
   return {
@@ -64,5 +64,6 @@ export function createCoreSystemPlugin(): CorePluginDescriptor {
       "system.settings",
     ],
     panels: [createSettingsPanel(), createHotkeysPanel(), ...buildSystemControlPanels()],
+    commands: buildSystemDirectCommands(),
   };
 }

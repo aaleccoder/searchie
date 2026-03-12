@@ -22,6 +22,7 @@ type NavigationPaneProps = {
   setSelectedId: (id: string) => void;
   executeSettingOpen: (setting: SettingsSearchEntry, uri?: string) => Promise<void>;
   executeAppOpen: (app: InstalledApp) => void;
+  executeDirectCommand: (command: Extract<NavigationItem, { kind: "direct-command" }>) => void;
   getListScrollViewport: () => HTMLElement | null;
 };
 
@@ -39,6 +40,7 @@ export function NavigationPane({
   setSelectedId,
   executeSettingOpen,
   executeAppOpen,
+  executeDirectCommand,
   getListScrollViewport,
 }: NavigationPaneProps) {
   return (
@@ -69,6 +71,7 @@ export function NavigationPane({
                         clearLauncherInput={clearLauncherInput}
                         executeSettingOpen={executeSettingOpen}
                         executeAppOpen={executeAppOpen}
+                        executeDirectCommand={executeDirectCommand}
                         activatePanelSession={activatePanelSession}
                         setNavigationMode={setNavigationMode}
                         setSelectedId={setSelectedId}
@@ -90,6 +93,7 @@ export function NavigationPane({
                   clearLauncherInput={clearLauncherInput}
                   executeSettingOpen={executeSettingOpen}
                   executeAppOpen={executeAppOpen}
+                  executeDirectCommand={executeDirectCommand}
                   activatePanelSession={activatePanelSession}
                   setNavigationMode={setNavigationMode}
                   setSelectedId={setSelectedId}
