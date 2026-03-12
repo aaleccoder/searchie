@@ -18,6 +18,14 @@ use windows::Win32::{
     },
 };
 
+#[cfg(target_os = "windows")]
+use windows::Devices::Radios::{Radio, RadioAccessStatus, RadioKind, RadioState};
+#[cfg(target_os = "windows")]
+use windows::Media::Control::{
+    GlobalSystemMediaTransportControlsSessionManager,
+    GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+};
+
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const BALANCED_GUID: &str = "381b4222-f694-41f0-9685-ff5bb260df2e";
@@ -30,6 +38,17 @@ pub struct SystemCommandResult {
     pub applied: bool,
     pub used_fallback: bool,
     pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaSessionInfo {
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album_title: Option<String>,
+    pub album_artist: Option<String>,
+    pub playback_status: Option<String>,
+    pub source_app_id: Option<String>,
 }
 
 impl SystemCommandResult {
@@ -47,6 +66,15 @@ impl SystemCommandResult {
             used_fallback: true,
             message: Some(message.to_string()),
         }
+    }
+}
+
+fn normalize_text(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
 }
 
@@ -92,6 +120,215 @@ fn open_settings_uri_internal(uri: &str) -> Result<SystemCommandResult, String> 
     Ok(SystemCommandResult::fallback(
         "Opened settings fallback URI.",
     ))
+}
+
+fn should_fallback_radio_access(message: &str) -> bool {
+    let lower = message.to_lowercase();
+    lower.contains("0x8000000e")
+        || lower.contains("radio access not allowed")
+        || lower.contains("unexpected time")
+}
+
+#[cfg(target_os = "windows")]
+fn request_radio_access() -> Result<(), String> {
+    let status = Radio::RequestAccessAsync()
+        .map_err(|error| format!("Radio::RequestAccessAsync failed: {error}"))?;
+    let status = status
+        .GetResults()
+        .map_err(|error| format!("Radio access request failed: {error}"))?;
+
+    if status != RadioAccessStatus::Allowed {
+        return Err(format!("radio access not allowed: {status:?}"));
+    }
+
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn set_radio_state(
+    kind: RadioKind,
+    enabled: bool,
+    message: &str,
+) -> Result<SystemCommandResult, String> {
+    request_radio_access()?;
+
+    let radios = Radio::GetRadiosAsync()
+        .map_err(|error| format!("Radio::GetRadiosAsync failed: {error}"))?;
+    let radios = radios
+        .GetResults()
+        .map_err(|error| format!("Radio enumeration failed: {error}"))?;
+
+    for index in 0..radios
+        .Size()
+        .map_err(|error| format!("Radio::Size failed: {error}"))?
+    {
+        let radio = radios
+            .GetAt(index)
+            .map_err(|error| format!("Radio::GetAt failed: {error}"))?;
+        let radio_kind = radio
+            .Kind()
+            .map_err(|error| format!("Radio::Kind failed: {error}"))?;
+        if radio_kind == kind {
+            let desired = if enabled {
+                RadioState::On
+            } else {
+                RadioState::Off
+            };
+            let operation = radio
+                .SetStateAsync(desired)
+                .map_err(|error| format!("Radio::SetStateAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("Radio state update failed: {error}"))?;
+            return Ok(SystemCommandResult::applied(message));
+        }
+    }
+
+    Err("radio not found".to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn toggle_radio_state(kind: RadioKind, message: &str) -> Result<SystemCommandResult, String> {
+    request_radio_access()?;
+
+    let radios = Radio::GetRadiosAsync()
+        .map_err(|error| format!("Radio::GetRadiosAsync failed: {error}"))?;
+    let radios = radios
+        .GetResults()
+        .map_err(|error| format!("Radio enumeration failed: {error}"))?;
+
+    for index in 0..radios
+        .Size()
+        .map_err(|error| format!("Radio::Size failed: {error}"))?
+    {
+        let radio = radios
+            .GetAt(index)
+            .map_err(|error| format!("Radio::GetAt failed: {error}"))?;
+        let radio_kind = radio
+            .Kind()
+            .map_err(|error| format!("Radio::Kind failed: {error}"))?;
+        if radio_kind == kind {
+            let current = radio
+                .State()
+                .map_err(|error| format!("Radio::State failed: {error}"))?;
+            let next = if current == RadioState::On {
+                RadioState::Off
+            } else {
+                RadioState::On
+            };
+            let operation = radio
+                .SetStateAsync(next)
+                .map_err(|error| format!("Radio::SetStateAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("Radio state update failed: {error}"))?;
+            return Ok(SystemCommandResult::applied(message));
+        }
+    }
+
+    Err("radio not found".to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn current_media_session(
+) -> Result<windows::Media::Control::GlobalSystemMediaTransportControlsSession, String> {
+    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+        .map_err(|error| format!("SMTC RequestAsync failed: {error}"))?;
+    let manager = manager
+        .GetResults()
+        .map_err(|error| format!("SMTC manager request failed: {error}"))?;
+
+    let session = manager
+        .GetCurrentSession()
+        .map_err(|error| format!("SMTC GetCurrentSession failed: {error}"))?;
+
+    Ok(session)
+}
+
+#[cfg(target_os = "windows")]
+fn run_media_session_action(
+    action_name: &str,
+    action: impl FnOnce(
+        &windows::Media::Control::GlobalSystemMediaTransportControlsSession,
+    ) -> Result<(), String>,
+) -> Result<SystemCommandResult, String> {
+    let session = current_media_session()?;
+    action(&session)?;
+    Ok(SystemCommandResult::applied(action_name))
+}
+
+#[cfg(target_os = "windows")]
+fn fetch_media_session_info() -> Result<Option<MediaSessionInfo>, String> {
+    let session = match current_media_session() {
+        Ok(session) => session,
+        Err(message) if message == "no active media session" => return Ok(None),
+        Err(message) => return Err(message),
+    };
+
+    let playback_info = session
+        .GetPlaybackInfo()
+        .map_err(|error| format!("SMTC GetPlaybackInfo failed: {error}"))?;
+    let playback_status = playback_info
+        .PlaybackStatus()
+        .map_err(|error| format!("SMTC PlaybackStatus failed: {error}"))?;
+    let playback_status = match playback_status {
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => Some("closed"),
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => Some("opened"),
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => Some("changing"),
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => Some("stopped"),
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => Some("playing"),
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => Some("paused"),
+        _ => None,
+    }
+    .map(|value| value.to_string());
+
+    let media_props = session
+        .TryGetMediaPropertiesAsync()
+        .map_err(|error| format!("SMTC TryGetMediaPropertiesAsync failed: {error}"))?;
+    let media_props = media_props
+        .GetResults()
+        .map_err(|error| format!("SMTC media properties get failed: {error}"))?;
+
+    let title = normalize_text(
+        media_props
+            .Title()
+            .map_err(|error| format!("SMTC media Title failed: {error}"))?
+            .to_string(),
+    );
+    let artist = normalize_text(
+        media_props
+            .Artist()
+            .map_err(|error| format!("SMTC media Artist failed: {error}"))?
+            .to_string(),
+    );
+    let album_title = normalize_text(
+        media_props
+            .AlbumTitle()
+            .map_err(|error| format!("SMTC media AlbumTitle failed: {error}"))?
+            .to_string(),
+    );
+    let album_artist = normalize_text(
+        media_props
+            .AlbumArtist()
+            .map_err(|error| format!("SMTC media AlbumArtist failed: {error}"))?
+            .to_string(),
+    );
+
+    let source_app_id = normalize_text(
+        session
+            .SourceAppUserModelId()
+            .map_err(|error| format!("SMTC SourceAppUserModelId failed: {error}"))?
+            .to_string(),
+    );
+
+    Ok(Some(MediaSessionInfo {
+        title,
+        artist,
+        album_title,
+        album_artist,
+        playback_status,
+        source_app_id,
+    }))
 }
 
 #[cfg(target_os = "windows")]
@@ -147,17 +384,120 @@ fn send_media_key(_vk: u8, _action_name: &str) -> Result<SystemCommandResult, St
 
 #[tauri::command]
 pub fn media_play_pause() -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = run_media_session_action("Sent media play/pause command.", |session| {
+            let operation = session
+                .TryTogglePlayPauseAsync()
+                .map_err(|error| format!("SMTC TryTogglePlayPauseAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("SMTC TryTogglePlayPauseAsync get failed: {error}"))?;
+            Ok(())
+        });
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
     send_media_key(VK_MEDIA_PLAY_PAUSE as u8, "Sent media play/pause key.")
 }
 
 #[tauri::command]
 pub fn media_next() -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = run_media_session_action("Sent media next command.", |session| {
+            let operation = session
+                .TrySkipNextAsync()
+                .map_err(|error| format!("SMTC TrySkipNextAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("SMTC TrySkipNextAsync get failed: {error}"))?;
+            Ok(())
+        });
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
     send_media_key(VK_MEDIA_NEXT_TRACK as u8, "Sent media next key.")
 }
 
 #[tauri::command]
 pub fn media_previous() -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = run_media_session_action("Sent media previous command.", |session| {
+            let operation = session
+                .TrySkipPreviousAsync()
+                .map_err(|error| format!("SMTC TrySkipPreviousAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("SMTC TrySkipPreviousAsync get failed: {error}"))?;
+            Ok(())
+        });
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
     send_media_key(VK_MEDIA_PREV_TRACK as u8, "Sent media previous key.")
+}
+
+#[tauri::command]
+pub fn media_play() -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = run_media_session_action("Sent media play command.", |session| {
+            let operation = session
+                .TryPlayAsync()
+                .map_err(|error| format!("SMTC TryPlayAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("SMTC TryPlayAsync get failed: {error}"))?;
+            Ok(())
+        });
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
+    send_media_key(VK_MEDIA_PLAY_PAUSE as u8, "Sent media play key.")
+}
+
+#[tauri::command]
+pub fn media_pause() -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = run_media_session_action("Sent media pause command.", |session| {
+            let operation = session
+                .TryPauseAsync()
+                .map_err(|error| format!("SMTC TryPauseAsync failed: {error}"))?;
+            operation
+                .GetResults()
+                .map_err(|error| format!("SMTC TryPauseAsync get failed: {error}"))?;
+            Ok(())
+        });
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
+    send_media_key(VK_MEDIA_PLAY_PAUSE as u8, "Sent media pause key.")
+}
+
+#[tauri::command]
+pub fn get_media_session_info() -> Result<Option<MediaSessionInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        return fetch_media_session_info();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(None)
+    }
 }
 
 #[tauri::command]
@@ -250,16 +590,31 @@ pub fn change_brightness(delta: i8) -> Result<SystemCommandResult, String> {
 }
 
 fn set_wifi_enabled_internal(enabled: bool) -> Result<SystemCommandResult, String> {
-    let action = if enabled {
-        "Enable-NetAdapter"
-    } else {
-        "Disable-NetAdapter"
-    };
-    let script = format!(
-        "$adapter = Get-NetAdapter -Physical | Where-Object {{ $_.NdisPhysicalMedium -eq 9 -or $_.InterfaceDescription -match 'Wireless|Wi-Fi|802.11' }} | Select-Object -First 1; if ($adapter) {{ {action} -Name $adapter.Name -Confirm:$false | Out-Null }}"
-    );
-    let _ = run_powershell(&script)?;
-    Ok(SystemCommandResult::applied("Updated Wi-Fi state."))
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = set_radio_state(RadioKind::WiFi, enabled, "Updated Wi-Fi state.");
+        match winrt_result {
+            Ok(result) => return Ok(result),
+            Err(message) if should_fallback_radio_access(&message) => {
+                return open_settings_uri_internal("ms-settings:network-wifi");
+            }
+            Err(message) => return Err(message),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let action = if enabled {
+            "Enable-NetAdapter"
+        } else {
+            "Disable-NetAdapter"
+        };
+        let script = format!(
+            "$adapter = Get-NetAdapter -Physical | Where-Object {{ $_.NdisPhysicalMedium -eq 9 -or $_.InterfaceDescription -match 'Wireless|Wi-Fi|802.11' }} | Select-Object -First 1; if ($adapter) {{ {action} -Name $adapter.Name -Confirm:$false | Out-Null }}"
+        );
+        let _ = run_powershell(&script)?;
+        Ok(SystemCommandResult::applied("Updated Wi-Fi state."))
+    }
 }
 
 #[tauri::command]
@@ -269,19 +624,51 @@ pub fn set_wifi_enabled(enabled: bool) -> Result<SystemCommandResult, String> {
 
 #[tauri::command]
 pub fn toggle_wifi() -> Result<SystemCommandResult, String> {
-    let script = "$adapter = Get-NetAdapter -Physical | Where-Object { $_.NdisPhysicalMedium -eq 9 -or $_.InterfaceDescription -match 'Wireless|Wi-Fi|802.11' } | Select-Object -First 1; if ($adapter) { if ($adapter.Status -eq 'Up') { Disable-NetAdapter -Name $adapter.Name -Confirm:$false | Out-Null } else { Enable-NetAdapter -Name $adapter.Name -Confirm:$false | Out-Null } }";
-    let _ = run_powershell(script)?;
-    Ok(SystemCommandResult::applied("Toggled Wi-Fi state."))
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = toggle_radio_state(RadioKind::WiFi, "Toggled Wi-Fi state.");
+        match winrt_result {
+            Ok(result) => return Ok(result),
+            Err(message) if should_fallback_radio_access(&message) => {
+                return open_settings_uri_internal("ms-settings:network-wifi");
+            }
+            Err(message) => return Err(message),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let script = "$adapter = Get-NetAdapter -Physical | Where-Object { $_.NdisPhysicalMedium -eq 9 -or $_.InterfaceDescription -match 'Wireless|Wi-Fi|802.11' } | Select-Object -First 1; if ($adapter) { if ($adapter.Status -eq 'Up') { Disable-NetAdapter -Name $adapter.Name -Confirm:$false | Out-Null } else { Enable-NetAdapter -Name $adapter.Name -Confirm:$false | Out-Null } }";
+        let _ = run_powershell(script)?;
+        Ok(SystemCommandResult::applied("Toggled Wi-Fi state."))
+    }
 }
 
 #[tauri::command]
 pub fn set_bluetooth_enabled(enabled: bool) -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result =
+            set_radio_state(RadioKind::Bluetooth, enabled, "Updated Bluetooth state.");
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
     let _ = enabled;
     open_settings_uri_internal("ms-settings:bluetooth")
 }
 
 #[tauri::command]
 pub fn toggle_bluetooth() -> Result<SystemCommandResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let winrt_result = toggle_radio_state(RadioKind::Bluetooth, "Toggled Bluetooth state.");
+        if let Ok(result) = winrt_result {
+            return Ok(result);
+        }
+    }
+
     open_settings_uri_internal("ms-settings:bluetooth")
 }
 

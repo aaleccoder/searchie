@@ -28,7 +28,6 @@ import {
 import { systemCommandScope } from "./system-command-scope";
 import { BrightnessControlPanel } from "./panels/brightness-control-panel";
 import { ConnectivityControlPanel } from "./panels/connectivity-control-panel";
-import { MediaControlPanel } from "./panels/media-control-panel";
 import { PowerControlPanel } from "./panels/power-control-panel";
 import { SystemSettingsPanel } from "./panels/system-settings-panel";
 import { VolumeControlPanel } from "./panels/volume-control-panel";
@@ -47,32 +46,6 @@ function makeResultPanel(descriptor: ShortcutPanelDescriptor): ShortcutPanelDesc
       injectAsApp: true,
       ...descriptor.appsLauncherIntegration,
     },
-  });
-}
-
-function createMediaPanel(): ShortcutPanelDescriptor {
-  return makeResultPanel({
-    id: "system-media",
-    name: "Media Controls",
-    aliases: MEDIA_ALIAS_LIST,
-    commandIcon: Music2,
-    capabilities: ["system.media", "system.settings"],
-    priority: 31,
-    searchIntegration: {
-      placeholder: "Media controls...",
-    },
-    shortcuts: [
-      { keys: "ArrowUp/ArrowDown", description: "Select action" },
-      { keys: "Enter", description: "Run media action" },
-    ],
-    matcher: createPrefixAliasMatcher(MEDIA_ALIAS_LIST),
-    component: ({ commandQuery, registerInputEnterHandler, registerPanelFooter }) => (
-      <MediaControlPanel
-        commandQuery={commandQuery}
-        registerInputEnterHandler={registerInputEnterHandler}
-        registerPanelFooter={registerPanelFooter}
-      />
-    ),
   });
 }
 
@@ -446,7 +419,6 @@ function createSystemSettingsPanel(): ShortcutPanelDescriptor {
 
 export function buildSystemControlPanels(): ShortcutPanelDescriptor[] {
   return [
-    createMediaPanel(),
     createVolumePanel(),
     createBrightnessPanel(),
     createConnectivityPanel({

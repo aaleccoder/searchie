@@ -8,7 +8,6 @@ describe("buildSystemControlPanels", () => {
 
     expect(ids).toEqual(
       expect.arrayContaining([
-        "system-media",
         "system-volume",
         "system-brightness",
         "system-wifi",
@@ -52,6 +51,29 @@ describe("buildSystemControlPanels", () => {
       commandQuery: "55",
     });
     expect(brightnessCommand?.matcher("brightness")).toEqual({
+      matches: false,
+      commandQuery: "",
+    });
+  });
+
+  it("registers actionable media direct commands", () => {
+    const commands = buildSystemDirectCommands();
+    const mediaCommand = commands.find((command) => command.id === "system-media-action");
+
+    expect(mediaCommand).toBeTruthy();
+    expect(mediaCommand?.matcher("media play")).toEqual({
+      matches: true,
+      commandQuery: "play",
+    });
+    expect(mediaCommand?.matcher("media next")).toEqual({
+      matches: true,
+      commandQuery: "next",
+    });
+    expect(mediaCommand?.matcher("media previous")).toEqual({
+      matches: true,
+      commandQuery: "previous",
+    });
+    expect(mediaCommand?.matcher("media")).toEqual({
       matches: false,
       commandQuery: "",
     });
