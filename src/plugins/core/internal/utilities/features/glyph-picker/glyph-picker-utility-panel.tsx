@@ -10,6 +10,14 @@ import {
   EmptyHeader as PanelEmptyHeader,
   EmptyMedia as PanelEmptyMedia,
   EmptyTitle as PanelEmptyTitle,
+  Grid as PanelGrid,
+  List as PanelList,
+  ListItem as PanelListItem,
+  PanelAside,
+  PanelContainer,
+  PanelFlex,
+  PanelSection,
+  PanelText,
   ScrollArea as PanelScrollArea,
   usePanelArrowDownBridge,
   usePanelEnterBridge,
@@ -25,7 +33,6 @@ import {
   type GlyphEntry,
   type GlyphPickerQuery,
 } from "@/lib/utilities/glyph-picker-engine";
-import { cn } from "@/lib/utils";
 import { registerGlyphPickerInputController } from "./glyph-picker-keybindings";
 
 type GlyphPickerUtilityPanelProps = {
@@ -358,13 +365,21 @@ export function GlyphPickerUtilityPanel({
   );
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2.5 items-stretch">
-      <section className="min-w-0 overflow-hidden h-full">
-        <div className="border-b border-border/40 p-3 space-y-2">
-          <p className="text-xs text-muted-foreground">
+    <PanelGrid columns="two-pane" gap="sm" style={{ height: "100%" }}>
+      <PanelSection style={{ height: "100%", overflow: "hidden" }}>
+        <PanelContainer
+          padding="md"
+          style={{
+            borderBottom: "1px solid color-mix(in oklab, hsl(var(--border)) 40%, transparent)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+          }}
+        >
+          <PanelText size="xs" tone="muted">
             Use launcher input: <code>emoji smile</code>, <code>emoticon shrug</code>, <code>else arrow</code>
-          </p>
-          <div className="flex flex-wrap gap-1.5">
+          </PanelText>
+          <PanelFlex gap="xs" style={{ flexWrap: "wrap" }}>
             {CATEGORY_ORDER.map((category) => {
               const active = parsedQuery.category === category;
               const count = counts[category];
@@ -375,26 +390,26 @@ export function GlyphPickerUtilityPanel({
                   size="sm"
                   variant={active ? "default" : "outline"}
                   disabled
-                  className="h-7"
+                  style={{ height: "1.75rem" }}
                 >
                   {categoryLabel(category)}
-                  <PanelBadge variant="secondary" className="ml-1 h-5">
+                  <PanelBadge variant="secondary" style={{ marginLeft: "0.25rem", minHeight: "1.25rem" }}>
                     {count}
                   </PanelBadge>
                 </PanelButton>
               );
             })}
-          </div>
-        </div>
+          </PanelFlex>
+        </PanelContainer>
 
-        <PanelScrollArea className="h-[calc(100%-4.5rem)]">
-          <div tabIndex={0} className="p-3.5 space-y-2 outline-none">
+        <PanelScrollArea style={{ height: "calc(100% - 4.5rem)" }}>
+          <PanelContainer tabIndex={0} padding="md" style={{ outline: "none" }}>
+            <PanelList gap="sm">
             {filtered.map((entry, index) => {
               const active = index === selectedIndex;
               return (
-                <button
+                <PanelListItem
                   key={entry.id}
-                  type="button"
                   ref={(el) => {
                     itemRefs.current[index] = el;
                   }}
@@ -404,79 +419,132 @@ export function GlyphPickerUtilityPanel({
                     setSelectedIndex(index);
                     void copyEntry(entry);
                   }}
-                  className={cn(
-                    "w-full min-w-0 rounded-lg border px-3 py-2 text-left transition",
+                  style={
                     active
-                      ? "border-primary/70 bg-primary/10"
-                      : "border-border/55 hover:border-primary/45 hover:bg-accent/40",
-                  )}
+                      ? {
+                          borderColor: "color-mix(in oklab, hsl(var(--primary)) 70%, transparent)",
+                          backgroundColor: "color-mix(in oklab, hsl(var(--primary)) 10%, transparent)",
+                        }
+                      : undefined
+                  }
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-2xl leading-none">{entry.value}</p>
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <PanelFlex align="center" justify="between" gap="sm" style={{ width: "100%" }}>
+                    <PanelText size="xl" style={{ lineHeight: 1 }}>
+                      {entry.value}
+                    </PanelText>
+                    <PanelText
+                      size="xs"
+                      tone="muted"
+                      style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}
+                    >
                       {categoryLabel(entry.kind)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm font-medium truncate">{entry.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground truncate">{entry.tags.join(", ")}</p>
-                </button>
+                    </PanelText>
+                  </PanelFlex>
+                  <PanelText size="sm" weight="medium" truncate style={{ marginTop: "0.25rem" }}>
+                    {entry.label}
+                  </PanelText>
+                  <PanelText size="xs" tone="muted" truncate style={{ marginTop: "0.25rem" }}>
+                    {entry.tags.join(", ")}
+                  </PanelText>
+                </PanelListItem>
               );
             })}
 
             {filtered.length === 0 && (
-              <PanelEmpty className="border-border/60">
-                <PanelEmptyHeader>
-                  <PanelEmptyMedia variant="icon">
-                    <Shapes className="size-5" />
-                  </PanelEmptyMedia>
-                  <PanelEmptyTitle>No glyphs found</PanelEmptyTitle>
-                  <PanelEmptyDescription>
-                    Try another term like <code>emoji laugh</code> or <code>else check</code>.
-                  </PanelEmptyDescription>
-                </PanelEmptyHeader>
-              </PanelEmpty>
+              <PanelContainer surface="muted" padding="md">
+                <PanelEmpty>
+                  <PanelEmptyHeader>
+                    <PanelEmptyMedia variant="icon">
+                      <Shapes size={20} />
+                    </PanelEmptyMedia>
+                    <PanelEmptyTitle>No glyphs found</PanelEmptyTitle>
+                    <PanelEmptyDescription>
+                      Try another term like <code>emoji laugh</code> or <code>else check</code>.
+                    </PanelEmptyDescription>
+                  </PanelEmptyHeader>
+                </PanelEmpty>
+              </PanelContainer>
             )}
-          </div>
+            </PanelList>
+          </PanelContainer>
         </PanelScrollArea>
-      </section>
+      </PanelSection>
 
-      <aside className="min-w-0 border-l border-border/40 pl-3.5 flex flex-col gap-3.5">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Glyph Picker</p>
-          <h3 className="text-xl font-semibold leading-tight">Emoji, Emoticons, Else</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+      <PanelAside
+        style={{
+          borderLeft: "1px solid color-mix(in oklab, hsl(var(--border)) 40%, transparent)",
+          paddingLeft: "0.875rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.875rem",
+        }}
+      >
+        <PanelFlex direction="col" gap="sm">
+          <PanelText size="xs" tone="muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Glyph Picker
+          </PanelText>
+          <PanelText size="xl" weight="semibold">Emoji, Emoticons, Else</PanelText>
+          <PanelText size="sm" tone="muted">
             Search and copy frequently used characters from one keyboard-first panel.
-          </p>
-        </div>
+          </PanelText>
+        </PanelFlex>
 
         {selected ? (
           <>
-            <div className="rounded-lg border border-border/60 bg-background/60 p-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-4xl leading-none">{selected.value}</p>
-                <p className="mt-2 text-sm font-medium">{selected.label}</p>
-              </div>
+            <PanelContainer
+              radius="lg"
+              padding="md"
+              style={{
+                border: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+                backgroundColor: "color-mix(in oklab, hsl(var(--background)) 60%, transparent)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.75rem",
+              }}
+            >
+              <PanelContainer>
+                <PanelText size="xl" style={{ fontSize: "2.25rem", lineHeight: 1 }}>
+                  {selected.value}
+                </PanelText>
+                <PanelText size="sm" weight="medium" style={{ marginTop: "0.5rem" }}>
+                  {selected.label}
+                </PanelText>
+              </PanelContainer>
               <PanelBadge variant="secondary">{categoryLabel(selected.kind)}</PanelBadge>
-            </div>
-            <div className="text-xs text-muted-foreground">Tags: {selected.tags.join(", ")}</div>
+            </PanelContainer>
+            <PanelText size="xs" tone="muted">
+              Tags: {selected.tags.join(", ")}
+            </PanelText>
           </>
         ) : (
-          <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-            No selection yet. Start typing to find a glyph.
-          </div>
+          <PanelContainer surface="muted" padding="md">
+            <PanelText size="xs" tone="muted">
+              No selection yet. Start typing to find a glyph.
+            </PanelText>
+          </PanelContainer>
         )}
 
-        <div className="mt-auto space-y-2 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between">
-            <span>ArrowUp/ArrowDown</span>
-            <span className="font-mono">Move</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Enter</span>
-            <span className="font-mono">Copy</span>
-          </div>
-        </div>
-      </aside>
-    </div>
+        <PanelContainer style={{ marginTop: "auto" }}>
+          <PanelFlex align="center" justify="between">
+            <PanelText size="xs" tone="muted">
+              ArrowUp/ArrowDown
+            </PanelText>
+            <PanelText size="xs" tone="muted" mono>
+              Move
+            </PanelText>
+          </PanelFlex>
+          <PanelContainer padding="xs" />
+          <PanelFlex align="center" justify="between">
+            <PanelText size="xs" tone="muted">
+              Enter
+            </PanelText>
+            <PanelText size="xs" tone="muted" mono>
+              Copy
+            </PanelText>
+          </PanelFlex>
+        </PanelContainer>
+      </PanelAside>
+    </PanelGrid>
   );
 }

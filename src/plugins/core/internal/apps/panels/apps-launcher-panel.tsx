@@ -6,7 +6,9 @@ import {
   PanelAside,
   PanelButton,
   PanelContainer,
+  PanelFlex,
   PanelFigureImage,
+  PanelGrid,
   PanelInline,
   PanelList,
   PanelListItem,
@@ -35,7 +37,6 @@ import {
 } from "@/lib/apps-icon-cache";
 import { usePanelRegistry } from "@/lib/panel-registry";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
-import { cn } from "@/lib/utils";
 import {
   SETTINGS_SEARCH_ALIAS_LIST,
   extractSettingsAliasQuery,
@@ -170,7 +171,7 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-function AppIcon({ appId, className, cacheVersion }: { appId: string; className?: string; cacheVersion: number }) {
+function AppIcon({ appId, cacheVersion }: { appId: string; cacheVersion: number }) {
   const [failed, setFailed] = React.useState(false);
   const src = getCachedAppIcon(appId);
 
@@ -180,8 +181,12 @@ function AppIcon({ appId, className, cacheVersion }: { appId: string; className?
 
   if (!src || failed) {
     return (
-      <PanelContainer className={cn("rounded-sm bg-muted grid place-items-center", className)}>
-        <Rocket className="size-3.5 text-muted-foreground" />
+      <PanelContainer
+        surface="muted"
+        radius="sm"
+        style={{ width: 24, height: 24, display: "grid", placeItems: "center", flexShrink: 0 }}
+      >
+        <Rocket size={14} />
       </PanelContainer>
     );
   }
@@ -190,36 +195,25 @@ function AppIcon({ appId, className, cacheVersion }: { appId: string; className?
     <PanelFigureImage
       src={src}
       alt=""
-      className={cn("rounded-sm object-contain", className)}
       onError={() => setFailed(true)}
       loading="lazy"
+      style={{ width: 24, height: 24, flexShrink: 0 }}
     />
   );
 }
 
 type SingleLineTooltipTextProps = {
   text: string;
-  className?: string;
-  tooltipClassName?: string;
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  tone?: "default" | "muted";
+  mono?: boolean;
 };
 
-function SingleLineTooltipText({
-  text,
-  className,
-  tooltipClassName,
-}: SingleLineTooltipTextProps) {
+function SingleLineTooltipText({ text, size = "sm", tone = "default", mono = false }: SingleLineTooltipTextProps) {
   return (
     <PanelTooltip>
-      <PanelTooltipTrigger
-        render={
-          <PanelInline className={cn("block min-w-0 truncate whitespace-nowrap", className)}>
-            {text}
-          </PanelInline>
-        }
-      />
-      <PanelTooltipContent className={cn("max-w-md break-all", tooltipClassName)}>
-        {text}
-      </PanelTooltipContent>
+      <PanelTooltipTrigger render={<PanelInline truncate size={size} tone={tone} mono={mono}>{text}</PanelInline>} />
+      <PanelTooltipContent>{text}</PanelTooltipContent>
     </PanelTooltip>
   );
 }
@@ -231,9 +225,9 @@ type DetailRowProps = {
 
 function DetailRow({ label, value }: DetailRowProps) {
   return (
-    <PanelMetaGrid className="min-w-0">
-      <PanelInline className="text-muted-foreground whitespace-nowrap">{label}</PanelInline>
-      <SingleLineTooltipText text={value} className="text-right" />
+    <PanelMetaGrid>
+      <PanelInline tone="muted" size="sm">{label}</PanelInline>
+      <SingleLineTooltipText text={value} size="sm" />
     </PanelMetaGrid>
   );
 }
@@ -590,6 +584,7 @@ export function AppsLauncherPanel({
       return (
         <PanelListItem
           type="button"
+          active={active}
           ref={(el) => {
             if (el) {
               itemRefs.current.set(item.id, el);
@@ -611,18 +606,20 @@ export function AppsLauncherPanel({
             clearLauncherInput?.();
             activatePanelSession?.(item.command.panel, item.command.commandQuery);
           }}
-          className={cn(
-            "flex items-center justify-between gap-3 cursor-pointer",
-            active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
-          )}
         >
-          <PanelContainer className="flex items-center gap-3 min-w-0">
-            <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
-              <CommandIcon className="size-3.5 text-muted-foreground" />
-            </PanelContainer>
-            <SingleLineTooltipText text={`Open ${item.command.label}`} className="text-sm" />
-          </PanelContainer>
-          <PanelInline className="text-[11px] text-muted-foreground font-mono">Command</PanelInline>
+          <PanelFlex align="center" justify="between" style={{ width: "100%" }}>
+            <PanelFlex align="center" gap="sm">
+              <PanelContainer
+                surface="muted"
+                radius="sm"
+                style={{ width: 24, height: 24, display: "grid", placeItems: "center", flexShrink: 0 }}
+              >
+                <CommandIcon size={14} />
+              </PanelContainer>
+              <SingleLineTooltipText text={`Open ${item.command.label}`} size="sm" />
+            </PanelFlex>
+            <PanelInline size="xs" tone="muted" mono>Command</PanelInline>
+          </PanelFlex>
         </PanelListItem>
       );
     }
@@ -632,6 +629,7 @@ export function AppsLauncherPanel({
       return (
         <PanelListItem
           type="button"
+          active={active}
           ref={(el) => {
             if (el) {
               itemRefs.current.set(item.id, el);
@@ -652,24 +650,23 @@ export function AppsLauncherPanel({
             setSelectedId(item.id);
             void executeSettingOpen(setting);
           }}
-          className={cn(
-            "flex items-center justify-between gap-3 cursor-pointer",
-            active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
-          )}
         >
-          <PanelContainer className="flex items-center gap-3 min-w-0">
-            <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
-              <Settings2 className="size-3.5 text-muted-foreground" />
-            </PanelContainer>
-            <PanelContainer className="min-w-0">
-              <SingleLineTooltipText text={`Open Setting ${setting.settingsPage}`} className="text-sm" />
-              <SingleLineTooltipText
-                text={setting.uris[0] ?? "ms-settings:"}
-                className="text-[11px] text-muted-foreground"
-              />
-            </PanelContainer>
-          </PanelContainer>
-          <PanelInline className="text-[11px] text-muted-foreground font-mono">Setting</PanelInline>
+          <PanelFlex align="center" justify="between" style={{ width: "100%" }}>
+            <PanelFlex align="center" gap="sm">
+              <PanelContainer
+                surface="muted"
+                radius="sm"
+                style={{ width: 24, height: 24, display: "grid", placeItems: "center", flexShrink: 0 }}
+              >
+                <Settings2 size={14} />
+              </PanelContainer>
+              <PanelFlex direction="col" gap="xs">
+                <SingleLineTooltipText text={`Open Setting ${setting.settingsPage}`} size="sm" />
+                <SingleLineTooltipText text={setting.uris[0] ?? "ms-settings:"} size="xs" tone="muted" />
+              </PanelFlex>
+            </PanelFlex>
+            <PanelInline size="xs" tone="muted" mono>Setting</PanelInline>
+          </PanelFlex>
         </PanelListItem>
       );
     }
@@ -678,6 +675,7 @@ export function AppsLauncherPanel({
     return (
       <PanelListItem
         type="button"
+        active={active}
         ref={(el) => {
           if (el) {
             itemRefs.current.set(item.id, el);
@@ -698,13 +696,9 @@ export function AppsLauncherPanel({
           setSelectedId(item.id);
           void executeAppAction("open", app);
         }}
-        className={cn(
-          "flex items-center gap-3 cursor-pointer",
-          active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
-        )}
       >
-        <AppIcon appId={app.id} className="size-6 shrink-0" cacheVersion={iconCacheVersion} />
-        <SingleLineTooltipText text={app.name} className="text-sm" />
+        <AppIcon appId={app.id} cacheVersion={iconCacheVersion} />
+        <SingleLineTooltipText text={app.name} size="sm" />
       </PanelListItem>
     );
   };
@@ -1212,11 +1206,10 @@ export function AppsLauncherPanel({
 
   return (
     <PanelTooltipProvider>
-      <PanelContainer className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-        <PanelContainer ref={listScrollHostRef} className="overflow-hidden h-full">
-          <PanelScrollArea className="h-full">
+      <PanelGrid columns="two-pane" gap="sm" style={{ height: "100%" }}>
+        <PanelContainer ref={listScrollHostRef} style={{ overflow: "hidden", height: "100%" }}>
+          <PanelScrollArea style={{ height: "100%" }}>
             <PanelList
-              className="p-0.5"
               gap="xs"
               virtualize={
                 useVirtualizedList
@@ -1247,105 +1240,92 @@ export function AppsLauncherPanel({
           </PanelScrollArea>
         </PanelContainer>
 
-        <PanelAside className="flex flex-col gap-3.5 overflow-hidden">
+        <PanelAside>
           {selectedItem?.kind === "panel-command" ? (
-            <PanelContainer className="h-full flex flex-col justify-between text-muted-foreground text-sm text-center px-2 py-1">
-              <PanelContainer className="flex-1 grid place-items-center">
-                Press Enter to open {selectedItem.command.panel.name}.
+            <PanelFlex direction="col" justify="between" gap="sm" style={{ height: "100%" }}>
+              <PanelContainer>
+                <PanelParagraph size="sm" tone="muted">Press Enter to open {selectedItem.command.panel.name}.</PanelParagraph>
               </PanelContainer>
               <PanelButton
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full justify-between"
                 onClick={() => {
                   selectFirstAppItem();
                 }}
               >
-                <PanelInline className="inline-flex items-center gap-1.5">
-                  <ArrowLeft className="size-3.5" />
+                <PanelInline>
+                  <ArrowLeft size={14} />
                   Back to Apps
                 </PanelInline>
-                <PanelInline className="font-mono text-[11px] text-muted-foreground">Left Arrow</PanelInline>
+                <PanelInline size="xs" tone="muted" mono>Left Arrow</PanelInline>
               </PanelButton>
-            </PanelContainer>
+            </PanelFlex>
           ) : selectedItem?.kind === "setting" ? (
-            <>
-              <PanelContainer className="space-y-2 min-w-0">
-                <PanelParagraph className="text-xs uppercase tracking-wider text-muted-foreground">
+            <PanelFlex direction="col" gap="md">
+              <PanelContainer>
+                <PanelParagraph size="xs" tone="muted">
                   Selected Setting
                 </PanelParagraph>
-                <SingleLineTooltipText
-                  text={selectedItem.setting.settingsPage}
-                  className="text-xl font-semibold leading-tight"
-                />
-                <SingleLineTooltipText
-                  text={selectedItem.setting.uris[0] ?? "ms-settings:"}
-                  className="text-xs text-muted-foreground"
-                />
+                <SingleLineTooltipText text={selectedItem.setting.settingsPage} size="xl" />
+                <SingleLineTooltipText text={selectedItem.setting.uris[0] ?? "ms-settings:"} size="xs" tone="muted" />
               </PanelContainer>
 
-              <PanelContainer className="space-y-2 text-sm min-w-0">
+              <PanelFlex direction="col" gap="sm">
                 <DetailRow label="URIs" value={String(selectedItem.setting.uris.length)} />
                 <DetailRow label="Primary URI" value={selectedItem.setting.uris[0] ?? "-"} />
-              </PanelContainer>
+              </PanelFlex>
 
-              <PanelContainer className="mt-auto space-y-2 min-w-0">
-                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+              <PanelFlex direction="col" gap="sm">
+                <PanelFlex align="center" justify="between">
                   <PanelInline>Open setting</PanelInline>
-                  <PanelInline className="font-mono">Enter</PanelInline>
-                </PanelContainer>
-                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline mono>Enter</PanelInline>
+                </PanelFlex>
+                <PanelFlex align="center" justify="between">
                   <PanelInline>Back to app list</PanelInline>
-                  <PanelInline className="font-mono">Left Arrow</PanelInline>
-                </PanelContainer>
-              </PanelContainer>
-            </>
+                  <PanelInline mono>Left Arrow</PanelInline>
+                </PanelFlex>
+              </PanelFlex>
+            </PanelFlex>
           ) : selectedApp ? (
-            <>
-              <PanelContainer className="space-y-2 min-w-0">
-                <PanelParagraph className="text-xs uppercase tracking-wider text-muted-foreground">
+            <PanelFlex direction="col" gap="md">
+              <PanelContainer>
+                <PanelParagraph size="xs" tone="muted">
                   Selected App
                 </PanelParagraph>
-                <SingleLineTooltipText
-                  text={selectedApp.name}
-                  className="text-xl font-semibold leading-tight"
-                />
-                <SingleLineTooltipText
-                  text={selectedApp.launchPath}
-                  className="text-xs text-muted-foreground"
-                />
+                <SingleLineTooltipText text={selectedApp.name} size="xl" />
+                <SingleLineTooltipText text={selectedApp.launchPath} size="xs" tone="muted" />
               </PanelContainer>
 
-              <PanelContainer className="space-y-2 text-sm min-w-0">
+              <PanelFlex direction="col" gap="sm">
                 <DetailRow label="Publisher" value={selectedApp.publisher ?? "Unknown"} />
                 <DetailRow label="Version" value={selectedApp.version ?? "-"} />
                 <DetailRow label="Source" value={selectedApp.source} />
                 <DetailRow label="Install Path" value={selectedApp.installLocation ?? "-"} />
-              </PanelContainer>
+              </PanelFlex>
 
-              <PanelContainer className="mt-auto space-y-2 min-w-0">
-                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+              <PanelFlex direction="col" gap="sm">
+                <PanelFlex align="center" justify="between">
                   <PanelInline>List to Actions</PanelInline>
-                  <PanelInline className="font-mono">Right Arrow</PanelInline>
-                </PanelContainer>
-                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline mono>Right Arrow</PanelInline>
+                </PanelFlex>
+                <PanelFlex align="center" justify="between">
                   <PanelInline>Actions to List</PanelInline>
-                  <PanelInline className="font-mono">Left Arrow</PanelInline>
-                </PanelContainer>
-                <PanelContainer className="text-xs text-muted-foreground flex items-center justify-between">
+                  <PanelInline mono>Left Arrow</PanelInline>
+                </PanelFlex>
+                <PanelFlex align="center" justify="between">
                   <PanelInline>Navigate / Run</PanelInline>
-                  <PanelInline className="font-mono">Up Down + Enter</PanelInline>
-                </PanelContainer>
-              </PanelContainer>
-            </>
+                  <PanelInline mono>Up Down + Enter</PanelInline>
+                </PanelFlex>
+              </PanelFlex>
+            </PanelFlex>
           ) : (
-            <PanelContainer className="h-full grid place-items-center text-muted-foreground text-sm">
-              No apps found.
+            <PanelContainer style={{ height: "100%", display: "grid", placeItems: "center" }}>
+              <PanelParagraph tone="muted">No apps found.</PanelParagraph>
             </PanelContainer>
           )}
         </PanelAside>
-      </PanelContainer>
+      </PanelGrid>
     </PanelTooltipProvider>
   );
 }

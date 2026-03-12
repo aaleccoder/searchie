@@ -13,6 +13,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import {
   Badge as PanelBadge,
+  Grid as PanelGrid,
+  List as PanelList,
+  ListItem as PanelListItem,
+  MetaGrid as PanelMetaGrid,
+  PanelAside,
+  PanelCode,
+  PanelContainer,
+  PanelFlex,
+  PanelSection,
+  PanelText,
   ScrollArea as PanelScrollArea,
   Select as PanelSelect,
   SelectContent as PanelSelectContent,
@@ -27,7 +37,6 @@ import {
 import type { PanelFooterConfig } from "@/lib/panel-contract";
 import { extractFirstColorToken } from "@/lib/utilities/color-preview";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
-import { cn } from "@/lib/utils";
 
 type ClipboardKind = "text" | "image" | "files" | "other";
 
@@ -109,7 +118,7 @@ export function ClipboardPanel({
   const [busy, setBusy] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
-  const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
+  const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
   const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
 
@@ -494,207 +503,282 @@ export function ClipboardPanel({
   );
 
   return (
-    <div className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-      <section className="flex h-full min-h-0 flex-col overflow-hidden outline-none border-none">
-        <div className="flex shrink-0 items-center gap-2 border-b border-border/60 p-3">
-          <PanelSelect
-            value={filter}
-            onValueChange={(value: string | null) => {
-              setFilter((value ?? "all") as ClipboardKind | "all");
-            }}
-          >
-            <PanelSelectTrigger className="w-36">
-              <PanelSelectValue />
-            </PanelSelectTrigger>
-            <PanelSelectContent align="start" className="backdrop-blur-md">
-              {FILTERS.map((f) => (
-                <PanelSelectItem key={f.value} value={f.value}>
-                  {f.label}
-                </PanelSelectItem>
-              ))}
-            </PanelSelectContent>
-          </PanelSelect>
-          <span className="ml-auto max-w-64 truncate text-xs text-muted-foreground">
-            {commandQuery ? `Query: ${commandQuery}` : "Type in top search to filter"}
-          </span>
-        </div>
+    <PanelGrid columns="two-pane" gap="sm" style={{ height: "100%" }}>
+      <PanelSection
+        style={{
+          height: "100%",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <PanelContainer
+          padding="md"
+          style={{
+            flexShrink: 0,
+            borderBottom: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+          }}
+        >
+          <PanelFlex align="center" gap="sm">
+            <PanelSelect
+              value={filter}
+              onValueChange={(value: string | null) => {
+                setFilter((value ?? "all") as ClipboardKind | "all");
+              }}
+            >
+              <PanelSelectTrigger style={{ width: "9rem" }}>
+                <PanelSelectValue />
+              </PanelSelectTrigger>
+              <PanelSelectContent align="start" style={{ backdropFilter: "blur(12px)" }}>
+                {FILTERS.map((f) => (
+                  <PanelSelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </PanelSelectItem>
+                ))}
+              </PanelSelectContent>
+            </PanelSelect>
+            <PanelText
+              size="xs"
+              tone="muted"
+              truncate
+              style={{ marginLeft: "auto", maxWidth: "16rem" }}
+              title={commandQuery ? `Query: ${commandQuery}` : "Type in top search to filter"}
+            >
+              {commandQuery ? `Query: ${commandQuery}` : "Type in top search to filter"}
+            </PanelText>
+          </PanelFlex>
+        </PanelContainer>
 
-        <PanelScrollArea className="min-h-0 flex-1">
-          <div
-            ref={listContainerRef}
-            className="space-y-2.5 p-3.5 outline-none focus-visible:outline-none"
-            tabIndex={0}
-          >
-            {items.map((item, idx) => (
-              <article
-                key={item.id}
-                ref={(el) => {
-                  itemRefs.current[idx] = el;
-                }}
-                tabIndex={0}
-                role="button"
-                aria-selected={selectedIndex === idx}
-                onClick={() => {
-                  setSelectedIndex(idx);
-                  clearLauncherInput?.();
-                  void copyEntry(item);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
+        <PanelScrollArea style={{ minHeight: 0, flex: 1 }}>
+          <PanelContainer ref={listContainerRef} tabIndex={0} padding="md" style={{ outline: "none" }}>
+            <PanelList gap="md">
+              {items.map((item, idx) => (
+                <PanelListItem
+                  key={item.id}
+                  active={selectedIndex === idx}
+                  ref={(el) => {
+                    itemRefs.current[idx] = el;
+                  }}
+                  aria-selected={selectedIndex === idx}
+                  onClick={() => {
                     setSelectedIndex(idx);
                     clearLauncherInput?.();
                     void copyEntry(item);
-                  }
-                }}
-                className={cn(
-                  "p-3",
-                  "hover:bg-card-foreground/10 hover:backdrop-blur-sm hover:rounded-md transition outline-none",
-                  selectedIndex === idx && "bg-card-foreground/10 backdrop-blur-sm rounded-md",
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <PanelBadge
-                      variant="ghost"
-                      className="size-6 p-0 [&_svg]:size-3.5"
-                      aria-label={`${item.kind} clipboard item`}
-                      title={item.kind}
-                    >
-                      <HugeiconsIcon icon={KIND_ICON_MAP[item.kind]} strokeWidth={2} aria-hidden="true" />
-                    </PanelBadge>
-                    {item.imageBase64 && (
-                      <img
-                        src={`data:image/png;base64,${item.imageBase64}`}
-                        alt="Clipboard thumbnail"
-                        className="size-7 rounded border border-border/50 bg-muted object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                    <p className="w-72 truncate text-sm leading-relaxed" title={item.preview}>
-                      {item.preview || "(empty)"}
-                    </p>
-                    {colorPreviewById.get(item.id) && (
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="size-3 rounded border border-border/70"
-                          style={{ backgroundColor: colorPreviewById.get(item.id) }}
-                          aria-hidden="true"
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      setSelectedIndex(idx);
+                      clearLauncherInput?.();
+                      void copyEntry(item);
+                    }
+                  }}
+                >
+                  <PanelFlex align="center" justify="between" gap="sm" style={{ width: "100%" }}>
+                    <PanelFlex align="center" gap="sm" style={{ minWidth: 0 }}>
+                      <PanelBadge
+                        variant="ghost"
+                        aria-label={`${item.kind} clipboard item`}
+                        title={item.kind}
+                        style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
+                      >
+                        <HugeiconsIcon icon={KIND_ICON_MAP[item.kind]} strokeWidth={2} aria-hidden="true" size={14} />
+                      </PanelBadge>
+                      {item.imageBase64 && (
+                        <img
+                          src={`data:image/png;base64,${item.imageBase64}`}
+                          alt="Clipboard thumbnail"
+                          loading="lazy"
+                          style={{
+                            width: "1.75rem",
+                            height: "1.75rem",
+                            borderRadius: "0.25rem",
+                            border: "1px solid color-mix(in oklab, hsl(var(--border)) 50%, transparent)",
+                            backgroundColor: "hsl(var(--muted))",
+                            objectFit: "cover",
+                          }}
                         />
-                        <span className="max-w-30 truncate font-mono text-[11px] text-muted-foreground">
-                          {colorPreviewById.get(item.id)}
-                        </span>
-                      </div>
-                    )}
-                    {item.pinned && <PanelBadge variant="outline">Pinned</PanelBadge>}
-                  </div>
-                </div>
-              </article>
-            ))}
+                      )}
+                      <PanelText size="sm" truncate style={{ width: "18rem", lineHeight: 1.4 }} title={item.preview}>
+                        {item.preview || "(empty)"}
+                      </PanelText>
+                      {colorPreviewById.get(item.id) && (
+                        <PanelFlex align="center" gap="xs">
+                          <PanelContainer
+                            radius="sm"
+                            style={{
+                              width: "0.75rem",
+                              height: "0.75rem",
+                              border: "1px solid color-mix(in oklab, hsl(var(--border)) 70%, transparent)",
+                              backgroundColor: colorPreviewById.get(item.id),
+                            }}
+                            aria-hidden="true"
+                          />
+                          <PanelText size="xs" tone="muted" mono truncate style={{ maxWidth: "7.5rem" }}>
+                            {colorPreviewById.get(item.id)}
+                          </PanelText>
+                        </PanelFlex>
+                      )}
+                      {item.pinned && <PanelBadge variant="outline">Pinned</PanelBadge>}
+                    </PanelFlex>
+                  </PanelFlex>
+                </PanelListItem>
+              ))}
 
-            {!busy && items.length === 0 && (
-              <div className="grid h-32 place-items-center text-sm text-muted-foreground">
-                Clipboard history is empty.
-              </div>
-            )}
-          </div>
+              {!busy && items.length === 0 && (
+                <PanelContainer style={{ display: "grid", height: "8rem", placeItems: "center" }}>
+                  <PanelText size="sm" tone="muted">
+                    Clipboard history is empty.
+                  </PanelText>
+                </PanelContainer>
+              )}
+            </PanelList>
+          </PanelContainer>
         </PanelScrollArea>
-      </section>
+      </PanelSection>
 
-      <aside className="flex min-h-0 flex-col gap-3 p-3.5">
+      <PanelAside
+        style={{
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.75rem",
+          padding: "0.875rem",
+        }}
+      >
         {!selectedItem && (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">
-            Select a clipboard item to see details.
-          </div>
+          <PanelContainer style={{ display: "grid", height: "100%", placeItems: "center" }}>
+            <PanelText size="sm" tone="muted">
+              Select a clipboard item to see details.
+            </PanelText>
+          </PanelContainer>
         )}
 
         {selectedItem && (
           <>
-            <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                <PanelBadge variant="ghost" className="size-6 p-0 [&_svg]:size-3.5" title={selectedItem.kind}>
-                  <HugeiconsIcon icon={KIND_ICON_MAP[selectedItem.kind]} strokeWidth={2} aria-hidden="true" />
+            <PanelContainer>
+              <PanelFlex align="center" gap="sm">
+                <PanelBadge variant="ghost" title={selectedItem.kind} style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}>
+                  <HugeiconsIcon icon={KIND_ICON_MAP[selectedItem.kind]} strokeWidth={2} aria-hidden="true" size={14} />
                 </PanelBadge>
-                <h3 className="text-lg font-semibold capitalize leading-tight">{selectedItem.kind} item</h3>
+                <PanelText size="lg" weight="semibold" style={{ textTransform: "capitalize", lineHeight: 1.2 }}>
+                  {selectedItem.kind} item
+                </PanelText>
                 {selectedItem.pinned && <PanelBadge variant="outline">Pinned</PanelBadge>}
-              </div>
-            </div>
+              </PanelFlex>
+            </PanelContainer>
 
-            <PanelScrollArea className="min-h-0 flex-1">
-              <div className="space-y-3">
+            <PanelScrollArea style={{ minHeight: 0, flex: 1 }}>
+              <PanelFlex direction="col" gap="md">
                 {selectedItem.kind === "text" && (
                   <pre
-                    className="wrap-break-word max-h-40 whitespace-pre-wrap text-sm leading-relaxed font-sans max-w-80"
+                    style={{
+                      wordBreak: "break-word",
+                      maxHeight: "10rem",
+                      whiteSpace: "pre-wrap",
+                      fontSize: "0.875rem",
+                      lineHeight: 1.5,
+                      fontFamily: "inherit",
+                      maxWidth: "20rem",
+                      margin: 0,
+                    }}
                   >
                     {selectedItemText || "(empty text)"}
                   </pre>
                 )}
 
                 {selectedItemColorPreview && (
-                  <div className="rounded-md border border-border/60 bg-background/60 p-3">
-                    <p className="mb-2 text-xs text-muted-foreground">Detected color</p>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="size-8 rounded border border-border/80"
-                        style={{ backgroundColor: selectedItemColorPreview }}
+                  <PanelContainer
+                    padding="md"
+                    radius="md"
+                    style={{
+                      border: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+                      backgroundColor: "color-mix(in oklab, hsl(var(--background)) 60%, transparent)",
+                    }}
+                  >
+                    <PanelText size="xs" tone="muted" style={{ marginBottom: "0.5rem" }}>
+                      Detected color
+                    </PanelText>
+                    <PanelFlex align="center" gap="md">
+                      <PanelContainer
+                        radius="md"
+                        style={{
+                          width: "2rem",
+                          height: "2rem",
+                          border: "1px solid color-mix(in oklab, hsl(var(--border)) 80%, transparent)",
+                          backgroundColor: selectedItemColorPreview,
+                        }}
                         aria-hidden="true"
                       />
-                      <code className="text-xs font-mono text-foreground">{selectedItemColorPreview}</code>
-                    </div>
-                  </div>
+                      <PanelCode>{selectedItemColorPreview}</PanelCode>
+                    </PanelFlex>
+                  </PanelContainer>
                 )}
 
                 {selectedItem.imageBase64 && (
                   <img
                     src={`data:image/png;base64,${selectedItem.imageBase64}`}
                     alt="Clipboard preview"
-                    className="max-h-105 w-full rounded-md border border-border/50 bg-muted object-contain"
                     loading="lazy"
+                    style={{
+                      maxHeight: "26rem",
+                      width: "100%",
+                      borderRadius: "0.375rem",
+                      border: "1px solid color-mix(in oklab, hsl(var(--border)) 50%, transparent)",
+                      backgroundColor: "hsl(var(--muted))",
+                      objectFit: "contain",
+                    }}
                   />
                 )}
 
                 {selectedItem.files.length > 0 && (
-                  <div className="space-y-1.5">
+                  <PanelFlex direction="col" gap="xs">
                     {selectedItem.files.map((path) => (
-                      <p key={path} className="break-all text-xs text-muted-foreground">
+                      <PanelText key={path} size="xs" tone="muted" style={{ overflowWrap: "anywhere" }}>
                         {path}
-                      </p>
+                      </PanelText>
                     ))}
-                  </div>
+                  </PanelFlex>
                 )}
 
                 {selectedItem.kind !== "text" && !selectedItem.imageBase64 && (
-                  <p className="wrap-break-word whitespace-pre-wrap text-sm text-muted-foreground">
+                  <PanelText size="sm" tone="muted" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                     {selectedItemText || "No preview available."}
-                  </p>
+                  </PanelText>
                 )}
-              </div>
+              </PanelFlex>
             </PanelScrollArea>
 
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-              <span className="text-muted-foreground">ID</span>
-              <span className="truncate text-right" title={selectedItem.id}>
+            <PanelMetaGrid>
+              <PanelText size="xs" tone="muted">ID</PanelText>
+              <PanelText size="xs" truncate style={{ textAlign: "right" }} title={selectedItem.id}>
                 {selectedItem.id}
-              </span>
-              <span className="text-muted-foreground">Date</span>
-              <span className="truncate text-right" title={formatWhen(selectedItem.createdAt)}>
+              </PanelText>
+              <PanelText size="xs" tone="muted">Date</PanelText>
+              <PanelText size="xs" truncate style={{ textAlign: "right" }} title={formatWhen(selectedItem.createdAt)}>
                 {formatWhen(selectedItem.createdAt)}
-              </span>
-              <span className="text-muted-foreground">Formats</span>
-              <span className="truncate text-right" title={selectedItem.formats.join(", ")}>
+              </PanelText>
+              <PanelText size="xs" tone="muted">Formats</PanelText>
+              <PanelText
+                size="xs"
+                truncate
+                style={{ textAlign: "right" }}
+                title={selectedItem.formats.join(", ")}
+              >
                 {selectedItem.formats.length > 0 ? selectedItem.formats.join(", ") : "-"}
-              </span>
-              <span className="text-muted-foreground">Files</span>
-              <span className="text-right">{selectedItem.files.length}</span>
-            </div>
+              </PanelText>
+              <PanelText size="xs" tone="muted">Files</PanelText>
+              <PanelText size="xs" style={{ textAlign: "right" }}>{selectedItem.files.length}</PanelText>
+            </PanelMetaGrid>
 
-            <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              <span>Copy</span>
-              <span className="font-mono">Enter</span>
-            </div>
+            <PanelFlex align="center" justify="between">
+              <PanelText size="xs" tone="muted">Copy</PanelText>
+              <PanelText size="xs" tone="muted" mono>Enter</PanelText>
+            </PanelFlex>
           </>
         )}
-      </aside>
-    </div>
+      </PanelAside>
+    </PanelGrid>
   );
 }

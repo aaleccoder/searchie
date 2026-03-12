@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   Badge as PanelBadge,
+  PanelFlex,
   Input as PanelInput,
   PanelContainer,
   PanelHeading,
@@ -53,11 +54,20 @@ export function ConversionUtilityPanel({ commandQuery }: ConversionUtilityPanelP
   }, [query]);
 
   return (
-    <PanelContainer className="h-full rounded-xl p-4 flex flex-col gap-4">
-      <PanelContainer className="flex items-center justify-between">
+    <PanelContainer
+      padding="lg"
+      radius="lg"
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1rem",
+      }}
+    >
+      <PanelFlex align="center" justify="between">
         <PanelHeading>Converter</PanelHeading>
         <PanelBadge variant="secondary">Utilities</PanelBadge>
-      </PanelContainer>
+      </PanelFlex>
 
       <PanelInput
         value={query}
@@ -65,7 +75,14 @@ export function ConversionUtilityPanel({ commandQuery }: ConversionUtilityPanelP
         placeholder="10 km to mi"
       />
 
-      <PanelContainer className="rounded-lg border border-border/60 bg-background/60 p-3">
+      <PanelContainer
+        padding="md"
+        radius="lg"
+        style={{
+          border: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+          backgroundColor: "color-mix(in oklab, hsl(var(--background)) 60%, transparent)",
+        }}
+      >
         {conversion.ok ? (
           <PanelParagraph>
             {conversion.fromLabel} = <PanelText weight="semibold">{conversion.toLabel}</PanelText>

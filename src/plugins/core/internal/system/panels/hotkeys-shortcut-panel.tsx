@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  PanelFlex,
   Kbd as PanelKbd,
   KbdGroup as PanelKbdGroup,
   PanelContainer,
@@ -44,26 +45,42 @@ export function HotkeysShortcutPanel({ commandQuery }: HotkeysShortcutPanelProps
   const contextLabel = contextPanel?.name ?? "Launcher";
 
   return (
-    <PanelContainer className="h-full overflow-hidden">
-      <PanelScrollArea className="h-full">
-        <PanelContainer className="p-4 space-y-4">
-          <PanelContainer className="space-y-1">
-            <PanelText size="xs" tone="muted" className="uppercase tracking-wider">
+    <PanelContainer style={{ height: "100%", overflow: "hidden" }}>
+      <PanelScrollArea style={{ height: "100%" }}>
+        <PanelContainer
+          padding="lg"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+        >
+          <PanelFlex direction="col" gap="xs">
+            <PanelText size="xs" tone="muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Hotkeys
             </PanelText>
-            <PanelHeading level={2} className="text-base">
+            <PanelHeading level={2} style={{ fontSize: "1rem" }}>
               {contextLabel} keyboard shortcuts
             </PanelHeading>
             <PanelParagraph size="xs" tone="muted">
               Shortcuts available for the current launcher context.
             </PanelParagraph>
-          </PanelContainer>
+          </PanelFlex>
 
-          <PanelContainer className="space-y-2">
+          <PanelFlex direction="col" gap="sm">
             {shortcutHints.map((hint) => (
               <PanelContainer
                 key={`${hint.keys}:${hint.description}`}
-                className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-background/60 px-3 py-2"
+                radius="md"
+                padding="sm"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.5rem",
+                  border: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+                  backgroundColor: "color-mix(in oklab, hsl(var(--background)) 60%, transparent)",
+                }}
               >
                 <PanelText size="xs" tone="muted">
                   {hint.description}
@@ -75,7 +92,7 @@ export function HotkeysShortcutPanel({ commandQuery }: HotkeysShortcutPanelProps
                 </PanelKbdGroup>
               </PanelContainer>
             ))}
-          </PanelContainer>
+          </PanelFlex>
         </PanelContainer>
       </PanelScrollArea>
     </PanelContainer>

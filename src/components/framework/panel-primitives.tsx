@@ -42,12 +42,25 @@ export const PanelTooltipContent = TooltipContent;
 export const PanelTooltipProvider = TooltipProvider;
 export const PanelTooltipTrigger = TooltipTrigger;
 
-type DivProps = React.HTMLAttributes<HTMLDivElement>;
-type SpanProps = React.HTMLAttributes<HTMLSpanElement>;
-type ParagraphProps = React.HTMLAttributes<HTMLParagraphElement>;
-type SectionProps = React.HTMLAttributes<HTMLElement>;
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
-type ImageProps = React.ImgHTMLAttributes<HTMLImageElement>;
+type WithoutClassName<T> = Omit<T, "className">;
+
+type DivProps = WithoutClassName<React.HTMLAttributes<HTMLDivElement>>;
+type SpanProps = WithoutClassName<React.HTMLAttributes<HTMLSpanElement>>;
+type ParagraphProps = WithoutClassName<React.HTMLAttributes<HTMLParagraphElement>>;
+type SectionProps = WithoutClassName<React.HTMLAttributes<HTMLElement>>;
+type ButtonProps = WithoutClassName<React.ButtonHTMLAttributes<HTMLButtonElement>>;
+type ImageProps = WithoutClassName<React.ImgHTMLAttributes<HTMLImageElement>>;
+
+function splitClassName<T extends object>(props: T): {
+  className?: string;
+  restProps: T;
+} {
+  const { className, ...restProps } = props as T & { className?: string };
+  return {
+    className,
+    restProps: restProps as T,
+  };
+}
 
 type SpacingToken = "none" | "xs" | "sm" | "md" | "lg";
 type RadiusToken = "none" | "sm" | "md" | "lg";
@@ -89,12 +102,13 @@ type PanelContainerProps = DivProps & {
 };
 
 export const PanelContainer = React.forwardRef<HTMLDivElement, PanelContainerProps>(
-  ({ className, surface = "none", padding = "none", radius = "none", ...props }, ref) => {
+  ({ surface = "none", padding = "none", radius = "none", ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
     return (
       <div
         ref={ref}
-        className={cn(surfaceClasses[surface], paddingClasses[padding], radiusClasses[radius], className)}
-        {...props}
+        className={cn("min-w-0", surfaceClasses[surface], paddingClasses[padding], radiusClasses[radius], className)}
+        {...restProps}
       />
     );
   },
@@ -125,7 +139,6 @@ const flexJustifyClasses = {
 export const PanelFlex = React.forwardRef<HTMLDivElement, PanelFlexProps>(
   (
     {
-      className,
       direction = "row",
       align = "stretch",
       justify = "start",
@@ -134,18 +147,19 @@ export const PanelFlex = React.forwardRef<HTMLDivElement, PanelFlexProps>(
     },
     ref,
   ) => {
+    const { className, restProps } = splitClassName(props);
     return (
       <div
         ref={ref}
         className={cn(
-          "flex",
+          "flex min-w-0",
           direction === "col" ? "flex-col" : "flex-row",
           flexAlignClasses[align],
           flexJustifyClasses[justify],
           spacingClasses[gap],
           className,
         )}
-        {...props}
+        {...restProps}
       />
     );
   },
@@ -164,30 +178,34 @@ const gridColumnClasses = {
 } as const;
 
 export const PanelGrid = React.forwardRef<HTMLDivElement, PanelGridProps>(
-  ({ className, columns = "single", gap = "md", ...props }, ref) => {
+  ({ columns = "single", gap = "md", ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
     return (
       <div
         ref={ref}
-        className={cn("grid h-full items-stretch", gridColumnClasses[columns], spacingClasses[gap], className)}
-        {...props}
+        className={cn("grid h-full w-full min-w-0 items-stretch", gridColumnClasses[columns], spacingClasses[gap], className)}
+        {...restProps}
       />
     );
   },
 );
 PanelGrid.displayName = "PanelGrid";
 
-export const PanelSection = React.forwardRef<HTMLElement, SectionProps>(({ className, ...props }, ref) => {
-  return <section ref={ref} className={cn(className)} {...props} />;
+export const PanelSection = React.forwardRef<HTMLElement, SectionProps>((props, ref) => {
+  const { className, restProps } = splitClassName(props);
+  return <section ref={ref} className={cn("min-w-0", className)} {...restProps} />;
 });
 PanelSection.displayName = "PanelSection";
 
-export const PanelAside = React.forwardRef<HTMLElement, SectionProps>(({ className, ...props }, ref) => {
-  return <aside ref={ref} className={cn(className)} {...props} />;
+export const PanelAside = React.forwardRef<HTMLElement, SectionProps>((props, ref) => {
+  const { className, restProps } = splitClassName(props);
+  return <aside ref={ref} className={cn("min-w-0 overflow-hidden", className)} {...restProps} />;
 });
 PanelAside.displayName = "PanelAside";
 
-export const PanelArticle = React.forwardRef<HTMLElement, SectionProps>(({ className, ...props }, ref) => {
-  return <article ref={ref} className={cn(className)} {...props} />;
+export const PanelArticle = React.forwardRef<HTMLElement, SectionProps>((props, ref) => {
+  const { className, restProps } = splitClassName(props);
+  return <article ref={ref} className={cn("min-w-0", className)} {...restProps} />;
 });
 PanelArticle.displayName = "PanelArticle";
 
@@ -221,7 +239,6 @@ const textWeightClasses = {
 export const PanelText = React.forwardRef<HTMLSpanElement, PanelTextProps>(
   (
     {
-      className,
       tone = "default",
       size = "sm",
       weight = "normal",
@@ -231,6 +248,7 @@ export const PanelText = React.forwardRef<HTMLSpanElement, PanelTextProps>(
     },
     ref,
   ) => {
+    const { className, restProps } = splitClassName(props);
     return (
       <span
         ref={ref}
@@ -242,7 +260,7 @@ export const PanelText = React.forwardRef<HTMLSpanElement, PanelTextProps>(
           mono && "font-mono",
           className,
         )}
-        {...props}
+        {...restProps}
       />
     );
   },
@@ -257,40 +275,50 @@ type PanelParagraphProps = ParagraphProps & {
 };
 
 export const PanelParagraph = React.forwardRef<HTMLParagraphElement, PanelParagraphProps>(
-  ({ className, tone = "default", size = "sm", ...props }, ref) => {
-    return <p ref={ref} className={cn(textToneClasses[tone], textSizeClasses[size], className)} {...props} />;
+  ({ tone = "default", size = "sm", ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
+    return (
+      <p
+        ref={ref}
+        className={cn("leading-relaxed", textToneClasses[tone], textSizeClasses[size], className)}
+        {...restProps}
+      />
+    );
   },
 );
 PanelParagraph.displayName = "PanelParagraph";
 
-type PanelHeadingProps = React.HTMLAttributes<HTMLHeadingElement> & {
+type PanelHeadingProps = WithoutClassName<React.HTMLAttributes<HTMLHeadingElement>> & {
   level?: 1 | 2 | 3 | 4;
 };
 
-export function PanelHeading({ level = 3, className, ...props }: PanelHeadingProps) {
-  const headingClassName = cn("font-semibold leading-tight", className);
+export function PanelHeading({ level = 3, ...props }: PanelHeadingProps) {
+  const { className, restProps } = splitClassName(props);
+  const headingClassName = "font-semibold leading-tight";
   if (level === 1) {
-    return <h1 className={cn("text-2xl", headingClassName)} {...props} />;
+    return <h1 className={cn("text-2xl", headingClassName, className)} {...restProps} />;
   }
   if (level === 2) {
-    return <h2 className={cn("text-xl", headingClassName)} {...props} />;
+    return <h2 className={cn("text-xl", headingClassName, className)} {...restProps} />;
   }
   if (level === 4) {
-    return <h4 className={cn("text-sm", headingClassName)} {...props} />;
+    return <h4 className={cn("text-sm", headingClassName, className)} {...restProps} />;
   }
-  return <h3 className={cn("text-lg", headingClassName)} {...props} />;
+  return <h3 className={cn("text-lg", headingClassName, className)} {...restProps} />;
 }
 
-export const PanelCode = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
-  ({ className, ...props }, ref) => {
-    return <code ref={ref} className={cn("font-mono text-xs", className)} {...props} />;
+export const PanelCode = React.forwardRef<HTMLElement, WithoutClassName<React.HTMLAttributes<HTMLElement>>>(
+  (props, ref) => {
+    const { className, restProps } = splitClassName(props);
+    return <code ref={ref} className={cn("font-mono text-xs", className)} {...restProps} />;
   },
 );
 PanelCode.displayName = "PanelCode";
 
-export const PanelPre = React.forwardRef<HTMLPreElement, React.HTMLAttributes<HTMLPreElement>>(
-  ({ className, ...props }, ref) => {
-    return <pre ref={ref} className={cn("font-sans text-sm", className)} {...props} />;
+export const PanelPre = React.forwardRef<HTMLPreElement, WithoutClassName<React.HTMLAttributes<HTMLPreElement>>>(
+  (props, ref) => {
+    const { className, restProps } = splitClassName(props);
+    return <pre ref={ref} className={cn("font-sans text-sm", className)} {...restProps} />;
   },
 );
 PanelPre.displayName = "PanelPre";
@@ -306,7 +334,8 @@ const textButtonToneClasses = {
 } as const;
 
 export const PanelTextButton = React.forwardRef<HTMLButtonElement, PanelTextButtonProps>(
-  ({ className, tone = "ghost", type = "button", ...props }, ref) => {
+  ({ tone = "ghost", type = "button", ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
     return (
       <button
         ref={ref}
@@ -316,7 +345,7 @@ export const PanelTextButton = React.forwardRef<HTMLButtonElement, PanelTextButt
           textButtonToneClasses[tone],
           className,
         )}
-        {...props}
+        {...restProps}
       />
     );
   },
@@ -324,8 +353,9 @@ export const PanelTextButton = React.forwardRef<HTMLButtonElement, PanelTextButt
 PanelTextButton.displayName = "PanelTextButton";
 
 export const PanelFigureImage = React.forwardRef<HTMLImageElement, ImageProps>(
-  ({ className, alt = "", ...props }, ref) => {
-    return <img ref={ref} className={cn(className)} alt={alt} {...props} />;
+  ({ alt = "", ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
+    return <img ref={ref} className={cn("rounded-sm object-contain", className)} alt={alt} {...restProps} />;
   },
 );
 PanelFigureImage.displayName = "PanelFigureImage";
@@ -354,7 +384,8 @@ const spacingPixels: Record<SpacingToken, number> = {
 };
 
 export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
-  ({ className, gap = "sm", virtualize, ...props }, ref) => {
+  ({ gap = "sm", virtualize, ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
     const scrollRef = React.useRef<HTMLDivElement | null>(null);
     const itemGapPx = spacingPixels[gap];
     const virtualCount = virtualize?.count ?? 0;
@@ -411,7 +442,7 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
     }, [targetScrollIndex, virtualize, virtualizer]);
 
     if (!virtualize) {
-      return <div ref={ref} className={cn(spacingClasses[gap], className)} {...props} />;
+      return <div ref={ref} className={cn("p-0.5", spacingClasses[gap], className)} {...restProps} />;
     }
 
     const virtualItems = virtualizer.getVirtualItems();
@@ -422,7 +453,7 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
 
     return (
       <div
-        {...props}
+        {...restProps}
         ref={(node) => {
           scrollRef.current = node;
           if (typeof ref === "function") {
@@ -433,7 +464,7 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
             ref.current = node;
           }
         }}
-        className={cn("relative", !hasExternalScrollElement && "overflow-y-auto", className)}
+        className={cn("relative p-0.5", !hasExternalScrollElement && "overflow-y-auto", className)}
       >
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {(virtualItems.length > 0 ? virtualItems : fallbackItems).map((virtualItem) => {
@@ -458,32 +489,43 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
 );
 PanelList.displayName = "PanelList";
 
-type PanelListItemProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+type PanelListItemProps = WithoutClassName<React.ButtonHTMLAttributes<HTMLButtonElement>> & {
+  active?: boolean;
+};
 
 export const panelListItemVariants = {
-  active: "border-primary/70 bg-primary/10",
-  idle: "border-border/55 hover:border-primary/45 hover:bg-accent/40",
+  active: "bg-primary/10",
+  idle: "border-transparent hover:bg-accent/50",
 };
 
 export const PanelListItem = React.forwardRef<HTMLButtonElement, PanelListItemProps>(
-  ({ className, type = "button", ...props }, ref) => {
+  ({ type = "button", active = false, ...props }, ref) => {
+    const { className, restProps } = splitClassName(props);
     return (
       <button
         ref={ref}
         type={type}
+        data-active={active ? "true" : undefined}
         className={cn(
-          "w-full min-w-0 rounded-lg border px-3 py-2 text-left transition outline-none focus-visible:outline-none focus-visible:ring-0",
-          panelListItemVariants.idle,
+          "w-full min-w-0 rounded-lg border px-3 py-2 text-left transition outline-none focus-visible:outline-none focus-visible:ring-0 flex items-center gap-3 cursor-pointer focus-visible:bg-primary/10",
+          active ? panelListItemVariants.active : panelListItemVariants.idle,
           className,
         )}
-        {...props}
+        {...restProps}
       />
     );
   },
 );
 PanelListItem.displayName = "PanelListItem";
 
-export const PanelMetaGrid = React.forwardRef<HTMLDivElement, DivProps>(({ className, ...props }, ref) => {
-  return <div ref={ref} className={cn("grid grid-cols-[auto_1fr] items-center gap-4", className)} {...props} />;
+export const PanelMetaGrid = React.forwardRef<HTMLDivElement, DivProps>((props, ref) => {
+  const { className, restProps } = splitClassName(props);
+  return (
+    <div
+      ref={ref}
+      className={cn("grid grid-cols-[auto_1fr] items-center gap-4 min-w-0", className)}
+      {...restProps}
+    />
+  );
 });
 PanelMetaGrid.displayName = "PanelMetaGrid";

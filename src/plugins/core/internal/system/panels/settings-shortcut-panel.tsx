@@ -7,10 +7,10 @@ type SettingsShortcutPanelProps = {
 
 export function SettingsShortcutPanel(_props: SettingsShortcutPanelProps) {
   return (
-    <PanelContainer className="h-full overflow-hidden">
-      <PanelScrollArea className="h-full">
-        <PanelContainer className="p-2">
-          <SettingsPanel className="max-w-none" />
+    <PanelContainer style={{ height: "100%", overflow: "hidden" }}>
+      <PanelScrollArea style={{ height: "100%" }}>
+        <PanelContainer padding="sm">
+          <SettingsPanel />
         </PanelContainer>
       </PanelScrollArea>
     </PanelContainer>

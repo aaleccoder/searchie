@@ -76,16 +76,24 @@ function createFileSearchPanel(): ShortcutPanelDescriptor {
     },
     shortcuts: [
       { keys: "ArrowUp/ArrowDown", description: "Move result selection" },
-      { keys: "ArrowRight", description: "Focus action buttons" },
+      { keys: "ArrowRight/ArrowLeft", description: "Toggle actions mode" },
       { keys: "Enter", description: "Open file" },
       { keys: "Shift+Enter", description: "Reveal file in explorer" },
     ],
     matcher: createPrefixAliasMatcher(aliases),
     onInputKeyDown: onFileSearchInputKeyDown,
-    component: ({ commandQuery, registerInputArrowDownHandler, focusLauncherInput }) => (
+    component: ({
+      commandQuery,
+      registerInputArrowDownHandler,
+      registerInputEnterHandler,
+      registerPanelFooter,
+      focusLauncherInput,
+    }) => (
       <FileSearchUtilityPanel
         commandQuery={commandQuery}
         registerInputArrowDownHandler={registerInputArrowDownHandler}
+        registerInputEnterHandler={registerInputEnterHandler}
+        registerPanelFooter={registerPanelFooter}
         focusLauncherInput={focusLauncherInput}
       />
     ),

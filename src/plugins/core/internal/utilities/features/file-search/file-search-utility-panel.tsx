@@ -1,13 +1,14 @@
 import * as React from "react";
 import { FolderSearch, Loader2, FolderOpen, FileSearch, ExternalLink } from "lucide-react";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import {
-  Button as PanelButton,
   Empty as PanelEmpty,
   EmptyDescription as PanelEmptyDescription,
   EmptyHeader as PanelEmptyHeader,
   EmptyMedia as PanelEmptyMedia,
   EmptyTitle as PanelEmptyTitle,
   Grid as PanelGrid,
+  List as PanelList,
   MetaGrid as PanelMetaGrid,
   ListItem as PanelListItem,
   ScrollArea as PanelScrollArea,
@@ -16,8 +17,6 @@ import {
   PanelContainer,
   PanelFigureImage,
   PanelFlex,
-  PanelHeading,
-  PanelParagraph,
   PanelSection,
   PanelText,
   Tooltip as PanelTooltip,
@@ -26,15 +25,20 @@ import {
   TooltipTrigger as PanelTooltipTrigger,
   createPluginBackendSdk,
   usePanelArrowDownBridge,
+  usePanelEnterBridge,
+  usePanelFooter,
+  usePanelFooterControlsRef,
 } from "@/plugins/sdk";
+import type { PanelFooterConfig } from "@/lib/panel-contract";
 import type { PanelCommandScope } from "@/lib/tauri-commands";
 import { buildSearchRequest, rankFileSearchResults } from "@/lib/utilities/file-search-engine";
-import { cn } from "@/lib/utils";
 import { registerFileSearchInputController } from "./file-search-keybindings";
 
 type FileSearchUtilityPanelProps = {
   commandQuery: string;
   registerInputArrowDownHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerInputEnterHandler?: ((handler: (() => boolean | void) | null) => void) | undefined;
+  registerPanelFooter?: ((footer: PanelFooterConfig | null) => void) | undefined;
   focusLauncherInput?: (() => void) | undefined;
 };
 
@@ -93,28 +97,33 @@ function splitPath(path: string): { fileName: string; parent: string } {
 export function FileSearchUtilityPanel({
   commandQuery,
   registerInputArrowDownHandler,
+  registerInputEnterHandler,
+  registerPanelFooter,
   focusLauncherInput,
 }: FileSearchUtilityPanelProps) {
   const backend = React.useMemo(() => createPluginBackendSdk(fileSearchCommandScope), []);
   const [results, setResults] = React.useState<FileSearchResult[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
-  const [focusArea, setFocusArea] = React.useState<"list" | "actions">("list");
+  const [navigationMode, setNavigationMode] = React.useState<"list" | "actions">("list");
   const [selectedActionIndex, setSelectedActionIndex] = React.useState(0);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [previewFailed, setPreviewFailed] = React.useState(false);
 
   const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const { controlsRef: footerControlsRef, registerFooterControls } = usePanelFooterControlsRef();
 
   const debouncedQuery = useDebouncedValue(commandQuery, SEARCH_DEBOUNCE_MS);
 
   const onArrowDownFromLauncher = React.useCallback(() => {
-    if (!listContainerRef.current || results.length === 0) {
+    if (results.length === 0) {
       return false;
     }
 
-    listContainerRef.current.focus();
+    setNavigationMode("list");
+    setSelectedIndex(0);
+    itemRefs.current[0]?.focus({ preventScroll: true });
     return true;
   }, [results.length]);
 
@@ -214,13 +223,6 @@ export function FileSearchUtilityPanel({
   }, [backend.files]);
 
   const selectedResult = results[selectedIndex] ?? null;
-  const actions = React.useMemo(
-    () => [
-      { id: "open", label: "Open File", reveal: false },
-      { id: "reveal", label: "Reveal In Explorer", reveal: true },
-    ],
-    [],
-  );
   const selectedExtension = (selectedResult?.extension ?? "").toLowerCase();
   const isImagePreview = selectedResult ? IMAGE_EXTENSIONS.has(selectedExtension) : false;
   const imagePreviewSrc =
@@ -234,10 +236,93 @@ export function FileSearchUtilityPanel({
 
   React.useEffect(() => {
     if (!selectedResult) {
-      setFocusArea("list");
+      setNavigationMode("list");
       setSelectedActionIndex(0);
     }
   }, [selectedResult]);
+
+  const appActions = React.useMemo(
+    () => [
+      { id: "open", label: "Open File", reveal: false, icon: ExternalLink, shortcutHint: "Enter" },
+      { id: "reveal", label: "Reveal In Explorer", reveal: true, icon: FolderOpen, shortcutHint: "Shift+Enter" },
+    ],
+    [],
+  );
+
+  const runSelectedAction = React.useCallback(
+    (revealOverride?: boolean) => {
+      const selected = results[selectedIndex];
+      if (!selected) {
+        return false;
+      }
+
+      if (typeof revealOverride === "boolean") {
+        void openResult(selected, revealOverride);
+        return true;
+      }
+
+      if (navigationMode === "actions") {
+        const action = appActions[selectedActionIndex] ?? appActions[0];
+        void openResult(selected, action.reveal);
+        return true;
+      }
+
+      void openResult(selected, false);
+      return true;
+    },
+    [appActions, navigationMode, openResult, results, selectedActionIndex, selectedIndex],
+  );
+
+  const footerConfig = React.useMemo<PanelFooterConfig | null>(() => {
+    if (!selectedResult) {
+      return null;
+    }
+
+    return {
+      panel: {
+        title: "File Search",
+        icon: FolderSearch,
+      },
+      registerControls: registerFooterControls,
+      primaryAction: {
+        id: "open-file",
+        label: "Open File",
+        icon: ExternalLink,
+        onSelect: () => {
+          void openResult(selectedResult, false);
+        },
+        shortcutHint: "Enter",
+      },
+      extraActions: [
+        {
+          id: "reveal-file",
+          label: "Reveal In Explorer",
+          icon: FolderOpen,
+          onSelect: () => {
+            void openResult(selectedResult, true);
+          },
+          shortcutHint: "Shift+Enter",
+        },
+      ],
+    };
+  }, [openResult, registerFooterControls, selectedResult]);
+
+  usePanelFooter(registerPanelFooter, footerConfig);
+
+  const focusListItem = React.useCallback(
+    (index: number, preventScroll = false) => {
+      const target = itemRefs.current[index];
+      if (!target) {
+        return;
+      }
+      if (preventScroll) {
+        target.focus({ preventScroll: true });
+        return;
+      }
+      target.focus();
+    },
+    [],
+  );
 
   React.useEffect(() => {
     registerFileSearchInputController({
@@ -246,8 +331,16 @@ export function FileSearchUtilityPanel({
           return false;
         }
 
-        setFocusArea("list");
-        setSelectedIndex((prev) => Math.max(0, Math.min(results.length - 1, prev + delta)));
+        setNavigationMode("list");
+        setSelectedIndex((prev) => {
+          const next = Math.max(0, Math.min(results.length - 1, prev + delta));
+          if (delta < 0 && prev === 0) {
+            focusLauncherInput?.();
+            return 0;
+          }
+          focusListItem(next, true);
+          return next;
+        });
         return true;
       },
       focusActions: () => {
@@ -255,7 +348,16 @@ export function FileSearchUtilityPanel({
           return false;
         }
 
-        setFocusArea("actions");
+        setNavigationMode("actions");
+        return true;
+      },
+      focusList: () => {
+        if (navigationMode === "actions") {
+          setNavigationMode("list");
+          focusListItem(selectedIndex, true);
+          return true;
+        }
+        focusLauncherInput?.();
         return true;
       },
       moveActionSelection: (delta) => {
@@ -263,326 +365,337 @@ export function FileSearchUtilityPanel({
           return false;
         }
 
-        setFocusArea("actions");
-        setSelectedActionIndex((prev) => Math.max(0, Math.min(actions.length - 1, prev + delta)));
+        setNavigationMode("actions");
+        setSelectedActionIndex((prev) => Math.max(0, Math.min(appActions.length - 1, prev + delta)));
         return true;
       },
       activateSelection: (revealFromKey) => {
-        const selected = results[selectedIndex];
-        if (!selected) {
-          return false;
-        }
-
-        if (focusArea === "actions") {
-          const action = actions[selectedActionIndex] ?? actions[0];
-          void openResult(selected, action.reveal);
-          return true;
-        }
-
-        void openResult(selected, revealFromKey);
-        return true;
+        return runSelectedAction(revealFromKey);
       },
-      inActions: () => focusArea === "actions",
+      inActions: () => navigationMode === "actions",
     });
 
     return () => {
       registerFileSearchInputController(null);
     };
-  }, [actions, focusArea, openResult, results, selectedActionIndex, selectedIndex, selectedResult]);
+  }, [appActions.length, focusLauncherInput, focusListItem, navigationMode, results, runSelectedAction, selectedIndex, selectedResult]);
 
-  const onListKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
+  usePanelEnterBridge(registerInputEnterHandler, () => runSelectedAction(false));
+
+  useHotkey(
+    "ArrowDown",
+    () => {
       if (results.length === 0) {
         return;
       }
 
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        if (focusArea === "actions") {
-          setSelectedActionIndex((prev) => Math.min(prev + 1, actions.length - 1));
-          return;
-        }
-        setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
+      if (navigationMode === "actions") {
+        setSelectedActionIndex((prev) => Math.min(prev + 1, appActions.length - 1));
         return;
       }
 
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        if (focusArea === "actions") {
-          setSelectedActionIndex((prev) => Math.max(0, prev - 1));
-          return;
-        }
-        if (selectedIndex === 0) {
-          focusLauncherInput?.();
-          return;
-        }
-        setSelectedIndex((prev) => Math.max(0, prev - 1));
-        return;
-      }
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const selected = results[selectedIndex];
-        if (selected) {
-          if (focusArea === "actions") {
-            const action = actions[selectedActionIndex] ?? actions[0];
-            void openResult(selected, action.reveal);
-            return;
-          }
-          void openResult(selected, event.shiftKey);
-        }
-        return;
-      }
-
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setFocusArea("actions");
-        return;
-      }
-
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        if (focusArea === "actions") {
-          setFocusArea("list");
-          return;
-        }
-        focusLauncherInput?.();
-      }
+      setNavigationMode("list");
+      setSelectedIndex((prev) => {
+        const next = Math.min(prev + 1, results.length - 1);
+        focusListItem(next);
+        return next;
+      });
     },
-    [actions, focusArea, focusLauncherInput, openResult, results, selectedActionIndex, selectedIndex],
+    { enabled: results.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "ArrowUp",
+    () => {
+      if (results.length === 0) {
+        return;
+      }
+
+      if (navigationMode === "actions") {
+        setSelectedActionIndex((prev) => {
+          const next = prev - 1;
+          if (next >= 0) {
+            return next;
+          }
+          setNavigationMode("list");
+          focusListItem(selectedIndex);
+          return 0;
+        });
+        return;
+      }
+
+      if (selectedIndex === 0) {
+        focusLauncherInput?.();
+        return;
+      }
+
+      setSelectedIndex((prev) => {
+        const next = Math.max(0, prev - 1);
+        focusListItem(next);
+        return next;
+      });
+    },
+    { enabled: results.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "ArrowRight",
+    () => {
+      if (!selectedResult) {
+        return;
+      }
+      setNavigationMode("actions");
+      setSelectedActionIndex((prev) => Math.min(prev, appActions.length - 1));
+    },
+    { enabled: !!selectedResult, preventDefault: true },
+  );
+
+  useHotkey(
+    "ArrowLeft",
+    () => {
+      if (navigationMode === "actions") {
+        setNavigationMode("list");
+        focusListItem(selectedIndex);
+        return;
+      }
+      focusLauncherInput?.();
+    },
+    { enabled: results.length > 0, preventDefault: true },
+  );
+
+  useHotkey(
+    "Enter",
+    () => {
+      void runSelectedAction(false);
+    },
+    { enabled: !!selectedResult, preventDefault: true },
+  );
+
+  useHotkey(
+    "Shift+Enter",
+    () => {
+      void runSelectedAction(true);
+    },
+    { enabled: !!selectedResult, preventDefault: true },
+  );
+
+  useHotkey(
+    "Alt+K",
+    () => {
+      footerControlsRef.current?.openExtraActions();
+    },
+    { enabled: !!selectedResult, preventDefault: true },
   );
 
   return (
     <PanelTooltipProvider>
-      <PanelGrid columns="single" className="h-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5">
-      <PanelSection className="min-w-0 h-full overflow-hidden">
-        <PanelScrollArea className="h-[calc(100%-3.25rem)]">
-          <PanelContainer
-            ref={listContainerRef}
-            tabIndex={0}
-            onKeyDown={onListKeyDown}
-            className="p-3.5 space-y-2 outline-none"
-          >
-            {results.map((entry, index) => {
-              const active = index === selectedIndex;
-              const pathInfo = splitPath(entry.path);
+      <PanelGrid columns="two-pane" gap="sm" style={{ height: "100%" }}>
+        <PanelSection style={{ height: "100%", overflow: "hidden" }}>
+          <PanelScrollArea style={{ height: "calc(100% - 3.25rem)" }}>
+            <PanelContainer ref={listContainerRef} tabIndex={0} padding="md" style={{ outline: "none" }}>
+              <PanelList gap="sm">
+                {results.map((entry, index) => {
+                  const active = index === selectedIndex;
+                  const pathInfo = splitPath(entry.path);
 
-              return (
-                <PanelListItem
-                  key={entry.path}
-                  ref={(el) => {
-                    itemRefs.current[index] = el;
-                  }}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  onClick={() => {
-                    setFocusArea("list");
-                    setSelectedIndex(index);
-                    void openResult(entry, false);
-                  }}
-                  title={entry.path}
-                  className={cn(
-                    active
-                      ? "border-primary/70 bg-primary/10"
-                      : "border-border/55 hover:border-primary/45 hover:bg-accent/40",
-                  )}
-                >
-                  <PanelText className="block min-w-0" size="sm" weight="medium" truncate>
-                    {pathInfo.fileName}
-                  </PanelText>
-                </PanelListItem>
-              );
-            })}
+                  return (
+                    <PanelListItem
+                      key={entry.path}
+                      active={active}
+                      ref={(el) => {
+                        itemRefs.current[index] = el;
+                      }}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      onClick={() => {
+                        setNavigationMode("list");
+                        setSelectedIndex(index);
+                        void openResult(entry, false);
+                      }}
+                      title={entry.path}
+                    >
+                      <PanelText size="sm" weight="medium" truncate>
+                        {pathInfo.fileName}
+                      </PanelText>
+                    </PanelListItem>
+                  );
+                })}
+              </PanelList>
 
-            {!busy && !errorMessage && results.length === 0 && commandQuery.trim().length > 0 && (
-              <PanelEmpty className="border-border/60">
-                <PanelEmptyHeader>
-                  <PanelEmptyMedia variant="icon">
-                    <FileSearch className="size-5" />
-                  </PanelEmptyMedia>
-                  <PanelEmptyTitle>No matching files</PanelEmptyTitle>
-                  <PanelEmptyDescription>
-                    Try fewer words or include a root path using <PanelCode>in C:\\path</PanelCode>.
-                  </PanelEmptyDescription>
-                </PanelEmptyHeader>
-              </PanelEmpty>
-            )}
+              {!busy && !errorMessage && results.length === 0 && commandQuery.trim().length > 0 && (
+                <PanelContainer surface="muted" padding="md">
+                  <PanelEmpty>
+                  <PanelEmptyHeader>
+                    <PanelEmptyMedia variant="icon">
+                      <FileSearch size={20} />
+                    </PanelEmptyMedia>
+                    <PanelEmptyTitle>No matching files</PanelEmptyTitle>
+                    <PanelEmptyDescription>
+                      Try fewer words or include a root path using <PanelCode>in C:\\path</PanelCode>.
+                    </PanelEmptyDescription>
+                  </PanelEmptyHeader>
+                  </PanelEmpty>
+                </PanelContainer>
+              )}
 
-            {!busy && !errorMessage && results.length === 0 && commandQuery.trim().length === 0 && (
-              <PanelEmpty className="border-border/60">
-                <PanelEmptyHeader>
-                  <PanelEmptyMedia variant="icon">
-                    <FolderSearch className="size-5" />
-                  </PanelEmptyMedia>
-                  <PanelEmptyTitle>Start typing a file query</PanelEmptyTitle>
-                  <PanelEmptyDescription>
-                    Example: <PanelCode>files invoice in C:\\Users\\ardev\\Documents</PanelCode>
-                  </PanelEmptyDescription>
-                </PanelEmptyHeader>
-              </PanelEmpty>
-            )}
+              {!busy && !errorMessage && results.length === 0 && commandQuery.trim().length === 0 && (
+                <PanelContainer surface="muted" padding="md">
+                  <PanelEmpty>
+                  <PanelEmptyHeader>
+                    <PanelEmptyMedia variant="icon">
+                      <FolderSearch size={20} />
+                    </PanelEmptyMedia>
+                    <PanelEmptyTitle>Start typing a file query</PanelEmptyTitle>
+                    <PanelEmptyDescription>
+                      Example: <PanelCode>files invoice in C:\\Users\\ardev\\Documents</PanelCode>
+                    </PanelEmptyDescription>
+                  </PanelEmptyHeader>
+                  </PanelEmpty>
+                </PanelContainer>
+              )}
 
-            {busy && (
-              <PanelContainer className="grid h-24 place-items-center text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-              </PanelContainer>
-            )}
-          </PanelContainer>
-        </PanelScrollArea>
-      </PanelSection>
-
-      <PanelAside className="min-w-0 w-full overflow-hidden">
-        <PanelContainer surface="panel" className="h-full min-w-0 w-full p-3.5 overflow-hidden">
-          <PanelFlex direction="col" gap="md" className="h-full">
-            <PanelContainer className="space-y-2">
-              <PanelText className="uppercase tracking-wider" size="xs" tone="muted">
-                File Search
-              </PanelText>
-              <PanelHeading level={2}>Local Index</PanelHeading>
-              <PanelParagraph className="leading-relaxed" tone="muted" size="sm">
-                Fast fuzzy lookup over a cached file index. Scope search with <PanelCode>in C:\\dir</PanelCode>.
-              </PanelParagraph>
+              {busy && (
+                <PanelContainer style={{ display: "grid", height: "6rem", placeItems: "center" }}>
+                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                </PanelContainer>
+              )}
             </PanelContainer>
+          </PanelScrollArea>
+        </PanelSection>
 
-            <PanelContainer className="space-y-2">
-              <PanelMetaGrid className="text-sm">
-                <PanelText tone="muted">Results</PanelText>
-                <PanelText className="text-right">{results.length}</PanelText>
-                <PanelText tone="muted">Indexed At</PanelText>
-                <PanelText className="text-right">
-                  {selectedResult ? formatIndexedAt(selectedResult.indexedAt) : "-"}
-                </PanelText>
-              </PanelMetaGrid>
-            </PanelContainer>
-
-            {selectedResult && (
-              <PanelContainer className="space-y-2">
-                <PanelText className="uppercase tracking-wider" size="xs" tone="muted">
-                  Properties
-                </PanelText>
-                <PanelMetaGrid className="text-sm">
-                  <PanelText tone="muted">File</PanelText>
-                  <PanelTooltip>
-                    <PanelTooltipTrigger>
-                      <PanelText className="cursor-default truncate text-right" title={selectedResult.name}>
-                        {selectedResult.name}
-                      </PanelText>
-                    </PanelTooltipTrigger>
-                    <PanelTooltipContent side="left" align="end">
-                      <PanelText size="xs">{selectedResult.name}</PanelText>
-                    </PanelTooltipContent>
-                  </PanelTooltip>
-                  <PanelText tone="muted">Path</PanelText>
-                  <PanelTooltip>
-                    <PanelTooltipTrigger>
-                      <PanelText className="cursor-default truncate text-right" title={selectedResult.path}>
-                        {selectedResult.path}
-                      </PanelText>
-                    </PanelTooltipTrigger>
-                    <PanelTooltipContent side="left" align="end" className="max-w-md">
-                      <PanelText size="xs" className="break-all">
-                        {selectedResult.path}
-                      </PanelText>
-                    </PanelTooltipContent>
-                  </PanelTooltip>
-                </PanelMetaGrid>
-              </PanelContainer>
-            )}
-
-            {selectedResult && (
-              <PanelContainer className="space-y-2">
-                <PanelText className="uppercase tracking-wider" size="xs" tone="muted">
-                  Preview
-                </PanelText>
-                {imagePreviewSrc ? (
-                  <PanelContainer className="rounded-md border border-border/60 bg-muted/20 p-2">
-                    <PanelFigureImage
-                      src={imagePreviewSrc}
-                      alt={selectedResult.name}
-                      className="h-36 w-full rounded object-contain"
-                      loading="lazy"
-                      onError={() => setPreviewFailed(true)}
-                    />
-                  </PanelContainer>
-                ) : (
-                  <PanelContainer className="rounded-md border border-border/60 bg-muted/20 p-3">
-                    <PanelText size="xs" tone="muted">
-                      {isImagePreview
-                        ? "Image preview unavailable for this file."
-                        : "Preview is available for image files (png, jpg, webp, svg...)."}
+        <PanelAside style={{ width: "100%", overflow: "hidden" }}>
+          <PanelContainer style={{ height: "100%", width: "100%", overflow: "hidden" }}>
+            <PanelScrollArea style={{ height: "100%" }}>
+              <PanelContainer padding="md">
+                {selectedResult && (
+                  <PanelFlex direction="col" gap="sm">
+                    <PanelText size="xs" tone="muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      Preview
                     </PanelText>
-                  </PanelContainer>
+                    {imagePreviewSrc ? (
+                      <PanelContainer surface="muted" padding="sm">
+                        <PanelFigureImage
+                          src={imagePreviewSrc}
+                          alt={selectedResult.name}
+                          loading="lazy"
+                          onError={() => setPreviewFailed(true)}
+                          style={{ width: "100%", height: "9rem" }}
+                        />
+                      </PanelContainer>
+                    ) : (
+                      <PanelContainer surface="muted" padding="md">
+                        <PanelText size="xs" tone="muted">
+                          {isImagePreview
+                            ? "Image preview unavailable for this file."
+                            : "Preview is available for image files (png, jpg, webp, svg...)."}
+                        </PanelText>
+                      </PanelContainer>
+                    )}
+                  </PanelFlex>
                 )}
-              </PanelContainer>
-            )}
 
-            {selectedResult && (
-              <PanelContainer className="space-y-2">
-                <PanelButton
-                  type="button"
-                  variant={focusArea === "actions" && selectedActionIndex === 0 ? "default" : "secondary"}
-                  className={cn("w-full", focusArea === "actions" && selectedActionIndex === 0 && "ring-2 ring-primary/40")}
-                  onMouseEnter={() => {
-                    setFocusArea("actions");
-                    setSelectedActionIndex(0);
-                  }}
-                  onClick={() => void openResult(selectedResult, false)}
-                >
-                  <ExternalLink className="size-4" />
-                  Open File
-                </PanelButton>
-                <PanelButton
-                  type="button"
-                  variant={focusArea === "actions" && selectedActionIndex === 1 ? "default" : "outline"}
-                  className={cn("w-full", focusArea === "actions" && selectedActionIndex === 1 && "ring-2 ring-primary/40")}
-                  onMouseEnter={() => {
-                    setFocusArea("actions");
-                    setSelectedActionIndex(1);
-                  }}
-                  onClick={() => void openResult(selectedResult, true)}
-                >
-                  <FolderOpen className="size-4" />
-                  Reveal In Explorer
-                </PanelButton>
-              </PanelContainer>
-            )}
+                <PanelFlex direction="col" gap="md" style={{ marginTop: "0.875rem", height: "100%" }}>
+                  <PanelContainer>
+                    <PanelMetaGrid>
+                      <PanelText tone="muted">Results</PanelText>
+                      <PanelText style={{ textAlign: "right" }}>{results.length}</PanelText>
+                      <PanelText tone="muted">Indexed At</PanelText>
+                      <PanelText style={{ textAlign: "right" }}>
+                        {selectedResult ? formatIndexedAt(selectedResult.indexedAt) : "-"}
+                      </PanelText>
+                    </PanelMetaGrid>
+                  </PanelContainer>
 
-            {errorMessage && (
-              <PanelContainer className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
-                <PanelText size="xs" className="text-destructive">
-                  {errorMessage}
-                </PanelText>
-              </PanelContainer>
-            )}
+                  {selectedResult && (
+                    <PanelFlex direction="col" gap="sm">
+                      <PanelText size="xs" tone="muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Properties
+                      </PanelText>
+                      <PanelMetaGrid>
+                        <PanelText tone="muted">File</PanelText>
+                        <PanelTooltip>
+                          <PanelTooltipTrigger>
+                            <PanelText truncate style={{ textAlign: "right" }} title={selectedResult.name}>
+                              {selectedResult.name}
+                            </PanelText>
+                          </PanelTooltipTrigger>
+                          <PanelTooltipContent side="left" align="end">
+                            <PanelText size="xs">{selectedResult.name}</PanelText>
+                          </PanelTooltipContent>
+                        </PanelTooltip>
+                        <PanelText tone="muted">Path</PanelText>
+                        <PanelTooltip>
+                          <PanelTooltipTrigger>
+                            <PanelText truncate style={{ textAlign: "right" }} title={selectedResult.path}>
+                              {selectedResult.path}
+                            </PanelText>
+                          </PanelTooltipTrigger>
+                          <PanelTooltipContent side="left" align="end" style={{ maxWidth: "28rem" }}>
+                            <PanelText size="xs" style={{ overflowWrap: "anywhere" }}>
+                              {selectedResult.path}
+                            </PanelText>
+                          </PanelTooltipContent>
+                        </PanelTooltip>
+                      </PanelMetaGrid>
+                    </PanelFlex>
+                  )}
 
-            <PanelContainer className="mt-auto space-y-2">
-              <PanelFlex align="center" justify="between">
-                <PanelText size="xs" tone="muted">
-                  Enter
-                </PanelText>
-                <PanelText size="xs" tone="muted" mono>
-                  Open
-                </PanelText>
-              </PanelFlex>
-              <PanelFlex align="center" justify="between">
-                <PanelText size="xs" tone="muted">
-                  Shift+Enter
-                </PanelText>
-                <PanelText size="xs" tone="muted" mono>
-                  Reveal
-                </PanelText>
-              </PanelFlex>
-              <PanelFlex align="center" justify="between">
-                <PanelText size="xs" tone="muted">
-                  Arrows
-                </PanelText>
-                <PanelText size="xs" tone="muted" mono>
-                  Navigate
-                </PanelText>
-              </PanelFlex>
-            </PanelContainer>
-          </PanelFlex>
-        </PanelContainer>
-      </PanelAside>
+                  {errorMessage && (
+                    <PanelContainer
+                      padding="sm"
+                      radius="md"
+                      style={{
+                        border: "1px solid color-mix(in oklab, hsl(var(--destructive)) 30%, transparent)",
+                        backgroundColor: "color-mix(in oklab, hsl(var(--destructive)) 10%, transparent)",
+                      }}
+                    >
+                      <PanelText size="xs" style={{ color: "hsl(var(--destructive))" }}>
+                        {errorMessage}
+                      </PanelText>
+                    </PanelContainer>
+                  )}
+
+                  <PanelContainer style={{ marginTop: "auto" }}>
+                    <PanelFlex align="center" justify="between">
+                      <PanelText size="xs" tone="muted">
+                        Open
+                      </PanelText>
+                      <PanelText size="xs" tone="muted" mono>
+                        Enter
+                      </PanelText>
+                    </PanelFlex>
+                    <PanelContainer padding="xs" />
+                    <PanelFlex align="center" justify="between">
+                      <PanelText size="xs" tone="muted">
+                        Reveal
+                      </PanelText>
+                      <PanelText size="xs" tone="muted" mono>
+                        Shift+Enter
+                      </PanelText>
+                    </PanelFlex>
+                    <PanelContainer padding="xs" />
+                    <PanelFlex align="center" justify="between">
+                      <PanelText size="xs" tone="muted">
+                        List to Actions
+                      </PanelText>
+                      <PanelText size="xs" tone="muted" mono>
+                        Right Arrow
+                      </PanelText>
+                    </PanelFlex>
+                    <PanelContainer padding="xs" />
+                    <PanelFlex align="center" justify="between">
+                      <PanelText size="xs" tone="muted">
+                        Actions to List
+                      </PanelText>
+                      <PanelText size="xs" tone="muted" mono>
+                        Left Arrow
+                      </PanelText>
+                    </PanelFlex>
+                  </PanelContainer>
+                </PanelFlex>
+              </PanelContainer>
+            </PanelScrollArea>
+          </PanelContainer>
+        </PanelAside>
       </PanelGrid>
     </PanelTooltipProvider>
   );

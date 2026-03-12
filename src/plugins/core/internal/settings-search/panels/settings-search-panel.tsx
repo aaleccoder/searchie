@@ -2,14 +2,16 @@ import * as React from "react";
 import { Settings2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  PanelFlex,
+  PanelGrid,
   PanelContainer,
   PanelInline,
   PanelList,
   PanelListItem,
   PanelParagraph,
+  PanelText,
   PanelScrollArea,
 } from "@/components/framework/panel-primitives";
-import { cn } from "@/lib/utils";
 import { loadSettingsCatalog } from "../lib/settings-search-catalog";
 import {
   extractSettingsAliasQuery,
@@ -83,61 +85,111 @@ export function SettingsSearchPanel({ commandQuery }: SettingsSearchPanelProps) 
   }, []);
 
   return (
-    <PanelContainer className="grid h-full grid-cols-[1.45fr_1fr] gap-2.5 items-stretch">
-      <PanelContainer className="overflow-hidden h-full">
-        <PanelScrollArea className="h-full">
-          <PanelList className="p-0.5" gap="xs">
+    <PanelGrid columns="two-pane" gap="sm" style={{ height: "100%" }}>
+      <PanelContainer style={{ overflow: "hidden", height: "100%" }}>
+        <PanelScrollArea style={{ height: "100%" }}>
+          <PanelList gap="xs">
             {results.map((entry) => {
               const active = selected?.id === entry.id;
               return (
                 <PanelListItem
                   key={entry.id}
                   type="button"
+                  active={active}
                   onMouseEnter={() => setSelectedId(entry.id)}
                   onFocus={() => setSelectedId(entry.id)}
                   onClick={() => {
                     setSelectedId(entry.id);
                     void openEntry(entry);
                   }}
-                  className={cn(
-                    "flex items-center justify-between gap-3 cursor-pointer",
-                    active ? "bg-primary/10" : "border-transparent hover:bg-accent/50",
-                  )}
                 >
-                  <PanelContainer className="flex items-center gap-3 min-w-0">
-                    <PanelContainer className="rounded-sm bg-muted grid place-items-center size-6 shrink-0">
-                      <Settings2 className="size-3.5 text-muted-foreground" />
-                    </PanelContainer>
-                    <PanelContainer className="min-w-0">
-                      <PanelParagraph className="text-sm truncate">{entry.settingsPage}</PanelParagraph>
-                      <PanelParagraph className="text-[11px] text-muted-foreground truncate">
-                        {entry.uris[0]}
-                      </PanelParagraph>
-                    </PanelContainer>
-                  </PanelContainer>
-                  <PanelInline className="text-[11px] text-muted-foreground font-mono">Setting</PanelInline>
+                  <PanelFlex align="center" justify="between" gap="sm" style={{ width: "100%" }}>
+                    <PanelFlex align="center" gap="sm" style={{ minWidth: 0 }}>
+                      <PanelContainer
+                        radius="sm"
+                        style={{
+                          backgroundColor: "hsl(var(--muted))",
+                          display: "grid",
+                          placeItems: "center",
+                          width: "1.5rem",
+                          height: "1.5rem",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Settings2 size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
+                      </PanelContainer>
+                      <PanelContainer>
+                        <PanelParagraph size="sm" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {entry.settingsPage}
+                        </PanelParagraph>
+                        <PanelParagraph
+                          size="xs"
+                          tone="muted"
+                          style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                        >
+                          {entry.uris[0]}
+                        </PanelParagraph>
+                      </PanelContainer>
+                    </PanelFlex>
+                    <PanelInline size="xs" tone="muted" mono>
+                      Setting
+                    </PanelInline>
+                  </PanelFlex>
                 </PanelListItem>
               );
             })}
             {results.length === 0 ? (
-              <PanelContainer className="text-sm text-muted-foreground p-2.5">No settings found.</PanelContainer>
+              <PanelContainer padding="md">
+                <PanelText size="sm" tone="muted">
+                  No settings found.
+                </PanelText>
+              </PanelContainer>
             ) : null}
           </PanelList>
         </PanelScrollArea>
       </PanelContainer>
 
-      <PanelContainer className="h-full border border-border/70 rounded-lg p-3 space-y-2 overflow-hidden">
+      <PanelContainer
+        padding="md"
+        radius="lg"
+        style={{
+          height: "100%",
+          border: "1px solid color-mix(in oklab, hsl(var(--border)) 70%, transparent)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.5rem",
+        }}
+      >
         {selected ? (
           <>
-            <PanelParagraph className="text-xs uppercase tracking-wider text-muted-foreground">
+            <PanelParagraph
+              size="xs"
+              tone="muted"
+              style={{
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
               Selected Setting
             </PanelParagraph>
-            <PanelParagraph className="text-base font-semibold leading-tight">{selected.settingsPage}</PanelParagraph>
+            <PanelParagraph size="md" style={{ fontWeight: 600, lineHeight: 1.2 }}>
+              {selected.settingsPage}
+            </PanelParagraph>
             {selected.uris.map((uri) => (
               <button
                 key={uri}
                 type="button"
-                className="w-full text-left rounded-md border border-border/60 px-2.5 py-2 text-xs hover:bg-accent/50"
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  borderRadius: "0.375rem",
+                  border: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+                  padding: "0.5rem 0.625rem",
+                  fontSize: "0.75rem",
+                  background: "transparent",
+                  cursor: "pointer",
+                }}
                 onClick={() => {
                   void openUrl(uri);
                 }}
@@ -147,11 +199,13 @@ export function SettingsSearchPanel({ commandQuery }: SettingsSearchPanelProps) 
             ))}
           </>
         ) : (
-          <PanelContainer className="h-full grid place-items-center text-sm text-muted-foreground">
-            Select a setting to view URIs.
+          <PanelContainer style={{ height: "100%", display: "grid", placeItems: "center" }}>
+            <PanelText size="sm" tone="muted">
+              Select a setting to view URIs.
+            </PanelText>
           </PanelContainer>
         )}
       </PanelContainer>
-    </PanelContainer>
+    </PanelGrid>
   );
 }

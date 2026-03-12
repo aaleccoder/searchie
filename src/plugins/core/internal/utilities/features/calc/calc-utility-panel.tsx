@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   Badge as PanelBadge,
+  PanelFlex,
   Input as PanelInput,
   PanelContainer,
   PanelHeading,
@@ -36,11 +37,20 @@ export function CalcUtilityPanel({ commandQuery }: CalcUtilityPanelProps) {
   }, [expression]);
 
   return (
-    <PanelContainer className="h-full rounded-xl p-4 flex flex-col gap-4">
-      <PanelContainer className="flex items-center justify-between">
+    <PanelContainer
+      padding="lg"
+      radius="lg"
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1rem",
+      }}
+    >
+      <PanelFlex align="center" justify="between">
         <PanelHeading>Calculator</PanelHeading>
         <PanelBadge variant="secondary">Utilities</PanelBadge>
-      </PanelContainer>
+      </PanelFlex>
 
       <PanelInput
         value={expression}
@@ -48,7 +58,14 @@ export function CalcUtilityPanel({ commandQuery }: CalcUtilityPanelProps) {
         placeholder="2 + 2 * 3"
       />
 
-      <PanelContainer className="rounded-lg border border-border/60 bg-background/60 p-3">
+      <PanelContainer
+        padding="md"
+        radius="lg"
+        style={{
+          border: "1px solid color-mix(in oklab, hsl(var(--border)) 60%, transparent)",
+          backgroundColor: "color-mix(in oklab, hsl(var(--background)) 60%, transparent)",
+        }}
+      >
         {evaluation.ok ? (
           <PanelParagraph>
             Result: <PanelText weight="semibold">{evaluation.value}</PanelText>

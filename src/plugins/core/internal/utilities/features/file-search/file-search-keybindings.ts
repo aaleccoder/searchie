@@ -3,6 +3,7 @@ import type { PanelInputKeyDownHandler } from "@/lib/panel-contract";
 type FileSearchInputController = {
   moveSelection: (delta: number) => boolean;
   focusActions: () => boolean;
+  focusList: () => boolean;
   moveActionSelection: (delta: number) => boolean;
   activateSelection: (reveal: boolean) => boolean;
   inActions: () => boolean;
@@ -39,6 +40,10 @@ export const onFileSearchInputKeyDown: PanelInputKeyDownHandler = (event) => {
 
   if (event.key === "ArrowRight") {
     return currentController.focusActions();
+  }
+
+  if (event.key === "ArrowLeft") {
+    return currentController.focusList();
   }
 
   return false;
