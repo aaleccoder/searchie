@@ -3,6 +3,7 @@ import { CommandRegistryContext, createCommandRegistry } from "@/lib/command-reg
 import { createPanelRegistry, PanelRegistryContext } from "@/lib/panel-registry";
 import { createPluginRegistry, type PluginRegistry } from "@/lib/plugin-registry";
 import { buildCorePlugins } from "@/plugins/core";
+import { loadRuntimePlugins } from "@/plugins/runtime";
 
 type PanelRegistryProviderProps = {
   children: React.ReactNode;
@@ -57,6 +58,41 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
       pluginRegistry,
     };
   });
+
+  const [, setRuntimeRevision] = React.useState(0);
+
+  React.useEffect(() => {
+    let disposed = false;
+
+    async function registerRuntimePlugins() {
+      const runtimePlugins = await loadRuntimePlugins();
+      if (disposed) {
+        return;
+      }
+
+      for (const plugin of runtimePlugins) {
+        try {
+          state.pluginRegistry.register(plugin);
+          for (const panel of plugin.panels) {
+            state.panelRegistry.register(panel);
+          }
+          for (const command of plugin.commands ?? []) {
+            state.commandRegistry.register(command);
+          }
+        } catch (error) {
+          console.warn("Failed to register runtime plugin", plugin.id, error);
+        }
+      }
+
+      setRuntimeRevision((value) => value + 1);
+    }
+
+    registerRuntimePlugins();
+
+    return () => {
+      disposed = true;
+    };
+  }, [state]);
 
   return (
     <PluginRegistryContext.Provider value={state.pluginRegistry}>

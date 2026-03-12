@@ -61,4 +61,5 @@ describe("PanelRegistryProvider", () => {
 
     expect(screen.getByText("yes")).toBeInTheDocument();
   });
+
 });

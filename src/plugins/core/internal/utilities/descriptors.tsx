@@ -4,7 +4,6 @@ import type { ShortcutPanelDescriptor } from "@/lib/panel-contract";
 import { createPrefixAliasMatcher } from "@/lib/panel-matchers";
 import {
   CALC_ALIASES,
-  COLOR_ALIASES,
   CONVERSION_ALIASES,
   FILE_SEARCH_ALIASES,
   GOOGLE_SEARCH_ALIASES,
@@ -12,7 +11,6 @@ import {
   flattenAliases,
 } from "@/plugins/core/internal/utilities/aliases";
 import { CalcUtilityPanel } from "./features/calc/calc-utility-panel";
-import { ColorUtilityPanel } from "./features/color/color-utility-panel";
 import { ConversionUtilityPanel } from "./features/conversion/conversion-utility-panel";
 import { onFileSearchInputKeyDown } from "./features/file-search/file-search-keybindings";
 import { FileSearchUtilityPanel } from "./features/file-search/file-search-utility-panel";
@@ -185,28 +183,6 @@ function createGoogleSearchPanel(): ShortcutPanelDescriptor {
   });
 }
 
-function createColorPanel(): ShortcutPanelDescriptor {
-  const aliases = flattenAliases(COLOR_ALIASES);
-  return definePluginPanel({
-    id: "utilities-color",
-    name: "Color Picker",
-    aliases,
-    capabilities: [],
-    priority: 21,
-    searchIntegration: {
-      activationMode: "immediate",
-      placeholder: "Search color values...",
-      exitOnEscape: true,
-    },
-    shortcuts: [
-      { keys: "Enter", description: "Apply conversion" },
-      { keys: "Escape", description: "Back to launcher commands" },
-    ],
-    matcher: createPrefixAliasMatcher(aliases),
-    component: ({ commandQuery }) => <ColorUtilityPanel commandQuery={commandQuery} />,
-  });
-}
-
 export function buildUtilityPanels(): ShortcutPanelDescriptor[] {
   return [
     createFileSearchPanel(),
@@ -214,6 +190,5 @@ export function buildUtilityPanels(): ShortcutPanelDescriptor[] {
     createConversionPanel(),
     createGlyphPickerPanel(),
     createGoogleSearchPanel(),
-    createColorPanel(),
   ];
 }
