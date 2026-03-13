@@ -1,0 +1,180 @@
+import { invoke } from "@tauri-apps/api/core";
+
+export type PanelCapability =
+  | "apps.list"
+  | "apps.search"
+  | "apps.launch"
+  | "apps.launchAdmin"
+  | "apps.uninstall"
+  | "apps.properties"
+  | "apps.location"
+  | "apps.icon"
+  | "clipboard.search"
+  | "clipboard.clear"
+  | "clipboard.pin"
+  | "clipboard.delete"
+  | "files.search"
+  | "files.open"
+  | "settings.read"
+  | "settings.write"
+  | "window.mode"
+  | "window.shell"
+  | "system.media"
+  | "system.volume"
+  | "system.brightness"
+  | "system.wifi"
+  | "system.bluetooth"
+  | "system.airplane"
+  | "system.power"
+  | "system.hotspot"
+  | "system.settings";
+
+export type PanelCommandScope = {
+  id: string;
+  capabilities: PanelCapability[];
+  pluginId?: string;
+};
+
+
+export type BackendCommand =
+  | "list_installed_apps"
+  | "search_installed_apps"
+  | "launch_installed_app"
+  | "launch_installed_app_new_instance"
+  | "launch_installed_app_as_admin"
+  | "uninstall_installed_app"
+  | "open_installed_app_properties"
+  | "open_installed_app_install_location"
+  | "get_app_icons"
+  | "get_app_icon"
+  | "search_clipboard_history"
+  | "clear_clipboard_history"
+  | "toggle_clipboard_pin"
+  | "delete_clipboard_entry"
+  | "search_files"
+  | "open_file_path"
+  | "set_main_window_mode"
+  | "show_settings"
+  | "shell_execute_w"
+  | "google_suggest"
+  | "update_shortcut"
+  | "media_play_pause"
+  | "media_next"
+  | "media_previous"
+  | "set_system_volume"
+  | "change_system_volume"
+  | "set_system_mute"
+  | "toggle_system_mute"
+  | "get_brightness"
+  | "set_brightness"
+  | "change_brightness"
+  | "set_wifi_enabled"
+  | "toggle_wifi"
+  | "set_bluetooth_enabled"
+  | "toggle_bluetooth"
+  | "set_airplane_mode"
+  | "toggle_airplane_mode"
+  | "set_hotspot_enabled"
+  | "toggle_hotspot"
+  | "set_power_profile"
+  | "open_system_settings_uri";
+
+const COMMAND_CAPABILITIES: Record<BackendCommand, PanelCapability> = {
+  list_installed_apps: "apps.list",
+  search_installed_apps: "apps.search",
+  launch_installed_app: "apps.launch",
+  launch_installed_app_new_instance: "apps.launch",
+  launch_installed_app_as_admin: "apps.launchAdmin",
+  uninstall_installed_app: "apps.uninstall",
+  open_installed_app_properties: "apps.properties",
+  open_installed_app_install_location: "apps.location",
+  get_app_icons: "apps.icon",
+  get_app_icon: "apps.icon",
+  search_clipboard_history: "clipboard.search",
+  clear_clipboard_history: "clipboard.clear",
+  toggle_clipboard_pin: "clipboard.pin",
+  delete_clipboard_entry: "clipboard.delete",
+  search_files: "files.search",
+  open_file_path: "files.open",
+  set_main_window_mode: "window.mode",
+  show_settings: "settings.read",
+  shell_execute_w: "window.shell",
+  google_suggest: "window.shell",
+  update_shortcut: "settings.write",
+  media_play_pause: "system.media",
+  media_next: "system.media",
+  media_previous: "system.media",
+  set_system_volume: "system.volume",
+  change_system_volume: "system.volume",
+  set_system_mute: "system.volume",
+  toggle_system_mute: "system.volume",
+  get_brightness: "system.brightness",
+  set_brightness: "system.brightness",
+  change_brightness: "system.brightness",
+  set_wifi_enabled: "system.wifi",
+  toggle_wifi: "system.wifi",
+  set_bluetooth_enabled: "system.bluetooth",
+  toggle_bluetooth: "system.bluetooth",
+  set_airplane_mode: "system.airplane",
+  toggle_airplane_mode: "system.airplane",
+  set_hotspot_enabled: "system.hotspot",
+  toggle_hotspot: "system.hotspot",
+  set_power_profile: "system.power",
+  open_system_settings_uri: "system.settings",
+};
+
+export class PanelCommandError extends Error {
+  readonly code: "CAPABILITY_DENIED" | "COMMAND_FAILED";
+  readonly panelId: string;
+  readonly pluginId?: string;
+  readonly command: BackendCommand;
+
+  constructor(
+    code: "CAPABILITY_DENIED" | "COMMAND_FAILED",
+    panelId: string,
+    pluginId: string | undefined,
+    command: BackendCommand,
+    message: string,
+  ) {
+    super(message);
+    this.name = "PanelCommandError";
+    this.code = code;
+    this.panelId = panelId;
+    this.pluginId = pluginId;
+    this.command = command;
+  }
+}
+
+function assertCapability(panel: PanelCommandScope, command: BackendCommand): void {
+  const requiredCapability = COMMAND_CAPABILITIES[command];
+  const allowed = panel.capabilities.includes(requiredCapability);
+  if (!allowed) {
+    throw new PanelCommandError(
+      "CAPABILITY_DENIED",
+      panel.id,
+      panel.pluginId,
+      command,
+      `Panel \"${panel.id}\" is not allowed to invoke \"${command}\".`,
+    );
+  }
+}
+
+export async function invokePanelCommand<T>(
+  panel: PanelCommandScope,
+  command: BackendCommand,
+  params: Record<string, unknown>,
+): Promise<T> {
+  assertCapability(panel, command);
+
+  try {
+    return await invoke<T>(command, params);
+  } catch (error) {
+    throw new PanelCommandError(
+      "COMMAND_FAILED",
+      panel.id,
+      panel.pluginId,
+      command,
+      `Command \"${command}\" failed for panel \"${panel.id}\": ${String(error)}`,
+    );
+  }
+}
