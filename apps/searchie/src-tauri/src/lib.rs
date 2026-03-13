@@ -5,6 +5,7 @@ pub mod db;
 pub mod features;
 pub mod file_search;
 pub mod icons;
+pub mod plugins;
 pub mod system_controls;
 
 use crate::apps::{
@@ -25,6 +26,7 @@ use crate::system_controls::{
     set_wifi_enabled, toggle_airplane_mode, toggle_bluetooth, toggle_hotspot, toggle_system_mute,
     toggle_wifi,
 };
+use crate::plugins::install_plugin_zip;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -392,7 +394,8 @@ pub fn run() {
             set_hotspot_enabled,
             toggle_hotspot,
             set_power_profile,
-            open_system_settings_uri
+            open_system_settings_uri,
+            install_plugin_zip
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   ensurePluginConfigDefaults,
@@ -112,8 +113,28 @@ type PluginSettingsState = {
   values: Record<string, PluginConfigValue>;
 };
 
+type RuntimePluginInstallResult = {
+  pluginId: string;
+  name: string;
+  title?: string | null;
+  installPath: string;
+  fileCount: number;
+};
+
 function pluginSettingId(pluginId: string, key: string): string {
   return `${pluginId}:${key}`;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
 }
 
 export function SettingsPanel({ className }: SettingsPanelProps) {
@@ -122,6 +143,10 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
   const { setTheme } = useTheme();
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const [pluginStates, setPluginStates] = useState<Record<string, PluginSettingsState>>({});
+  const [pluginArchive, setPluginArchive] = useState<File | null>(null);
+  const [installingPluginArchive, setInstallingPluginArchive] = useState(false);
+  const [pluginInstallError, setPluginInstallError] = useState<string | null>(null);
+  const [pluginInstallResult, setPluginInstallResult] = useState<RuntimePluginInstallResult | null>(null);
 
   const pluginSettings = useMemo(() => pluginRegistry.listPluginSettings(), [pluginRegistry]);
 
@@ -221,11 +246,97 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
     [],
   );
 
+  const handlePluginArchiveInstall = useCallback(async () => {
+    if (!pluginArchive) {
+      return;
+    }
+
+    setInstallingPluginArchive(true);
+    setPluginInstallError(null);
+    setPluginInstallResult(null);
+
+    try {
+      const buffer = await pluginArchive.arrayBuffer();
+      const payload = bytesToBase64(new Uint8Array(buffer));
+      const result = await invoke<RuntimePluginInstallResult>("install_plugin_zip", {
+        zipBase64: payload,
+      });
+
+      setPluginInstallResult(result);
+      setPluginArchive(null);
+    } catch (error) {
+      setPluginInstallError(String(error));
+    } finally {
+      setInstallingPluginArchive(false);
+    }
+  }, [pluginArchive]);
+
   return (
     <div className={cn("space-y-6", className)}>
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
         <p className="text-sm text-muted-foreground mt-1">Tune Searchie to your workflow.</p>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <div>
+          <Label className="text-base font-medium">Runtime Plugin Package</Label>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Install a plugin archive (.zip). Searchie extracts it into app data under <code>plugins</code>.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Input
+            type="file"
+            accept=".zip,application/zip"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setPluginArchive(file);
+              setPluginInstallError(null);
+            }}
+          />
+
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => {
+                void handlePluginArchiveInstall();
+              }}
+              disabled={!pluginArchive || installingPluginArchive}
+            >
+              {installingPluginArchive ? "Installing plugin..." : "Install Plugin Zip"}
+            </Button>
+            {pluginArchive ? (
+              <p className="text-xs text-muted-foreground">
+                {pluginArchive.name} ({Math.ceil(pluginArchive.size / 1024)} KB)
+              </p>
+            ) : null}
+          </div>
+
+          {pluginInstallError ? <p className="text-sm text-destructive">{pluginInstallError}</p> : null}
+
+          {pluginInstallResult ? (
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="text-base">Plugin Installed</CardTitle>
+                <CardDescription>{pluginInstallResult.title ?? pluginInstallResult.name}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p>
+                  <span className="font-medium">Plugin ID:</span> {pluginInstallResult.pluginId}
+                </p>
+                <p>
+                  <span className="font-medium">Extracted files:</span> {pluginInstallResult.fileCount}
+                </p>
+                <p className="break-all">
+                  <span className="font-medium">Install path:</span> {pluginInstallResult.installPath}
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
       </div>
 
       <Separator />
