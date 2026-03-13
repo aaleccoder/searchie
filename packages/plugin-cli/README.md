@@ -4,7 +4,7 @@ TypeScript-first CLI for Searchie runtime plugins.
 
 ## Commands
 
-- `searchie-plugin create <plugin-name> [--dir <output-dir>]`
+- `searchie-plugin create <plugin-name> [--dir <output-dir>] [--force]`
 - `searchie-plugin build [--plugin <path-to-plugin-dir>]`
 - `searchie-plugin pack [--plugin <path-to-plugin-dir>] [--out <zip-file>] [--skip-build]`
 
@@ -23,6 +23,11 @@ TypeScript-first CLI for Searchie runtime plugins.
 - file paths (`entry`, `runtimeEntry`, `icon`) must be relative (`./...`) and cannot contain `..`
 - `capabilities` must use supported Searchie capability strings
 - duplicate command ids are rejected
+
+## Authoring Notes
+
+- In runtime panel code, import runtime primitives from `sdk`.
+- The scaffold includes `src/runtime-shims.d.ts` so TypeScript can type-check those `sdk` imports via `@searchie/sdk`.
 
 ## Example Manifest
 

@@ -200,6 +200,20 @@ export const forwardRef = React.forwardRef;
 `;
 }
 
+function reactJsxRuntimeShimSource(): string {
+  return `const React = globalThis.__searchieRuntimeApi.React;
+export const Fragment = React.Fragment;
+export function jsx(type, props, key) {
+  if (typeof key !== "undefined") {
+    return React.createElement(type, { ...props, key });
+  }
+  return React.createElement(type, props);
+}
+export const jsxs = jsx;
+export const jsxDEV = jsx;
+`;
+}
+
 async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
   const manifest = await readManifest(context.manifestPath);
   const panelCommands = getPanelCommands(manifest);
@@ -236,6 +250,14 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
         setup(buildApi: PluginBuild) {
           buildApi.onResolve({ filter: /^sdk$/ }, () => ({ path: "sdk", namespace: "searchie-shim" }));
           buildApi.onResolve({ filter: /^react$/ }, () => ({ path: "react", namespace: "searchie-shim" }));
+          buildApi.onResolve({ filter: /^react\/jsx-runtime$/ }, () => ({
+            path: "react/jsx-runtime",
+            namespace: "searchie-shim",
+          }));
+          buildApi.onResolve({ filter: /^react\/jsx-dev-runtime$/ }, () => ({
+            path: "react/jsx-dev-runtime",
+            namespace: "searchie-shim",
+          }));
 
           buildApi.onLoad({ filter: /^sdk$/, namespace: "searchie-shim" }, () => ({
             contents: sdkShimSource(),
@@ -244,6 +266,16 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
 
           buildApi.onLoad({ filter: /^react$/, namespace: "searchie-shim" }, () => ({
             contents: reactShimSource(),
+            loader: "js",
+          }));
+
+          buildApi.onLoad({ filter: /^react\/jsx-runtime$/, namespace: "searchie-shim" }, () => ({
+            contents: reactJsxRuntimeShimSource(),
+            loader: "js",
+          }));
+
+          buildApi.onLoad({ filter: /^react\/jsx-dev-runtime$/, namespace: "searchie-shim" }, () => ({
+            contents: reactJsxRuntimeShimSource(),
             loader: "js",
           }));
         },
@@ -359,6 +391,18 @@ async function createPlugin(argv: string[]): Promise<void> {
 
   const outputRoot = path.resolve(getOptionValue(argv, ["--dir", "-d"]) ?? process.cwd());
   const pluginDir = path.join(outputRoot, slug);
+  const force = hasFlag(argv, "--force", "-f");
+  let exists = false;
+  try {
+    await fs.stat(pluginDir);
+    exists = true;
+  } catch {
+    exists = false;
+  }
+
+  if (exists && !force) {
+    throw new Error(`Directory already exists: ${pluginDir}. Use --force to overwrite.`);
+  }
 
   await fs.mkdir(path.join(pluginDir, "src"), { recursive: true });
   await fs.mkdir(path.join(pluginDir, "assets"), { recursive: true });
@@ -418,7 +462,7 @@ async function createPlugin(argv: string[]): Promise<void> {
   };
 
   const commandTemplate = `import React from "react";
-import { PanelContainer, PanelHeading, PanelParagraph } from "@searchie/sdk";
+import { PanelContainer, PanelHeading, PanelParagraph } from "sdk";
 
 export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
   return (
@@ -427,6 +471,11 @@ export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
       <PanelParagraph>Edit src/command.tsx to build your panel.</PanelParagraph>
     </PanelContainer>
   );
+}
+`;
+
+  const runtimeShimTypes = `declare module "sdk" {
+  export * from "@searchie/sdk";
 }
 `;
 
@@ -443,6 +492,7 @@ export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
   await fs.writeFile(path.join(pluginDir, "package.json"), `${JSON.stringify(pluginPackageJson, null, 2)}\n`, "utf8");
   await fs.writeFile(path.join(pluginDir, "tsconfig.json"), `${JSON.stringify(tsconfig, null, 2)}\n`, "utf8");
   await fs.writeFile(path.join(pluginDir, "src", "command.tsx"), commandTemplate, "utf8");
+  await fs.writeFile(path.join(pluginDir, "src", "runtime-shims.d.ts"), runtimeShimTypes, "utf8");
   await fs.writeFile(path.join(pluginDir, "README.md"), readme, "utf8");
 
   process.stdout.write(`Created plugin scaffold: ${pluginDir}\n`);
