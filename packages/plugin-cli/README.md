@@ -28,6 +28,7 @@ TypeScript-first CLI for Searchie runtime plugins.
 
 - In runtime panel code, import SDK APIs from `@searchie/sdk`.
 - `searchie-plugin build` remaps `@searchie/sdk` imports to the host runtime SDK at bundle-time.
+- Legacy `sdk` imports are not supported.
 
 ## Example Manifest
 

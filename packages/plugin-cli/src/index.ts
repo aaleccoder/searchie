@@ -257,7 +257,6 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
             path: "@searchie/sdk",
             namespace: "searchie-shim",
           }));
-          buildApi.onResolve({ filter: /^sdk$/ }, () => ({ path: "sdk", namespace: "searchie-shim" }));
           buildApi.onResolve({ filter: /^react$/ }, () => ({ path: "react", namespace: "searchie-shim" }));
           buildApi.onResolve({ filter: /^react\/jsx-runtime$/ }, () => ({
             path: "react/jsx-runtime",
@@ -269,11 +268,6 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
           }));
 
           buildApi.onLoad({ filter: /^@searchie\/sdk$/, namespace: "searchie-shim" }, () => ({
-            contents: sdkShimSource(),
-            loader: "js",
-          }));
-
-          buildApi.onLoad({ filter: /^sdk$/, namespace: "searchie-shim" }, () => ({
             contents: sdkShimSource(),
             loader: "js",
           }));
