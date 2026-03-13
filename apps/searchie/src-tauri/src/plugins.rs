@@ -27,6 +27,106 @@ pub struct RuntimePluginInstallResult {
     pub file_count: u64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimePluginListItem {
+    pub plugin_id: String,
+    pub name: String,
+    pub title: Option<String>,
+    pub install_path: String,
+    pub file_count: u64,
+    pub manifest_ok: bool,
+    pub manifest_error: Option<String>,
+}
+
+#[tauri::command]
+pub fn remove_runtime_plugin(app: tauri::AppHandle, plugin_id: String) -> Result<(), String> {
+    ensure_valid_plugin_id(&plugin_id)?;
+
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    let target = plugins_dir.join(&plugin_id);
+    if !target.exists() {
+        return Err(format!("plugin '{plugin_id}' was not found."));
+    }
+
+    if !target.is_dir() {
+        return Err(format!("plugin '{plugin_id}' path is not a directory."));
+    }
+
+    fs::remove_dir_all(&target).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn list_installed_runtime_plugins(
+    app: tauri::AppHandle,
+) -> Result<Vec<RuntimePluginListItem>, String> {
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    if !plugins_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut results = Vec::new();
+
+    for entry in fs::read_dir(&plugins_dir).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let plugin_id = entry.file_name().to_string_lossy().to_string();
+        if plugin_id.starts_with('.') {
+            continue;
+        }
+
+        let install_path = path.to_string_lossy().to_string();
+        let file_count = count_files(&path)?;
+        let manifest_path = path.join("manifest.json");
+
+        if !manifest_path.exists() {
+            results.push(RuntimePluginListItem {
+                plugin_id: plugin_id.clone(),
+                name: plugin_id,
+                title: None,
+                install_path,
+                file_count,
+                manifest_ok: false,
+                manifest_error: Some("manifest.json not found".to_string()),
+            });
+            continue;
+        }
+
+        let manifest_text = fs::read_to_string(&manifest_path).map_err(|error| error.to_string())?;
+        match serde_json::from_str::<RuntimePluginManifest>(&manifest_text) {
+            Ok(manifest) => {
+                results.push(RuntimePluginListItem {
+                    plugin_id,
+                    name: manifest.name,
+                    title: manifest.title,
+                    install_path,
+                    file_count,
+                    manifest_ok: true,
+                    manifest_error: None,
+                });
+            }
+            Err(error) => {
+                results.push(RuntimePluginListItem {
+                    plugin_id: plugin_id.clone(),
+                    name: plugin_id,
+                    title: None,
+                    install_path,
+                    file_count,
+                    manifest_ok: false,
+                    manifest_error: Some(format!("invalid manifest.json: {error}")),
+                });
+            }
+        }
+    }
+
+    results.sort_by(|left, right| left.plugin_id.cmp(&right.plugin_id));
+    Ok(results)
+}
+
 #[tauri::command]
 pub fn install_plugin_zip(
     app: tauri::AppHandle,
@@ -50,8 +150,7 @@ pub fn install_plugin_zip(
         return Err("plugin manifest name must contain at least one alphanumeric character.".to_string());
     }
 
-    let app_data = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    let plugins_dir = app_data.join("plugins");
+    let plugins_dir = resolve_plugins_dir(&app)?;
     fs::create_dir_all(&plugins_dir).map_err(|error| error.to_string())?;
 
     let timestamp = SystemTime::now()
@@ -113,6 +212,30 @@ fn read_manifest(zip_bytes: &[u8]) -> Result<RuntimePluginManifest, String> {
 
     serde_json::from_str::<RuntimePluginManifest>(&manifest_text)
         .map_err(|error| format!("invalid manifest.json: {error}"))
+}
+
+fn resolve_plugins_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let app_data = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    Ok(app_data.join("plugins"))
+}
+
+fn ensure_valid_plugin_id(plugin_id: &str) -> Result<(), String> {
+    if plugin_id.is_empty() {
+        return Err("plugin id cannot be empty.".to_string());
+    }
+
+    if plugin_id.starts_with('.') {
+        return Err("plugin id cannot start with a dot.".to_string());
+    }
+
+    if plugin_id
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+    {
+        return Ok(());
+    }
+
+    Err("plugin id contains invalid characters.".to_string())
 }
 
 fn extract_archive(zip_bytes: &[u8], destination: &Path) -> Result<(), String> {

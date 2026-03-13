@@ -121,6 +121,16 @@ type RuntimePluginInstallResult = {
   fileCount: number;
 };
 
+type RuntimePluginListItem = {
+  pluginId: string;
+  name: string;
+  title?: string | null;
+  installPath: string;
+  fileCount: number;
+  manifestOk: boolean;
+  manifestError?: string | null;
+};
+
 function pluginSettingId(pluginId: string, key: string): string {
   return `${pluginId}:${key}`;
 }
@@ -147,6 +157,10 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
   const [installingPluginArchive, setInstallingPluginArchive] = useState(false);
   const [pluginInstallError, setPluginInstallError] = useState<string | null>(null);
   const [pluginInstallResult, setPluginInstallResult] = useState<RuntimePluginInstallResult | null>(null);
+  const [runtimePlugins, setRuntimePlugins] = useState<RuntimePluginListItem[]>([]);
+  const [loadingRuntimePlugins, setLoadingRuntimePlugins] = useState(false);
+  const [runtimePluginsError, setRuntimePluginsError] = useState<string | null>(null);
+  const [deletingRuntimePluginId, setDeletingRuntimePluginId] = useState<string | null>(null);
 
   const pluginSettings = useMemo(() => pluginRegistry.listPluginSettings(), [pluginRegistry]);
 
@@ -246,6 +260,25 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
     [],
   );
 
+  const loadRuntimePlugins = useCallback(async () => {
+    setLoadingRuntimePlugins(true);
+    setRuntimePluginsError(null);
+
+    try {
+      const plugins = await invoke<RuntimePluginListItem[]>("list_installed_runtime_plugins");
+      setRuntimePlugins(plugins);
+    } catch (error) {
+      setRuntimePluginsError(String(error));
+      setRuntimePlugins([]);
+    } finally {
+      setLoadingRuntimePlugins(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRuntimePlugins();
+  }, [loadRuntimePlugins]);
+
   const handlePluginArchiveInstall = useCallback(async () => {
     if (!pluginArchive) {
       return;
@@ -264,12 +297,30 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
 
       setPluginInstallResult(result);
       setPluginArchive(null);
+      await loadRuntimePlugins();
     } catch (error) {
       setPluginInstallError(String(error));
     } finally {
       setInstallingPluginArchive(false);
     }
-  }, [pluginArchive]);
+  }, [loadRuntimePlugins, pluginArchive]);
+
+  const handleRuntimePluginDelete = useCallback(
+    async (pluginId: string) => {
+      setDeletingRuntimePluginId(pluginId);
+      setRuntimePluginsError(null);
+
+      try {
+        await invoke("remove_runtime_plugin", { pluginId });
+        await loadRuntimePlugins();
+      } catch (error) {
+        setRuntimePluginsError(String(error));
+      } finally {
+        setDeletingRuntimePluginId(null);
+      }
+    },
+    [loadRuntimePlugins],
+  );
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -336,6 +387,65 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
               </CardContent>
             </Card>
           ) : null}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Installed Runtime Plugins</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void loadRuntimePlugins();
+                }}
+                disabled={loadingRuntimePlugins}
+              >
+                {loadingRuntimePlugins ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+
+            {runtimePluginsError ? <p className="text-sm text-destructive">{runtimePluginsError}</p> : null}
+
+            {loadingRuntimePlugins ? (
+              <Skeleton className="h-24 w-full" />
+            ) : runtimePlugins.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No runtime plugins found in app data.</p>
+            ) : (
+              <div className="space-y-2">
+                {runtimePlugins.map((plugin) => (
+                  <Card key={plugin.pluginId} size="sm">
+                    <CardHeader>
+                      <CardTitle className="text-base">{plugin.title ?? plugin.name}</CardTitle>
+                      <CardDescription>{plugin.pluginId}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <p>
+                        <span className="font-medium">Manifest:</span>{" "}
+                        {plugin.manifestOk ? "OK" : plugin.manifestError ?? "Invalid"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Files:</span> {plugin.fileCount}
+                      </p>
+                      <p className="break-all">
+                        <span className="font-medium">Path:</span> {plugin.installPath}
+                      </p>
+                      <div className="pt-1">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            void handleRuntimePluginDelete(plugin.pluginId);
+                          }}
+                          disabled={deletingRuntimePluginId !== null}
+                        >
+                          {deletingRuntimePluginId === plugin.pluginId ? "Deleting..." : "Delete Plugin"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
