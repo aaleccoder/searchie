@@ -2,6 +2,8 @@ import * as React from "react";
 import { CommandRegistryContext, createCommandRegistry } from "@/lib/command-registry";
 import { createPanelRegistry, PanelRegistryContext } from "@/lib/panel-registry";
 import { createPluginRegistry, type PluginRegistry } from "@/lib/plugin-registry";
+import type { CorePluginDescriptor } from "@/lib/plugin-contract";
+import { loadRuntimePlugins } from "@/lib/runtime-plugin-loader";
 import { buildCorePlugins } from "@/plugins/core";
 
 type PanelRegistryProviderProps = {
@@ -20,7 +22,7 @@ export function usePluginRegistry(): PluginRegistry {
 }
 
 export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) {
-  const [state] = React.useState(() => {
+  const buildState = React.useCallback((runtimePlugins: CorePluginDescriptor[] = []) => {
     const pluginRegistry = createPluginRegistry({
       onAliasCollision: (message) => {
         console.warn(message);
@@ -29,6 +31,14 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
 
     for (const plugin of buildCorePlugins()) {
       pluginRegistry.register(plugin);
+    }
+
+    for (const runtimePlugin of runtimePlugins) {
+      try {
+        pluginRegistry.register(runtimePlugin);
+      } catch (error) {
+        console.error("[runtime-plugin-loader] failed to register runtime plugin:", error);
+      }
     }
 
     const nextRegistry = createPanelRegistry({
@@ -56,7 +66,36 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
       commandRegistry: nextCommandRegistry,
       pluginRegistry,
     };
-  });
+  }, []);
+
+  const [state, setState] = React.useState(() => buildState());
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const runtimePlugins = await loadRuntimePlugins();
+        if (!cancelled) {
+          setState(buildState(runtimePlugins));
+        }
+      } catch (error) {
+        console.error("[runtime-plugin-loader] failed loading runtime plugins:", error);
+      }
+    };
+
+    void load();
+
+    const onRuntimePluginsUpdated = () => {
+      void load();
+    };
+
+    window.addEventListener("runtime-plugins-updated", onRuntimePluginsUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("runtime-plugins-updated", onRuntimePluginsUpdated);
+    };
+  }, [buildState]);
 
   return (
     <PluginRegistryContext.Provider value={state.pluginRegistry}>

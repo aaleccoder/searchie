@@ -9,6 +9,7 @@
   "files": [
     "assets",
     "manifest.json",
+    "runtime",
     "src"
   ],
   "scripts": {

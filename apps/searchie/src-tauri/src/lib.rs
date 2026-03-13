@@ -26,7 +26,10 @@ use crate::system_controls::{
     set_wifi_enabled, toggle_airplane_mode, toggle_bluetooth, toggle_hotspot, toggle_system_mute,
     toggle_wifi,
 };
-use crate::plugins::{install_plugin_zip, list_installed_runtime_plugins, remove_runtime_plugin};
+use crate::plugins::{
+    install_plugin_zip, list_installed_runtime_plugins, read_runtime_plugin_source,
+    remove_runtime_plugin,
+};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -397,7 +400,8 @@ pub fn run() {
             open_system_settings_uri,
             install_plugin_zip,
             list_installed_runtime_plugins,
-            remove_runtime_plugin
+            remove_runtime_plugin,
+            read_runtime_plugin_source
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

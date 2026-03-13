@@ -44,8 +44,8 @@ export function LauncherPanel({
 }: LauncherPanelProps) {
   const commandRegistry = useCommandRegistry();
   const panelRegistry = usePanelRegistry();
-  const registeredPanels = React.useMemo(() => panelRegistry.list(), [panelRegistry]);
-  const registeredCommands = React.useMemo(() => commandRegistry.list(), [commandRegistry]);
+  const registeredPanels = panelRegistry.list();
+  const registeredCommands = commandRegistry.list();
   const [query, setQuery] = React.useState("");
   const debouncedQuery = useDebouncedValue(query, 80);
   const [selectedCommandId, setSelectedCommandId] = React.useState<string | null>(null);

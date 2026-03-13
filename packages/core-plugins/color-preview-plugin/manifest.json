@@ -14,7 +14,7 @@
       "title": "Color Preview",
       "description": "Open a panel that previews hex, rgb(a), hsl(a), and named CSS colors.",
       "mode": "panel",
-      "entry": "./src/command.tsx",
+      "entry": "./runtime/entry.js",
       "aliases": ["color", "hex", "rgb", "hsl"],
       "capabilities": [],
       "searchIntegration": {

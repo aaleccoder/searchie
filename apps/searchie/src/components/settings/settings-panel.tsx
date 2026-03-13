@@ -298,6 +298,7 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
       setPluginInstallResult(result);
       setPluginArchive(null);
       await loadRuntimePlugins();
+      window.dispatchEvent(new Event("runtime-plugins-updated"));
     } catch (error) {
       setPluginInstallError(String(error));
     } finally {
@@ -313,6 +314,7 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
       try {
         await invoke("remove_runtime_plugin", { pluginId });
         await loadRuntimePlugins();
+        window.dispatchEvent(new Event("runtime-plugins-updated"));
       } catch (error) {
         setRuntimePluginsError(String(error));
       } finally {

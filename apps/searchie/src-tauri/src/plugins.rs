@@ -15,6 +15,13 @@ const MAX_EXTRACTED_BYTES: u64 = 96 * 1024 * 1024;
 struct RuntimePluginManifest {
     name: String,
     title: Option<String>,
+    commands: Option<Vec<RuntimePluginManifestCommand>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RuntimePluginManifestCommand {
+    mode: Option<String>,
+    entry: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -39,6 +46,16 @@ pub struct RuntimePluginListItem {
     pub manifest_error: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimePluginSource {
+    pub plugin_id: String,
+    pub install_path: String,
+    pub manifest_json: String,
+    pub entry_path: String,
+    pub entry_source: String,
+}
+
 #[tauri::command]
 pub fn remove_runtime_plugin(app: tauri::AppHandle, plugin_id: String) -> Result<(), String> {
     ensure_valid_plugin_id(&plugin_id)?;
@@ -54,6 +71,56 @@ pub fn remove_runtime_plugin(app: tauri::AppHandle, plugin_id: String) -> Result
     }
 
     fs::remove_dir_all(&target).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn read_runtime_plugin_source(
+    app: tauri::AppHandle,
+    plugin_id: String,
+) -> Result<RuntimePluginSource, String> {
+    ensure_valid_plugin_id(&plugin_id)?;
+
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    let plugin_dir = plugins_dir.join(&plugin_id);
+    if !plugin_dir.exists() || !plugin_dir.is_dir() {
+        return Err(format!("plugin '{plugin_id}' directory was not found."));
+    }
+
+    let manifest_path = plugin_dir.join("manifest.json");
+    let manifest_json = fs::read_to_string(&manifest_path)
+        .map_err(|error| format!("failed reading manifest.json: {error}"))?;
+
+    let manifest: RuntimePluginManifest = serde_json::from_str(&manifest_json)
+        .map_err(|error| format!("invalid manifest.json: {error}"))?;
+
+    let entry_raw = resolve_plugin_entry(&manifest)
+        .ok_or_else(|| "manifest.json does not contain a panel command entry.".to_string())?;
+
+    let entry_clean = entry_raw.trim_start_matches("./");
+    let entry_path = plugin_dir.join(entry_clean);
+    if !entry_path.exists() || !entry_path.is_file() {
+        return Err(format!(
+            "plugin entry file '{}' was not found.",
+            entry_raw
+        ));
+    }
+
+    let plugin_dir_canon = fs::canonicalize(&plugin_dir).map_err(|error| error.to_string())?;
+    let entry_canon = fs::canonicalize(&entry_path).map_err(|error| error.to_string())?;
+    if !entry_canon.starts_with(&plugin_dir_canon) {
+        return Err("plugin entry path escapes plugin directory.".to_string());
+    }
+
+    let entry_source = fs::read_to_string(&entry_canon)
+        .map_err(|error| format!("failed reading plugin entry source: {error}"))?;
+
+    Ok(RuntimePluginSource {
+        plugin_id,
+        install_path: plugin_dir.to_string_lossy().to_string(),
+        manifest_json,
+        entry_path: entry_clean.to_string(),
+        entry_source,
+    })
 }
 
 #[tauri::command]
@@ -236,6 +303,19 @@ fn ensure_valid_plugin_id(plugin_id: &str) -> Result<(), String> {
     }
 
     Err("plugin id contains invalid characters.".to_string())
+}
+
+fn resolve_plugin_entry(manifest: &RuntimePluginManifest) -> Option<String> {
+    let commands = manifest.commands.as_ref()?;
+    for command in commands {
+        let entry = command.entry.as_ref()?;
+        let mode = command.mode.as_deref().unwrap_or("panel");
+        if mode.eq_ignore_ascii_case("panel") {
+            return Some(entry.trim().to_string());
+        }
+    }
+
+    None
 }
 
 fn extract_archive(zip_bytes: &[u8], destination: &Path) -> Result<(), String> {
