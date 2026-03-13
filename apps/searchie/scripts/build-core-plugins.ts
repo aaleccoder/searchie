@@ -96,8 +96,15 @@ async function run(): Promise<void> {
   const corePluginsRoot = path.join(workspaceRoot, "packages", "core-plugins");
   const outputRoot = path.join(appRoot, "src-tauri", "resources", "preinstalled-plugins");
 
-  await rm(outputRoot, { recursive: true, force: true });
   await mkdir(outputRoot, { recursive: true });
+  const outputEntries = await readdir(outputRoot, { withFileTypes: true });
+  for (const entry of outputEntries) {
+    if (entry.name === ".gitkeep") {
+      continue;
+    }
+
+    await rm(path.join(outputRoot, entry.name), { recursive: true, force: true });
+  }
 
   const entries = await readdir(corePluginsRoot, { withFileTypes: true });
   const pluginDirs = entries
