@@ -1,0 +1,19 @@
+{
+  "name": "google-search",
+  "title": "Google Search",
+  "description": "Google Search plugin for Searchie.",
+  "version": "0.1.0",
+  "runtimeEntry": "./dist/runtime.js",
+  "commands": [
+    {
+      "id": "google-search.panel",
+      "name": "google search",
+      "mode": "panel",
+      "entry": "./src/command.tsx",
+      "aliases": [
+        "google search"
+      ],
+      "capabilities": []
+    }
+  ]
+}

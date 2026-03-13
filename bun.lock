@@ -77,6 +77,18 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/core-plugins/google-search": {
+      "name": "@searchie-plugin/google-search",
+      "version": "0.1.0",
+      "dependencies": {
+        "@searchie/sdk": "workspace:*",
+        "react": "^19.1.1",
+      },
+      "devDependencies": {
+        "@types/react": "^19.1.12",
+        "typescript": "^5.8.3",
+      },
+    },
     "packages/plugin-cli": {
       "name": "@searchie/plugin-cli",
       "version": "0.1.0",
@@ -500,6 +512,8 @@
     "@rollup/rollup-win32-x64-gnu": ["@rollup/rollup-win32-x64-gnu@4.59.0", "", { "os": "win32", "cpu": "x64" }, "sha512-laBkYlSS1n2L8fSo1thDNGrCTQMmxjYY5G0WFWjFFYZkKPjsMBsgJfGf4TLxXrF6RyhI60L8TMOjBMvXiTcxeA=="],
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.59.0", "", { "os": "win32", "cpu": "x64" }, "sha512-2HRCml6OztYXyJXAvdDXPKcawukWY2GpR5/nxKp4iBgiO3wcoEGkAaqctIbZcNB6KlUQBIqt8VYkNSj2397EfA=="],
+
+    "@searchie-plugin/google-search": ["@searchie-plugin/google-search@workspace:packages/core-plugins/google-search"],
 
     "@searchie/plugin-cli": ["@searchie/plugin-cli@workspace:packages/plugin-cli"],
 

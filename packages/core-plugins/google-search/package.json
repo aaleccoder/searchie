@@ -1,0 +1,19 @@
+{
+  "name": "@searchie-plugin/google-search",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:runtime": "searchie-plugin build",
+    "pack": "searchie-plugin pack",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "@searchie/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "@types/react": "^19.1.12"
+  }
+}
