@@ -3,14 +3,14 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --cwd searchie run dev",
-    "build": "bun --cwd searchie run build",
-    "preview": "bun --cwd searchie run preview",
-    "tauri": "bun --cwd searchie run tauri",
-    "generate:settings-json": "bun --cwd searchie run generate:settings-json",
-    "test": "bun --cwd searchie run test",
-    "test:watch": "bun --cwd searchie run test:watch",
-    "test:coverage": "bun --cwd searchie run test:coverage"
+    "dev": "bun --cwd apps/searchie run dev",
+    "build": "bun --cwd apps/searchie run build",
+    "preview": "bun --cwd apps/searchie run preview",
+    "tauri": "bun --cwd apps/searchie run tauri",
+    "generate:settings-json": "bun --cwd apps/searchie run generate:settings-json",
+    "test": "bun --cwd apps/searchie run test",
+    "test:watch": "bun --cwd apps/searchie run test:watch",
+    "test:coverage": "bun --cwd apps/searchie run test:coverage"
   },
   "devDependencies": {
     "@types/bun": "latest"

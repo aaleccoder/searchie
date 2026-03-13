@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "bun run build:plugins && vite build",
+    "build:plugins": "bun scripts/build-core-plugins.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "generate:settings-json": "bun scripts/generate-windows-settings-json.ts",

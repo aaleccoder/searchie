@@ -58,6 +58,46 @@ pub struct RuntimePluginSource {
     pub entry_source: String,
 }
 
+pub fn seed_preinstalled_runtime_plugins(app: &tauri::AppHandle) -> Result<(), String> {
+    let Some(source_root) = resolve_preinstalled_plugins_source_dir(app) else {
+        return Ok(());
+    };
+
+    if !source_root.exists() || !source_root.is_dir() {
+        return Ok(());
+    }
+
+    let destination_root = resolve_plugins_dir(app)?;
+    fs::create_dir_all(&destination_root).map_err(|error| error.to_string())?;
+
+    for entry in fs::read_dir(&source_root).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let source_plugin_dir = entry.path();
+        if !source_plugin_dir.is_dir() {
+            continue;
+        }
+
+        let plugin_id = entry.file_name().to_string_lossy().to_string();
+        if ensure_valid_plugin_id(&plugin_id).is_err() {
+            continue;
+        }
+
+        let source_manifest = source_plugin_dir.join("manifest.json");
+        if !source_manifest.exists() || !source_manifest.is_file() {
+            continue;
+        }
+
+        let target_plugin_dir = destination_root.join(&plugin_id);
+        if target_plugin_dir.exists() {
+            continue;
+        }
+
+        copy_dir_all(&source_plugin_dir, &target_plugin_dir)?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn remove_runtime_plugin(app: tauri::AppHandle, plugin_id: String) -> Result<(), String> {
     ensure_valid_plugin_id(&plugin_id)?;
@@ -288,6 +328,22 @@ fn resolve_plugins_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, Str
     Ok(app_data.join("plugins"))
 }
 
+fn resolve_preinstalled_plugins_source_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+
+    let direct = resource_dir.join("preinstalled-plugins");
+    if direct.exists() {
+        return Some(direct);
+    }
+
+    let nested = resource_dir.join("resources").join("preinstalled-plugins");
+    if nested.exists() {
+        return Some(nested);
+    }
+
+    None
+}
+
 fn ensure_valid_plugin_id(plugin_id: &str) -> Result<(), String> {
     if plugin_id.is_empty() {
         return Err("plugin id cannot be empty.".to_string());
@@ -406,4 +462,28 @@ fn count_files(root: &Path) -> Result<u64, String> {
     }
 
     Ok(count)
+}
+
+fn copy_dir_all(source: &Path, destination: &Path) -> Result<(), String> {
+    fs::create_dir_all(destination).map_err(|error| error.to_string())?;
+
+    for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let entry_path = entry.path();
+        let target_path = destination.join(entry.file_name());
+
+        if entry_path.is_dir() {
+            copy_dir_all(&entry_path, &target_path)?;
+            continue;
+        }
+
+        if entry_path.is_file() {
+            if let Some(parent) = target_path.parent() {
+                fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+            }
+            fs::copy(&entry_path, &target_path).map_err(|error| error.to_string())?;
+        }
+    }
+
+    Ok(())
 }

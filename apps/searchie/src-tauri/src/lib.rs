@@ -28,7 +28,7 @@ use crate::system_controls::{
 };
 use crate::plugins::{
     install_plugin_zip, list_installed_runtime_plugins, read_runtime_plugin_source,
-    remove_runtime_plugin,
+    remove_runtime_plugin, seed_preinstalled_runtime_plugins,
 };
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -265,6 +265,10 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            if let Err(error) = seed_preinstalled_runtime_plugins(app.handle()) {
+                eprintln!("[plugins] failed seeding preinstalled plugins: {error}");
+            }
+
             // Apply Mica vibrancy and position the main bar
             let window = app.get_webview_window("main").expect("no main window");
             #[cfg(target_os = "windows")]
