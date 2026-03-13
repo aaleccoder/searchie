@@ -21,6 +21,7 @@
         "@hookform/resolvers": "^5.2.2",
         "@hugeicons/core-free-icons": "^4.0.0",
         "@hugeicons/react": "^1.1.6",
+        "@searchie/sdk": "workspace:*",
         "@tailwindcss/vite": "^4.2.1",
         "@tanstack/react-devtools": "^0.9.13",
         "@tanstack/react-hotkeys": "^0.4.1",
@@ -50,7 +51,6 @@
         "react-hook-form": "^7.71.2",
         "react-resizable-panels": "^4.7.2",
         "recharts": "2.15.4",
-        "sdk": "workspace:*",
         "sonner": "^2.0.7",
         "tailwind-merge": "^3.5.0",
         "tailwindcss": "^4.2.1",
@@ -94,7 +94,7 @@
       },
     },
     "packages/sdk": {
-      "name": "sdk",
+      "name": "@searchie/sdk",
       "dependencies": {
         "@tanstack/react-virtual": "^3.13.12",
         "react": "^19.1.0",
@@ -502,6 +502,8 @@
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.59.0", "", { "os": "win32", "cpu": "x64" }, "sha512-2HRCml6OztYXyJXAvdDXPKcawukWY2GpR5/nxKp4iBgiO3wcoEGkAaqctIbZcNB6KlUQBIqt8VYkNSj2397EfA=="],
 
     "@searchie/plugin-cli": ["@searchie/plugin-cli@workspace:packages/plugin-cli"],
+
+    "@searchie/sdk": ["@searchie/sdk@workspace:packages/sdk"],
 
     "@sec-ant/readable-stream": ["@sec-ant/readable-stream@0.4.1", "", {}, "sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg=="],
 
@@ -1410,8 +1412,6 @@
     "saxes": ["saxes@6.0.0", "", { "dependencies": { "xmlchars": "^2.2.0" } }, "sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA=="],
 
     "scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
-
-    "sdk": ["sdk@workspace:packages/sdk"],
 
     "searchie": ["searchie@workspace:apps/searchie"],
 

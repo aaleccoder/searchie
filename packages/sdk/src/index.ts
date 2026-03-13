@@ -7,6 +7,40 @@ export {
   type PanelCommandScope,
 } from "./commands";
 export {
+  defineCorePlugin,
+  definePluginCommand,
+  definePluginPanel,
+  type CommandAppsLauncherIntegration,
+  type CorePluginDescriptor,
+  type PanelAppsLauncherIntegration,
+  type PanelFooterAction,
+  type PanelFooterConfig,
+  type PanelFooterControls,
+  type PanelFooterMeta,
+  type PanelInputKeyDownHandler,
+  type PanelMatcher,
+  type PanelMatcherResult,
+  type PanelRenderProps,
+  type PanelSearchIntegration,
+  type PanelShortcutHint,
+  type PluginConfigDefinition,
+  type PluginConfigOption,
+  type PluginConfigValue,
+  type PluginConfigValueType,
+  type PluginPermission,
+  type ShortcutCommandDescriptor,
+  type ShortcutCommandExecute,
+  type ShortcutCommandExecutionContext,
+  type ShortcutCommandRenderContext,
+  type ShortcutPanelDescriptor,
+} from "./panel";
+export {
+  usePanelArrowDownBridge,
+  usePanelEnterBridge,
+  usePanelFooter,
+  usePanelFooterControlsRef,
+} from "./hooks";
+export {
   PanelArticle,
   PanelAside,
   PanelCode,
@@ -38,4 +72,11 @@ export {
   type RadiusToken,
   type SpacingToken,
   type SurfaceToken,
+} from "./primitives/panel-primitives";
+
+export {
+  PanelGrid as Grid,
+  PanelList as List,
+  PanelListItem as ListItem,
+  PanelMetaGrid as MetaGrid,
 } from "./primitives/panel-primitives";

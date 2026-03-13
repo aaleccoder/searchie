@@ -1,6 +1,6 @@
-# sdk
+# @searchie/sdk
 
-`packages/sdk` is the shared plugin-facing contract layer for Searchie.
+`packages/sdk` (`@searchie/sdk`) is the shared plugin-facing contract layer for Searchie.
 
 ## What belongs here
 

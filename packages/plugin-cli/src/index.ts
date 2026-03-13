@@ -30,6 +30,11 @@ const SDK_EXPORTS = [
   "PanelSection",
   "PanelText",
   "PanelTextButton",
+  "panelListItemVariants",
+  "usePanelArrowDownBridge",
+  "usePanelEnterBridge",
+  "usePanelFooter",
+  "usePanelFooterControlsRef",
   "Badge",
   "Button",
   "Empty",
@@ -248,6 +253,10 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
       {
         name: "searchie-runtime-shims",
         setup(buildApi: PluginBuild) {
+          buildApi.onResolve({ filter: /^@searchie\/sdk$/ }, () => ({
+            path: "@searchie/sdk",
+            namespace: "searchie-shim",
+          }));
           buildApi.onResolve({ filter: /^sdk$/ }, () => ({ path: "sdk", namespace: "searchie-shim" }));
           buildApi.onResolve({ filter: /^react$/ }, () => ({ path: "react", namespace: "searchie-shim" }));
           buildApi.onResolve({ filter: /^react\/jsx-runtime$/ }, () => ({
@@ -257,6 +266,11 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
           buildApi.onResolve({ filter: /^react\/jsx-dev-runtime$/ }, () => ({
             path: "react/jsx-dev-runtime",
             namespace: "searchie-shim",
+          }));
+
+          buildApi.onLoad({ filter: /^@searchie\/sdk$/, namespace: "searchie-shim" }, () => ({
+            contents: sdkShimSource(),
+            loader: "js",
           }));
 
           buildApi.onLoad({ filter: /^sdk$/, namespace: "searchie-shim" }, () => ({
@@ -462,7 +476,7 @@ async function createPlugin(argv: string[]): Promise<void> {
   };
 
   const commandTemplate = `import React from "react";
-import { PanelContainer, PanelHeading, PanelParagraph } from "sdk";
+import { PanelContainer, PanelHeading, PanelParagraph } from "@searchie/sdk";
 
 export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
   return (
@@ -471,11 +485,6 @@ export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
       <PanelParagraph>Edit src/command.tsx to build your panel.</PanelParagraph>
     </PanelContainer>
   );
-}
-`;
-
-  const runtimeShimTypes = `declare module "sdk" {
-  export * from "@searchie/sdk";
 }
 `;
 
@@ -492,7 +501,6 @@ export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
   await fs.writeFile(path.join(pluginDir, "package.json"), `${JSON.stringify(pluginPackageJson, null, 2)}\n`, "utf8");
   await fs.writeFile(path.join(pluginDir, "tsconfig.json"), `${JSON.stringify(tsconfig, null, 2)}\n`, "utf8");
   await fs.writeFile(path.join(pluginDir, "src", "command.tsx"), commandTemplate, "utf8");
-  await fs.writeFile(path.join(pluginDir, "src", "runtime-shims.d.ts"), runtimeShimTypes, "utf8");
   await fs.writeFile(path.join(pluginDir, "README.md"), readme, "utf8");
 
   process.stdout.write(`Created plugin scaffold: ${pluginDir}\n`);

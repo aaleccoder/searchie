@@ -26,8 +26,8 @@ TypeScript-first CLI for Searchie runtime plugins.
 
 ## Authoring Notes
 
-- In runtime panel code, import runtime primitives from `sdk`.
-- The scaffold includes `src/runtime-shims.d.ts` so TypeScript can type-check those `sdk` imports via `@searchie/sdk`.
+- In runtime panel code, import SDK APIs from `@searchie/sdk`.
+- `searchie-plugin build` remaps `@searchie/sdk` imports to the host runtime SDK at bundle-time.
 
 ## Example Manifest
 

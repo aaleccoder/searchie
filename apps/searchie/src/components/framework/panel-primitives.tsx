@@ -38,7 +38,7 @@ import {
   PanelText,
   PanelTextButton,
   panelListItemVariants,
-} from "sdk";
+} from "@searchie/sdk";
 
 export const PanelBadge = Badge;
 export const PanelButton = Button;
