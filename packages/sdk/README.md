@@ -1,15 +1,16 @@
 # sdk
 
-To install dependencies:
+`packages/sdk` is the shared plugin-facing contract layer for Searchie.
 
-```bash
-bun install
-```
+## What belongs here
 
-To run:
+- Backend command contracts and capability-checked command helpers.
+- Headless panel primitives (layout, text, list, virtualization behavior).
+- Type exports used by plugin authors.
 
-```bash
-bun run index.ts
-```
+## What does not belong here
 
-This project was created using `bun init` in bun v1.3.10. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+- App-specific shadcn component bindings (`Badge`, `Button`, `Select`, etc.).
+- App utility aliases like `@/components/*` or `@/lib/*`.
+
+Those concrete UI bindings stay in `apps/searchie/src/components/framework/panel-primitives.tsx`, which acts as the app adapter.

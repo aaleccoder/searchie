@@ -8,9 +8,6 @@
     "jsx": "react-jsx",
     "allowJs": true,
     "types": ["react", "react-dom"],
-    "paths": {
-      "@/*": ["../../apps/searchie/src/*"]
-    },
 
     // Bundler mode
     "moduleResolution": "bundler",

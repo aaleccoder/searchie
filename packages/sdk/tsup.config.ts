@@ -12,9 +12,6 @@ export default defineConfig({
     'react',
     'react-dom',
     '@tanstack/react-virtual',
-    // Mark your UI components as external to avoid bundling them
-    '@/components/ui/*',
-    '@/lib/utils',
   ],
   treeshake: true,
   minify: false, // Keep readable for debugging during development
