@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:runtime": "searchie-plugin build",
+    "dev": "searchie-plugin dev",
     "pack": "searchie-plugin pack",
     "typecheck": "tsc --noEmit"
   },

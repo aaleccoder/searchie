@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { build, type PluginBuild } from "esbuild";
+import { build, context, type BuildOptions, type PluginBuild } from "esbuild";
 import JSZip from "jszip";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -10,7 +10,7 @@ type CliContext = {
   manifestPath: string;
 };
 
-type CommandName = "build" | "pack" | "create";
+type CommandName = "build" | "pack" | "create" | "dev";
 
 const SDK_EXPORTS = [
   "PanelArticle",
@@ -219,8 +219,8 @@ export const jsxDEV = jsx;
 `;
 }
 
-async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
-  const manifest = await readManifest(context.manifestPath);
+async function buildRuntimeEntry(cliContext: CliContext): Promise<PluginManifest> {
+  const manifest = await readManifest(cliContext.manifestPath);
   const panelCommands = getPanelCommands(manifest);
 
   if (panelCommands.length === 0) {
@@ -228,16 +228,30 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
   }
 
   const runtimeEntry = manifest.runtimeEntry;
-  const runtimeOutFile = path.resolve(context.pluginDir, runtimeEntry);
+  const runtimeOutFile = path.resolve(cliContext.pluginDir, runtimeEntry);
 
   await fs.mkdir(path.dirname(runtimeOutFile), { recursive: true });
 
   const wrapperCode = makeRuntimeWrapperCode(manifest, panelCommands);
 
-  await build({
+  await build(createRuntimeBuildOptions(cliContext, wrapperCode, runtimeOutFile));
+
+  const manifestNext: PluginManifest = {
+    ...manifest,
+    runtimeEntry,
+  };
+
+  await fs.writeFile(cliContext.manifestPath, `${JSON.stringify(manifestNext, null, 2)}\n`, "utf8");
+
+  process.stdout.write(`Built runtime plugin entry: ${runtimeOutFile}\n`);
+  return manifestNext;
+}
+
+function createRuntimeBuildOptions(cliContext: CliContext, wrapperCode: string, runtimeOutFile: string): BuildOptions {
+  return {
     stdin: {
       contents: wrapperCode,
-      resolveDir: context.pluginDir,
+      resolveDir: cliContext.pluginDir,
       sourcefile: "runtime-wrapper.ts",
       loader: "ts",
     },
@@ -289,17 +303,43 @@ async function buildRuntimeEntry(context: CliContext): Promise<PluginManifest> {
         },
       },
     ],
-  });
+  };
+}
 
-  const manifestNext: PluginManifest = {
-    ...manifest,
-    runtimeEntry,
+async function devRuntimeEntry(cliContext: CliContext): Promise<void> {
+  const manifest = await readManifest(cliContext.manifestPath);
+  const panelCommands = getPanelCommands(manifest);
+
+  if (panelCommands.length === 0) {
+    throw new Error("No panel commands with an entry were found in manifest.json.");
+  }
+
+  const runtimeEntry = manifest.runtimeEntry;
+  const runtimeOutFile = path.resolve(cliContext.pluginDir, runtimeEntry);
+  await fs.mkdir(path.dirname(runtimeOutFile), { recursive: true });
+
+  const wrapperCode = makeRuntimeWrapperCode(manifest, panelCommands);
+  const buildContext = await context(createRuntimeBuildOptions(cliContext, wrapperCode, runtimeOutFile));
+
+  await buildContext.watch();
+  process.stdout.write(`Watching runtime plugin sources: ${cliContext.pluginDir}\n`);
+  process.stdout.write(`Rebuilding runtime entry on change: ${runtimeOutFile}\n`);
+
+  const dispose = async () => {
+    await buildContext.dispose();
+    process.exit(0);
   };
 
-  await fs.writeFile(context.manifestPath, `${JSON.stringify(manifestNext, null, 2)}\n`, "utf8");
+  process.on("SIGINT", () => {
+    void dispose();
+  });
+  process.on("SIGTERM", () => {
+    void dispose();
+  });
 
-  process.stdout.write(`Built runtime plugin entry: ${runtimeOutFile}\n`);
-  return manifestNext;
+  await new Promise<void>(() => {
+    // keep process alive while esbuild watch mode runs
+  });
 }
 
 async function addPathToZip(zip: JSZip, baseDir: string, relativePath: string): Promise<void> {
@@ -502,7 +542,7 @@ export default function ${title.replace(/\s+/g, "")}Panel(): JSX.Element {
 
 async function main(): Promise<void> {
   const commandArg = (process.argv[2] ?? "build").trim().toLowerCase() as CommandName;
-  const supportedCommands: CommandName[] = ["build", "pack", "create"];
+  const supportedCommands: CommandName[] = ["build", "pack", "create", "dev"];
   if (!supportedCommands.includes(commandArg)) {
     throw new Error(`Unknown command '${commandArg}'. Supported: ${supportedCommands.join(", ")}`);
   }
@@ -514,14 +554,19 @@ async function main(): Promise<void> {
     return;
   }
 
-  const context = parsePluginContext(commandArgs);
+  const cliContext = parsePluginContext(commandArgs);
 
   if (commandArg === "build") {
-    await buildRuntimeEntry(context);
+    await buildRuntimeEntry(cliContext);
     return;
   }
 
-  await packPlugin(context, commandArgs);
+  if (commandArg === "dev") {
+    await devRuntimeEntry(cliContext);
+    return;
+  }
+
+  await packPlugin(cliContext, commandArgs);
 }
 
 main().catch((error: unknown) => {

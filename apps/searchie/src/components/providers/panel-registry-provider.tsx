@@ -1,4 +1,5 @@
 import * as React from "react";
+import { listen } from "@tauri-apps/api/event";
 import { CommandRegistryContext, createCommandRegistry } from "@/lib/command-registry";
 import { createPanelRegistry, PanelRegistryContext } from "@/lib/panel-registry";
 import { createPluginRegistry, type PluginRegistry } from "@/lib/plugin-registry";
@@ -72,6 +73,7 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
 
   React.useEffect(() => {
     let cancelled = false;
+    let unlistenRuntimePlugins: undefined | (() => void);
 
     const load = async () => {
       try {
@@ -91,9 +93,21 @@ export function PanelRegistryProvider({ children }: PanelRegistryProviderProps) 
     };
 
     window.addEventListener("runtime-plugins-updated", onRuntimePluginsUpdated);
+
+    void (async () => {
+      try {
+        unlistenRuntimePlugins = await listen("searchie://runtime-plugins-updated", () => {
+          void load();
+        });
+      } catch (error) {
+        console.error("[runtime-plugin-loader] failed listening runtime updates:", error);
+      }
+    })();
+
     return () => {
       cancelled = true;
       window.removeEventListener("runtime-plugins-updated", onRuntimePluginsUpdated);
+      unlistenRuntimePlugins?.();
     };
   }, [buildState]);
 

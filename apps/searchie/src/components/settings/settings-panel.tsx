@@ -161,6 +161,7 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
   const [loadingRuntimePlugins, setLoadingRuntimePlugins] = useState(false);
   const [runtimePluginsError, setRuntimePluginsError] = useState<string | null>(null);
   const [deletingRuntimePluginId, setDeletingRuntimePluginId] = useState<string | null>(null);
+  const [developFolderDraft, setDevelopFolderDraft] = useState("");
 
   const pluginSettings = useMemo(() => pluginRegistry.listPluginSettings(), [pluginRegistry]);
 
@@ -226,6 +227,10 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
       setTheme(settings.theme);
     }
   }, [settings.theme, loading, setTheme]);
+
+  useEffect(() => {
+    setDevelopFolderDraft(settings.runtimePluginsDevelopFolder ?? "");
+  }, [settings.runtimePluginsDevelopFolder]);
 
   const handleThemeChange = (value: Settings["theme"]) => {
     void updateSettings({ theme: value });
@@ -335,9 +340,50 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
 
       <div className="space-y-3">
         <div>
+          <Label className="text-base font-medium">Develop Plugin Folder</Label>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Optional folder watched by Searchie for plugin development. If a plugin id exists here and in app data,
+            the develop folder version wins.
+          </p>
+        </div>
+
+        {loading ? (
+          <Skeleton className="h-9 w-full" />
+        ) : (
+          <Input
+            type="text"
+            value={developFolderDraft}
+            placeholder="C:\\Users\\you\\Projects\\my-searchie-plugins"
+            onBlur={(event) => {
+              const normalized = event.target.value.trim();
+              if (normalized !== (settings.runtimePluginsDevelopFolder ?? "")) {
+                void updateSettings({
+                  runtimePluginsDevelopFolder: normalized,
+                });
+              }
+            }}
+            onChange={(event) => {
+              const rawValue = event.target.value;
+              setDevelopFolderDraft(rawValue);
+              const storeValue = settings.runtimePluginsDevelopFolder ?? "";
+              if (rawValue === "" && storeValue !== "") {
+                void updateSettings({
+                  runtimePluginsDevelopFolder: "",
+                });
+              }
+            }}
+          />
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <div>
           <Label className="text-base font-medium">Runtime Plugin Package</Label>
           <p className="text-sm text-muted-foreground mt-0.5">
             Install a plugin archive (.zip). Searchie extracts it into app data under <code>plugins</code>.
+            Plugins from the develop folder are also listed below when configured.
           </p>
         </div>
 
@@ -392,7 +438,7 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Installed Runtime Plugins</p>
+              <p className="text-sm font-medium">Runtime Plugins</p>
               <Button
                 size="sm"
                 variant="outline"
@@ -410,7 +456,7 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
             {loadingRuntimePlugins ? (
               <Skeleton className="h-24 w-full" />
             ) : runtimePlugins.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No runtime plugins found in app data.</p>
+              <p className="text-sm text-muted-foreground">No runtime plugins found.</p>
             ) : (
               <div className="space-y-2">
                 {runtimePlugins.map((plugin) => (

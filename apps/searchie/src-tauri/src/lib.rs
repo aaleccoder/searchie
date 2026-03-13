@@ -6,6 +6,7 @@ pub mod features;
 pub mod file_search;
 pub mod icons;
 pub mod plugins;
+pub mod runtime_plugin_develop;
 pub mod system_controls;
 
 use crate::apps::{
@@ -29,6 +30,10 @@ use crate::system_controls::{
 use crate::plugins::{
     install_plugin_zip, list_installed_runtime_plugins, read_runtime_plugin_source,
     remove_runtime_plugin, seed_preinstalled_runtime_plugins,
+};
+use crate::runtime_plugin_develop::{
+    set_initial_develop_folder, set_runtime_plugins_develop_folder, start_runtime_plugin_watcher,
+    RuntimePluginDevState,
 };
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -236,6 +241,7 @@ pub fn run() {
         .manage(AppIndexState::default())
         .manage(ClipboardState::default())
         .manage(FileIndexState::default())
+        .manage(RuntimePluginDevState::default())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 // Don't restore position for the main bar — we always position it ourselves.
@@ -267,6 +273,24 @@ pub fn run() {
         .setup(|app| {
             if let Err(error) = seed_preinstalled_runtime_plugins(app.handle()) {
                 eprintln!("[plugins] failed seeding preinstalled plugins: {error}");
+            }
+
+            let initial_develop_folder = app
+                .store("settings.json")
+                .ok()
+                .and_then(|store| {
+                    let val = store.get("settings")?;
+                    val["runtimePluginsDevelopFolder"]
+                        .as_str()
+                        .map(|s| s.to_owned())
+                });
+
+            {
+                let runtime_plugin_state = app.state::<RuntimePluginDevState>();
+                if let Err(error) = set_initial_develop_folder(&runtime_plugin_state, initial_develop_folder) {
+                    eprintln!("[plugins] failed initializing develop folder: {error}");
+                }
+                start_runtime_plugin_watcher(app.handle(), runtime_plugin_state.inner().clone());
             }
 
             // Apply Mica vibrancy and position the main bar
@@ -405,7 +429,8 @@ pub fn run() {
             install_plugin_zip,
             list_installed_runtime_plugins,
             remove_runtime_plugin,
-            read_runtime_plugin_source
+            read_runtime_plugin_source,
+            set_runtime_plugins_develop_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

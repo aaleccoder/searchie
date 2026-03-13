@@ -21,12 +21,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const store = await load(STORE_FILE);
       const raw = await store.get<Settings>(STORE_KEY);
+      let resolvedSettings = defaultSettings;
       if (raw) {
         const parsed = settingsSchema.safeParse(raw);
         if (parsed.success) {
+          resolvedSettings = parsed.data;
           set({ settings: parsed.data });
         }
       }
+
+      await invoke("set_runtime_plugins_develop_folder", {
+        folder: resolvedSettings.runtimePluginsDevelopFolder ?? null,
+      });
     } catch (e) {
       console.error("[settings] Failed to load:", e);
     } finally {
@@ -43,6 +49,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const store = await load(STORE_FILE);
       await store.set(STORE_KEY, next);
       await store.save();
+
+      if ("runtimePluginsDevelopFolder" in updates) {
+        await invoke("set_runtime_plugins_develop_folder", {
+          folder: updates.runtimePluginsDevelopFolder || null,
+        });
+      }
 
       // Re-register global shortcut if it changed
       if (updates.toggleShortcut !== undefined && updates.toggleShortcut !== prev.toggleShortcut) {

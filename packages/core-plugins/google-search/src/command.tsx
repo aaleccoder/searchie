@@ -208,7 +208,7 @@ export default function GoogleSearchPanel({
     <PanelGrid columns="two-pane" gap="sm">
       <PanelContainer className="h-full min-h-0 overflow-hidden" surface="panel" padding="md">
         <PanelFlex direction="col" gap="sm" className="h-full min-h-0">
-          <PanelHeading level={3}>Google Search</PanelHeading>
+          <PanelHeading level={3}>Google Try</PanelHeading>
 
           {!normalizedQuery && (
             <PanelContainer surface="muted" padding="md">

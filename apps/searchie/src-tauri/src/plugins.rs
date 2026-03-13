@@ -1,3 +1,6 @@
+use crate::runtime_plugin_develop::{
+    find_develop_plugin_dir_by_id, list_develop_runtime_plugins, RuntimePluginDevState,
+};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -12,11 +15,11 @@ const MAX_PLUGIN_ZIP_BYTES: usize = 24 * 1024 * 1024;
 const MAX_EXTRACTED_BYTES: u64 = 96 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
-struct RuntimePluginManifest {
-    name: String,
-    title: Option<String>,
+pub struct RuntimePluginManifest {
+    pub name: String,
+    pub title: Option<String>,
     #[serde(rename = "runtimeEntry")]
-    runtime_entry: Option<String>,
+    pub runtime_entry: Option<String>,
     commands: Option<Vec<RuntimePluginManifestCommand>>,
 }
 
@@ -119,11 +122,18 @@ pub fn remove_runtime_plugin(app: tauri::AppHandle, plugin_id: String) -> Result
 pub fn read_runtime_plugin_source(
     app: tauri::AppHandle,
     plugin_id: String,
+    develop_state: tauri::State<RuntimePluginDevState>,
 ) -> Result<RuntimePluginSource, String> {
     ensure_valid_plugin_id(&plugin_id)?;
 
-    let plugins_dir = resolve_plugins_dir(&app)?;
-    let plugin_dir = plugins_dir.join(&plugin_id);
+    let plugin_dir = match find_develop_plugin_dir_by_id(&develop_state, &plugin_id)? {
+        Some(path) => path,
+        None => {
+            let plugins_dir = resolve_plugins_dir(&app)?;
+            plugins_dir.join(&plugin_id)
+        }
+    };
+
     if !plugin_dir.exists() || !plugin_dir.is_dir() {
         return Err(format!("plugin '{plugin_id}' directory was not found."));
     }
@@ -141,10 +151,7 @@ pub fn read_runtime_plugin_source(
     let entry_clean = entry_raw.trim_start_matches("./");
     let entry_path = plugin_dir.join(entry_clean);
     if !entry_path.exists() || !entry_path.is_file() {
-        return Err(format!(
-            "plugin entry file '{}' was not found.",
-            entry_raw
-        ));
+        return Err(format!("plugin entry file '{}' was not found.", entry_raw));
     }
 
     let plugin_dir_canon = fs::canonicalize(&plugin_dir).map_err(|error| error.to_string())?;
@@ -168,13 +175,19 @@ pub fn read_runtime_plugin_source(
 #[tauri::command]
 pub fn list_installed_runtime_plugins(
     app: tauri::AppHandle,
+    develop_state: tauri::State<RuntimePluginDevState>,
 ) -> Result<Vec<RuntimePluginListItem>, String> {
-    let plugins_dir = resolve_plugins_dir(&app)?;
-    if !plugins_dir.exists() {
-        return Ok(Vec::new());
+    let mut results = list_develop_runtime_plugins(&develop_state)?;
+    let mut seen_plugin_ids = std::collections::HashSet::new();
+    for plugin in &results {
+        seen_plugin_ids.insert(plugin.plugin_id.clone());
     }
 
-    let mut results = Vec::new();
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    if !plugins_dir.exists() {
+        results.sort_by(|left, right| left.plugin_id.cmp(&right.plugin_id));
+        return Ok(results);
+    }
 
     for entry in fs::read_dir(&plugins_dir).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
@@ -185,6 +198,10 @@ pub fn list_installed_runtime_plugins(
 
         let plugin_id = entry.file_name().to_string_lossy().to_string();
         if plugin_id.starts_with('.') {
+            continue;
+        }
+
+        if seen_plugin_ids.contains(&plugin_id) {
             continue;
         }
 
@@ -205,7 +222,8 @@ pub fn list_installed_runtime_plugins(
             continue;
         }
 
-        let manifest_text = fs::read_to_string(&manifest_path).map_err(|error| error.to_string())?;
+        let manifest_text =
+            fs::read_to_string(&manifest_path).map_err(|error| error.to_string())?;
         match serde_json::from_str::<RuntimePluginManifest>(&manifest_text) {
             Ok(manifest) => {
                 results.push(RuntimePluginListItem {
@@ -256,7 +274,9 @@ pub fn install_plugin_zip(
     let manifest = read_manifest(&zip_bytes)?;
     let plugin_id = slugify(&manifest.name);
     if plugin_id.is_empty() {
-        return Err("plugin manifest name must contain at least one alphanumeric character.".to_string());
+        return Err(
+            "plugin manifest name must contain at least one alphanumeric character.".to_string(),
+        );
     }
 
     let plugins_dir = resolve_plugins_dir(&app)?;
@@ -308,7 +328,8 @@ pub fn install_plugin_zip(
 
 fn read_manifest(zip_bytes: &[u8]) -> Result<RuntimePluginManifest, String> {
     let cursor = Cursor::new(zip_bytes);
-    let mut archive = ZipArchive::new(cursor).map_err(|error| format!("invalid zip archive: {error}"))?;
+    let mut archive =
+        ZipArchive::new(cursor).map_err(|error| format!("invalid zip archive: {error}"))?;
 
     let mut manifest_entry = archive
         .by_name("manifest.json")
@@ -323,8 +344,11 @@ fn read_manifest(zip_bytes: &[u8]) -> Result<RuntimePluginManifest, String> {
         .map_err(|error| format!("invalid manifest.json: {error}"))
 }
 
-fn resolve_plugins_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
-    let app_data = app.path().app_data_dir().map_err(|error| error.to_string())?;
+pub fn resolve_plugins_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     Ok(app_data.join("plugins"))
 }
 
@@ -344,7 +368,7 @@ fn resolve_preinstalled_plugins_source_dir(app: &tauri::AppHandle) -> Option<std
     None
 }
 
-fn ensure_valid_plugin_id(plugin_id: &str) -> Result<(), String> {
+pub fn ensure_valid_plugin_id(plugin_id: &str) -> Result<(), String> {
     if plugin_id.is_empty() {
         return Err("plugin id cannot be empty.".to_string());
     }
@@ -385,7 +409,8 @@ fn resolve_plugin_entry(manifest: &RuntimePluginManifest) -> Option<String> {
 
 fn extract_archive(zip_bytes: &[u8], destination: &Path) -> Result<(), String> {
     let cursor = Cursor::new(zip_bytes);
-    let mut archive = ZipArchive::new(cursor).map_err(|error| format!("invalid zip archive: {error}"))?;
+    let mut archive =
+        ZipArchive::new(cursor).map_err(|error| format!("invalid zip archive: {error}"))?;
 
     let mut total_uncompressed = 0_u64;
 
@@ -424,7 +449,7 @@ fn extract_archive(zip_bytes: &[u8], destination: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn slugify(value: &str) -> String {
+pub fn slugify(value: &str) -> String {
     let mut slug = String::new();
     let mut last_dash = false;
 

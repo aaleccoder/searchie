@@ -6,12 +6,14 @@ TypeScript-first CLI for Searchie runtime plugins.
 
 - `searchie-plugin create <plugin-name> [--dir <output-dir>] [--force]`
 - `searchie-plugin build [--plugin <path-to-plugin-dir>]`
+- `searchie-plugin dev [--plugin <path-to-plugin-dir>]`
 - `searchie-plugin pack [--plugin <path-to-plugin-dir>] [--out <zip-file>] [--skip-build]`
 
 ## What Each Command Does
 
 - `create`: scaffolds a new plugin project (`manifest.json`, `src/command.tsx`, `package.json`, `tsconfig.json`)
 - `build`: compiles TS/TSX panel entries into `runtimeEntry` (defaults to `./dist/runtime.js`)
+- `dev`: watches TS/TSX plugin sources and recompiles `runtimeEntry` on every change
 - `pack`: creates installable zip including `manifest.json`, runtime entry, optional icon, and optional `assets/`
 
 ## Manifest Schema (Enforced)
