@@ -1,0 +1,888 @@
+[
+  {
+    "settingsPage": "Access work or school",
+    "uri": "ms-settings:workplace"
+  },
+  {
+    "settingsPage": "Email & app accounts",
+    "uri": "ms-settings:emailandaccounts"
+  },
+  {
+    "settingsPage": "Family & other people",
+    "uri": "ms-settings:otherusers"
+  },
+  {
+    "settingsPage": "Provisioning",
+    "uri": [
+      "ms-settings:provisioning",
+      "ms-settings:workplace-provisioning"
+    ]
+  },
+  {
+    "settingsPage": "Repair token",
+    "uri": "ms-settings:workplace-repairtoken"
+  },
+  {
+    "settingsPage": "Set up a kiosk",
+    "uri": "ms-settings:assignedaccess"
+  },
+  {
+    "settingsPage": "Sign-in options",
+    "uri": [
+      "ms-settings:signinoptions",
+      "ms-settings:signinoptions-dynamiclock"
+    ]
+  },
+  {
+    "settingsPage": "Sync your settings",
+    "uri": [
+      "ms-settings:sync",
+      "ms-settings:backup"
+    ]
+  },
+  {
+    "settingsPage": "Windows Anywhere",
+    "uri": "ms-settings:windowsanywhere"
+  },
+  {
+    "settingsPage": "Windows Hello setup",
+    "uri": [
+      "ms-settings:signinoptions-launchfaceenrollment",
+      "ms-settings:signinoptions-launchfingerprintenrollment"
+    ]
+  },
+  {
+    "settingsPage": "Your info",
+    "uri": "ms-settings:yourinfo"
+  },
+  {
+    "settingsPage": "Apps & Features",
+    "uri": "ms-settings:appsfeatures"
+  },
+  {
+    "settingsPage": "App features",
+    "uri": [
+      "ms-settings:appsfeatures-app",
+      "ms-settings:appsfeatures-app?"
+    ]
+  },
+  {
+    "settingsPage": "Apps for websites",
+    "uri": "ms-settings:appsforwebsites"
+  },
+  {
+    "settingsPage": "Default apps",
+    "uri": "ms-settings:defaultapps"
+  },
+  {
+    "settingsPage": "Default browser settings",
+    "uri": "ms-settings:defaultbrowsersettings"
+  },
+  {
+    "settingsPage": "Manage optional features",
+    "uri": "ms-settings:optionalfeatures"
+  },
+  {
+    "settingsPage": "Offline Maps",
+    "uri": [
+      "ms-settings:maps",
+      "ms-settings:maps-downloadmaps"
+    ]
+  },
+  {
+    "settingsPage": "Startup apps",
+    "uri": "ms-settings:startupapps"
+  },
+  {
+    "settingsPage": "Video playback",
+    "uri": "ms-settings:videoplayback"
+  },
+  {
+    "settingsPage": "Control center",
+    "uri": "ms-settings:controlcenter"
+  },
+  {
+    "settingsPage": "Cortana across my devices",
+    "uri": "ms-settings:cortana-notifications"
+  },
+  {
+    "settingsPage": "More details",
+    "uri": "ms-settings:cortana-moredetails"
+  },
+  {
+    "settingsPage": "Permissions & History",
+    "uri": "ms-settings:cortana-permissions"
+  },
+  {
+    "settingsPage": "Searching Windows",
+    "uri": "ms-settings:cortana-windowssearch"
+  },
+  {
+    "settingsPage": "Talk to Cortana",
+    "uri": [
+      "ms-settings:cortana-language",
+      "ms-settings:cortana",
+      "ms-settings:cortana-talktocortana"
+    ]
+  },
+  {
+    "settingsPage": "AutoPlay",
+    "uri": "ms-settings:autoplay"
+  },
+  {
+    "settingsPage": "Bluetooth",
+    "uri": "ms-settings:bluetooth"
+  },
+  {
+    "settingsPage": "Connected Devices",
+    "uri": "ms-settings:connecteddevices"
+  },
+  {
+    "settingsPage": "Default camera",
+    "uri": "ms-settings:camera"
+  },
+  {
+    "settingsPage": "Camera settings",
+    "uri": "ms-settings:camera"
+  },
+  {
+    "settingsPage": "Mouse & touchpad",
+    "uri": "ms-settings:mousetouchpad"
+  },
+  {
+    "settingsPage": "Pen & Windows Ink",
+    "uri": "ms-settings:pen"
+  },
+  {
+    "settingsPage": "Printers & scanners",
+    "uri": "ms-settings:printers"
+  },
+  {
+    "settingsPage": "Touch",
+    "uri": "ms-settings:devices-touch"
+  },
+  {
+    "settingsPage": "Touchpad",
+    "uri": "ms-settings:devices-touchpad"
+  },
+  {
+    "settingsPage": "Text Suggestions",
+    "uri": "ms-settings:devicestyping-hwkbtextsuggestions"
+  },
+  {
+    "settingsPage": "Typing",
+    "uri": "ms-settings:typing"
+  },
+  {
+    "settingsPage": "USB",
+    "uri": "ms-settings:usb"
+  },
+  {
+    "settingsPage": "Wheel",
+    "uri": "ms-settings:wheel"
+  },
+  {
+    "settingsPage": "Your phone",
+    "uri": "ms-settings:mobile-devices"
+  },
+  {
+    "settingsPage": "Audio",
+    "uri": "ms-settings:easeofaccess-audio"
+  },
+  {
+    "settingsPage": "Closed captions",
+    "uri": "ms-settings:easeofaccess-closedcaptioning"
+  },
+  {
+    "settingsPage": "Color filters",
+    "uri": [
+      "ms-settings:easeofaccess-colorfilter",
+      "ms-settings:easeofaccess-colorfilter-adaptivecolorlink",
+      "ms-settings:easeofaccess-colorfilter-bluelightlink"
+    ]
+  },
+  {
+    "settingsPage": "Display",
+    "uri": "ms-settings:easeofaccess-display"
+  },
+  {
+    "settingsPage": "Eye control",
+    "uri": "ms-settings:easeofaccess-eyecontrol"
+  },
+  {
+    "settingsPage": "Hearing devices",
+    "uri": "ms-settings:easeofaccess-hearingaids"
+  },
+  {
+    "settingsPage": "High contrast",
+    "uri": "ms-settings:easeofaccess-highcontrast"
+  },
+  {
+    "settingsPage": "Keyboard",
+    "uri": "ms-settings:easeofaccess-keyboard"
+  },
+  {
+    "settingsPage": "Magnifier",
+    "uri": "ms-settings:easeofaccess-magnifier"
+  },
+  {
+    "settingsPage": "Mouse",
+    "uri": "ms-settings:easeofaccess-mouse"
+  },
+  {
+    "settingsPage": "Mouse pointer & touch",
+    "uri": "ms-settings:easeofaccess-mousepointer"
+  },
+  {
+    "settingsPage": "Narrator",
+    "uri": [
+      "ms-settings:easeofaccess-narrator",
+      "ms-settings:easeofaccess-narrator-isautostartenabled"
+    ]
+  },
+  {
+    "settingsPage": "Speech",
+    "uri": "ms-settings:easeofaccess-speechrecognition"
+  },
+  {
+    "settingsPage": "Text cursor",
+    "uri": "ms-settings:easeofaccess-cursor"
+  },
+  {
+    "settingsPage": "Visual Effects",
+    "uri": "ms-settings:easeofaccess-visualeffects"
+  },
+  {
+    "settingsPage": "Extras",
+    "uri": "ms-settings:extras"
+  },
+  {
+    "settingsPage": "Family Group",
+    "uri": "ms-settings:family-group"
+  },
+  {
+    "settingsPage": "Game bar",
+    "uri": "ms-settings:gaming-gamebar"
+  },
+  {
+    "settingsPage": "Game DVR",
+    "uri": "ms-settings:gaming-gamedvr"
+  },
+  {
+    "settingsPage": "Game Mode",
+    "uri": "ms-settings:gaming-gamemode"
+  },
+  {
+    "settingsPage": "Playing a game full screen",
+    "uri": "ms-settings:quietmomentsgame"
+  },
+  {
+    "settingsPage": "TruePlay",
+    "uri": "ms-settings:gaming-trueplay"
+  },
+  {
+    "settingsPage": "Audio and speech",
+    "uri": "ms-settings:holographic-audio"
+  },
+  {
+    "settingsPage": "Environment",
+    "uri": "ms-settings:privacy-holographic-environment"
+  },
+  {
+    "settingsPage": "Headset display",
+    "uri": "ms-settings:holographic-headset"
+  },
+  {
+    "settingsPage": "Uninstall",
+    "uri": "ms-settings:holographic-management"
+  },
+  {
+    "settingsPage": "Startup and desktop",
+    "uri": "ms-settings:holographic-startupandesktop"
+  },
+  {
+    "settingsPage": "Network & internet",
+    "uri": "ms-settings:network-status"
+  },
+  {
+    "settingsPage": "Advanced settings",
+    "uri": "ms-settings:network-advancedsettings"
+  },
+  {
+    "settingsPage": "Airplane mode",
+    "uri": [
+      "ms-settings:network-airplanemode",
+      "ms-settings:proximity"
+    ]
+  },
+  {
+    "settingsPage": "Cellular & SIM",
+    "uri": "ms-settings:network-cellular"
+  },
+  {
+    "settingsPage": "Dial-up",
+    "uri": "ms-settings:network-dialup"
+  },
+  {
+    "settingsPage": "DirectAccess",
+    "uri": "ms-settings:network-directaccess"
+  },
+  {
+    "settingsPage": "Ethernet",
+    "uri": "ms-settings:network-ethernet"
+  },
+  {
+    "settingsPage": "Manage known networks",
+    "uri": "ms-settings:network-wifisettings"
+  },
+  {
+    "settingsPage": "Mobile hotspot",
+    "uri": "ms-settings:network-mobilehotspot"
+  },
+  {
+    "settingsPage": "Proxy",
+    "uri": "ms-settings:network-proxy"
+  },
+  {
+    "settingsPage": "VPN",
+    "uri": "ms-settings:network-vpn"
+  },
+  {
+    "settingsPage": "Wi-Fi",
+    "uri": "ms-settings:network-wifi"
+  },
+  {
+    "settingsPage": "Wi-Fi provisioning",
+    "uri": "ms-settings:wifi-provisioning"
+  },
+  {
+    "settingsPage": "Background",
+    "uri": "ms-settings:personalization-background"
+  },
+  {
+    "settingsPage": "Choose which folders appear on Start",
+    "uri": "ms-settings:personalization-start-places"
+  },
+  {
+    "settingsPage": "Colors",
+    "uri": [
+      "ms-settings:personalization-colors",
+      "ms-settings:colors"
+    ]
+  },
+  {
+    "settingsPage": "Customize Copilot key on keyboard",
+    "uri": "ms-settings:personalization-textinput-copilot-hardwarekey"
+  },
+  {
+    "settingsPage": "Dynamic Lighting",
+    "uri": "ms-settings:personalization-lighting"
+  },
+  {
+    "settingsPage": "Fonts",
+    "uri": "ms-settings:fonts"
+  },
+  {
+    "settingsPage": "Glance",
+    "uri": "ms-settings:personalization-glance"
+  },
+  {
+    "settingsPage": "Lock screen",
+    "uri": "ms-settings:lockscreen"
+  },
+  {
+    "settingsPage": "Navigation bar",
+    "uri": "ms-settings:personalization-navbar"
+  },
+  {
+    "settingsPage": "Personalization (category)",
+    "uri": "ms-settings:personalization"
+  },
+  {
+    "settingsPage": "Start",
+    "uri": "ms-settings:personalization-start"
+  },
+  {
+    "settingsPage": "Taskbar",
+    "uri": "ms-settings:taskbar"
+  },
+  {
+    "settingsPage": "Text input",
+    "uri": "ms-settings:personalization-textinput"
+  },
+  {
+    "settingsPage": "Touch Keyboard",
+    "uri": "ms-settings:personalization-touchkeyboard"
+  },
+  {
+    "settingsPage": "Themes",
+    "uri": "ms-settings:themes"
+  },
+  {
+    "settingsPage": "Your phone",
+    "uri": [
+      "ms-settings:mobile-devices",
+      "ms-settings:mobile-devices-addphone",
+      "ms-settings:mobile-devices-addphone-direct"
+    ]
+  },
+  {
+    "settingsPage": "Device Usage",
+    "uri": "ms-settings:deviceusage"
+  },
+  {
+    "settingsPage": "Accessory apps",
+    "uri": "ms-settings:privacy-accessoryapps"
+  },
+  {
+    "settingsPage": "Account info",
+    "uri": "ms-settings:privacy-accountinfo"
+  },
+  {
+    "settingsPage": "Activity history",
+    "uri": "ms-settings:privacy-activityhistory"
+  },
+  {
+    "settingsPage": "Advertising ID",
+    "uri": "ms-settings:privacy-advertisingid"
+  },
+  {
+    "settingsPage": "App diagnostics",
+    "uri": "ms-settings:privacy-appdiagnostics"
+  },
+  {
+    "settingsPage": "Automatic file downloads",
+    "uri": "ms-settings:privacy-automaticfiledownloads"
+  },
+  {
+    "settingsPage": "Background Apps",
+    "uri": [
+      "ms-settings:privacy-backgroundapps",
+      "ms-settings:appsfeatures-app"
+    ]
+  },
+  {
+    "settingsPage": "Background Spatial Perception",
+    "uri": "ms-settings:privacy-backgroundspatialperception"
+  },
+  {
+    "settingsPage": "Calendar",
+    "uri": "ms-settings:privacy-calendar"
+  },
+  {
+    "settingsPage": "Call history",
+    "uri": "ms-settings:privacy-callhistory"
+  },
+  {
+    "settingsPage": "Camera",
+    "uri": "ms-settings:privacy-webcam"
+  },
+  {
+    "settingsPage": "Contacts",
+    "uri": "ms-settings:privacy-contacts"
+  },
+  {
+    "settingsPage": "Documents",
+    "uri": "ms-settings:privacy-documents"
+  },
+  {
+    "settingsPage": "Downloads folder",
+    "uri": "ms-settings:privacy-downloadsfolder"
+  },
+  {
+    "settingsPage": "Email",
+    "uri": "ms-settings:privacy-email"
+  },
+  {
+    "settingsPage": "Eye tracker",
+    "uri": "ms-settings:privacy-eyetracker"
+  },
+  {
+    "settingsPage": "Feedback & diagnostics",
+    "uri": "ms-settings:privacy-feedback"
+  },
+  {
+    "settingsPage": "File system",
+    "uri": "ms-settings:privacy-broadfilesystemaccess"
+  },
+  {
+    "settingsPage": "General",
+    "uri": [
+      "ms-settings:privacy",
+      "ms-settings:privacy-general"
+    ]
+  },
+  {
+    "settingsPage": "Graphics",
+    "uri": [
+      "ms-settings:privacy-graphicscaptureprogrammatic",
+      "ms-settings:privacy-graphicscapturewithoutborder"
+    ]
+  },
+  {
+    "settingsPage": "Inking & typing",
+    "uri": "ms-settings:privacy-speechtyping"
+  },
+  {
+    "settingsPage": "Location",
+    "uri": "ms-settings:privacy-location"
+  },
+  {
+    "settingsPage": "Messaging",
+    "uri": "ms-settings:privacy-messaging"
+  },
+  {
+    "settingsPage": "Microphone",
+    "uri": "ms-settings:privacy-microphone"
+  },
+  {
+    "settingsPage": "Motion",
+    "uri": "ms-settings:privacy-motion"
+  },
+  {
+    "settingsPage": "Music Library",
+    "uri": "ms-settings:privacy-musiclibrary"
+  },
+  {
+    "settingsPage": "Notifications",
+    "uri": "ms-settings:privacy-notifications"
+  },
+  {
+    "settingsPage": "Other devices",
+    "uri": "ms-settings:privacy-customdevices"
+  },
+  {
+    "settingsPage": "Phone calls",
+    "uri": "ms-settings:privacy-phonecalls"
+  },
+  {
+    "settingsPage": "Pictures",
+    "uri": "ms-settings:privacy-pictures"
+  },
+  {
+    "settingsPage": "Radios",
+    "uri": "ms-settings:privacy-radios"
+  },
+  {
+    "settingsPage": "Speech",
+    "uri": "ms-settings:privacy-speech"
+  },
+  {
+    "settingsPage": "Tasks",
+    "uri": "ms-settings:privacy-tasks"
+  },
+  {
+    "settingsPage": "Videos",
+    "uri": "ms-settings:privacy-videos"
+  },
+  {
+    "settingsPage": "Voice activation",
+    "uri": "ms-settings:privacy-voiceactivation"
+  },
+  {
+    "settingsPage": "Search",
+    "uri": "ms-settings:search"
+  },
+  {
+    "settingsPage": "Search more details",
+    "uri": "ms-settings:search-moredetails"
+  },
+  {
+    "settingsPage": "Search Permissions",
+    "uri": "ms-settings:search-permissions"
+  },
+  {
+    "settingsPage": "Volume mixer",
+    "uri": "ms-settings:apps-volume"
+  },
+  {
+    "settingsPage": "Sound",
+    "uri": "ms-settings:sound"
+  },
+  {
+    "settingsPage": "Sound devices",
+    "uri": "ms-settings:sound-devices"
+  },
+  {
+    "settingsPage": "Default microphone",
+    "uri": "ms-settings:sound-defaultinputproperties"
+  },
+  {
+    "settingsPage": "Default audio output",
+    "uri": "ms-settings:sound-defaultoutputproperties"
+  },
+  {
+    "settingsPage": "Audio device properties (specific device)",
+    "uri": "ms-settings:sound-properties?endpointId={0.0.0.00000000}.{aaaaaaaa-0000-1111-2222-bbbbbbbbbbbb}"
+  },
+  {
+    "settingsPage": "Audio device properties (specific device)",
+    "uri": "ms-settings:sound-properties?interfaceId=\\\\?\\SWD#MMDEVAPI#{3.0.0.00000003}.{bbbbbbbb-1111-2222-3333-cccccccccccc}#{cccccccc-2222-3333-4444-dddddddddddd}"
+  },
+  {
+    "settingsPage": "Accounts",
+    "uri": "ms-settings:surfacehub-accounts"
+  },
+  {
+    "settingsPage": "Session cleanup",
+    "uri": "ms-settings:surfacehub-sessioncleanup"
+  },
+  {
+    "settingsPage": "Team Conferencing",
+    "uri": "ms-settings:surfacehub-calling"
+  },
+  {
+    "settingsPage": "Team device management",
+    "uri": "ms-settings:surfacehub-devicemanagement"
+  },
+  {
+    "settingsPage": "Welcome screen",
+    "uri": "ms-settings:surfacehub-welcome"
+  },
+  {
+    "settingsPage": "About",
+    "uri": "ms-settings:about"
+  },
+  {
+    "settingsPage": "Advanced display settings",
+    "uri": "ms-settings:display-advanced"
+  },
+  {
+    "settingsPage": "Battery Saver",
+    "uri": "ms-settings:batterysaver"
+  },
+  {
+    "settingsPage": "Battery Saver settings",
+    "uri": "ms-settings:batterysaver-settings"
+  },
+  {
+    "settingsPage": "Battery use",
+    "uri": "ms-settings:batterysaver-usagedetails"
+  },
+  {
+    "settingsPage": "Clipboard",
+    "uri": "ms-settings:clipboard"
+  },
+  {
+    "settingsPage": "Default Save Locations",
+    "uri": "ms-settings:savelocations"
+  },
+  {
+    "settingsPage": "Display",
+    "uri": [
+      "ms-settings:display",
+      "ms-settings:screenrotation"
+    ]
+  },
+  {
+    "settingsPage": "Duplicating my display",
+    "uri": "ms-settings:quietmomentspresentation"
+  },
+  {
+    "settingsPage": "During these hours",
+    "uri": "ms-settings:quietmomentsscheduled"
+  },
+  {
+    "settingsPage": "Encryption",
+    "uri": "ms-settings:deviceencryption"
+  },
+  {
+    "settingsPage": "Energy recommendations",
+    "uri": "ms-settings:energyrecommendations"
+  },
+  {
+    "settingsPage": "Focus assist",
+    "uri": "ms-settings:quiethours"
+  },
+  {
+    "settingsPage": "Graphics Settings",
+    "uri": "ms-settings:display-advancedgraphics"
+  },
+  {
+    "settingsPage": "Graphics Default Settings",
+    "uri": "ms-settings:display-advancedgraphics-default"
+  },
+  {
+    "settingsPage": "Multitasking",
+    "uri": [
+      "ms-settings:multitasking",
+      "ms-settings:multitasking-sgupdate"
+    ]
+  },
+  {
+    "settingsPage": "Night light settings",
+    "uri": "ms-settings:nightlight"
+  },
+  {
+    "settingsPage": "Projecting to this PC",
+    "uri": "ms-settings:project"
+  },
+  {
+    "settingsPage": "Shared experiences",
+    "uri": "ms-settings:crossdevice"
+  },
+  {
+    "settingsPage": "Tablet mode",
+    "uri": "ms-settings:tabletmode"
+  },
+  {
+    "settingsPage": "Taskbar",
+    "uri": "ms-settings:taskbar"
+  },
+  {
+    "settingsPage": "Notifications & actions",
+    "uri": "ms-settings:notifications"
+  },
+  {
+    "settingsPage": "Remote Desktop",
+    "uri": "ms-settings:remotedesktop"
+  },
+  {
+    "settingsPage": "Phone",
+    "uri": "ms-settings:phone"
+  },
+  {
+    "settingsPage": "Power & sleep",
+    "uri": "ms-settings:powersleep"
+  },
+  {
+    "settingsPage": "Presence sensing",
+    "uri": "ms-settings:presence"
+  },
+  {
+    "settingsPage": "Storage",
+    "uri": "ms-settings:storagesense"
+  },
+  {
+    "settingsPage": "Storage Sense",
+    "uri": "ms-settings:storagepolicies"
+  },
+  {
+    "settingsPage": "Storage recommendations",
+    "uri": "ms-settings:storagerecommendations"
+  },
+  {
+    "settingsPage": "Disks & volumes",
+    "uri": "ms-settings:disksandvolumes"
+  },
+  {
+    "settingsPage": "Date & time",
+    "uri": "ms-settings:dateandtime"
+  },
+  {
+    "settingsPage": "Japan IME settings",
+    "uri": "ms-settings:regionlanguage-jpnime"
+  },
+  {
+    "settingsPage": "Region",
+    "uri": "ms-settings:regionformatting"
+  },
+  {
+    "settingsPage": "Language",
+    "uri": [
+      "ms-settings:keyboard",
+      "ms-settings:keyboard-advanced",
+      "ms-settings:regionlanguage",
+      "ms-settings:regionlanguage-bpmfime",
+      "ms-settings:regionlanguage-cangjieime",
+      "ms-settings:regionlanguage-chsime-wubi-udp",
+      "ms-settings:regionlanguage-quickime",
+      "ms-settings:regionlanguage-korime"
+    ]
+  },
+  {
+    "settingsPage": "Pinyin IME settings",
+    "uri": [
+      "ms-settings:regionlanguage-chsime-pinyin",
+      "ms-settings:regionlanguage-chsime-pinyin-domainlexicon",
+      "ms-settings:regionlanguage-chsime-pinyin-keyconfig",
+      "ms-settings:regionlanguage-chsime-pinyin-udp"
+    ]
+  },
+  {
+    "settingsPage": "Speech",
+    "uri": "ms-settings:speech"
+  },
+  {
+    "settingsPage": "Wubi IME settings",
+    "uri": "ms-settings:regionlanguage-chsime-wubi"
+  },
+  {
+    "settingsPage": "Activation",
+    "uri": "ms-settings:activation"
+  },
+  {
+    "settingsPage": "Backup",
+    "uri": "ms-settings:backup"
+  },
+  {
+    "settingsPage": "Delivery Optimization",
+    "uri": [
+      "ms-settings:delivery-optimization",
+      "ms-settings:delivery-optimization-activity",
+      "ms-settings:delivery-optimization-advanced"
+    ]
+  },
+  {
+    "settingsPage": "Find My Device",
+    "uri": "ms-settings:findmydevice"
+  },
+  {
+    "settingsPage": "For developers",
+    "uri": "ms-settings:developers"
+  },
+  {
+    "settingsPage": "Recovery",
+    "uri": "ms-settings:recovery"
+  },
+  {
+    "settingsPage": "Launch Security Key Enrollment",
+    "uri": "ms-settings:signinoptions-launchsecuritykeyenrollment"
+  },
+  {
+    "settingsPage": "Troubleshoot",
+    "uri": "ms-settings:troubleshoot"
+  },
+  {
+    "settingsPage": "Windows Security",
+    "uri": "ms-settings:windowsdefender"
+  },
+  {
+    "settingsPage": "Windows Insider Program",
+    "uri": [
+      "ms-settings:windowsinsider",
+      "ms-settings:windowsinsider-optin"
+    ]
+  },
+  {
+    "settingsPage": "Windows Update",
+    "uri": [
+      "ms-settings:windowsupdate",
+      "ms-settings:windowsupdate-action"
+    ]
+  },
+  {
+    "settingsPage": "Windows Update-Active hours",
+    "uri": "ms-settings:windowsupdate-activehours"
+  },
+  {
+    "settingsPage": "Windows Update-Advanced options",
+    "uri": "ms-settings:windowsupdate-options"
+  },
+  {
+    "settingsPage": "Windows Update-Optional updates",
+    "uri": "ms-settings:windowsupdate-optionalupdates"
+  },
+  {
+    "settingsPage": "Windows Update-Restart options",
+    "uri": "ms-settings:windowsupdate-restartoptions"
+  },
+  {
+    "settingsPage": "Windows Update-Seeker on demand",
+    "uri": "ms-settings:windowsupdate-seekerondemand"
+  },
+  {
+    "settingsPage": "Windows Update-View update history",
+    "uri": "ms-settings:windowsupdate-history"
+  }
+]

@@ -1,0 +1,105 @@
+import * as React from 'react'
+import { Outlet, createRootRoute, useRouter } from '@tanstack/react-router'
+import "../App.css"
+import { ThemeProvider, useTheme } from '@/components/theme-provider';
+import { PanelRegistryProvider } from '@/components/providers/panel-registry-provider';
+import { Toaster } from '@/components/ui/sonner';
+import { useSettingsStore } from '@/lib/settings-store';
+import { installWebviewInputGuard } from '@/lib/webview-input-guard';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+export const Route = createRootRoute({
+  component: RootComponent,
+})
+
+function RootComponent() {
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="searchie-theme">
+      <PanelRegistryProvider>
+        <AppInit />
+        <div className="w-170 max-w-170">
+          <Outlet />
+        </div>
+      </PanelRegistryProvider>
+      <Toaster position="bottom-right" />
+    </ThemeProvider>
+  )
+}
+
+// Loads persisted settings on mount and keeps ThemeProvider in sync.
+// If this webview is the "settings" window, immediately navigate to /settings.
+function AppInit() {
+  const init = useSettingsStore((s) => s.init);
+  const theme = useSettingsStore((s) => s.settings.theme);
+  const loading = useSettingsStore((s) => s.loading);
+  const { setTheme } = useTheme();
+  const router = useRouter();
+  const label = React.useMemo(() => {
+    try {
+      return getCurrentWindow().label;
+    } catch {
+      return "main";
+    }
+  }, []);
+
+  React.useLayoutEffect(() => {
+    const isSettingsPath =
+      window.location.pathname === '/settings' || window.location.hash.startsWith('#/settings');
+
+    if (label === 'settings' && !isSettingsPath) {
+      router.navigate({ to: '/settings', replace: true });
+    }
+  }, [label, router]);
+
+  React.useEffect(() => {
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    if (!loading) {
+      setTheme(theme);
+    }
+  }, [theme, loading, setTheme]);
+
+  React.useEffect(() => {
+    return installWebviewInputGuard();
+  }, []);
+
+  React.useEffect(() => {
+    let disposed = false;
+
+    const showWindow = async () => {
+      if (disposed) {
+        return;
+      }
+
+      try {
+        await getCurrentWindow().show();
+      } catch {
+        // No-op for non-Tauri or unavailable window contexts.
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      const onReady = () => {
+        void showWindow();
+      };
+
+      window.addEventListener('DOMContentLoaded', onReady, { once: true });
+      return () => {
+        disposed = true;
+        window.removeEventListener('DOMContentLoaded', onReady);
+      };
+    }
+
+    void showWindow();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  return null;
+}
+

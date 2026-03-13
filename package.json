@@ -2,10 +2,24 @@
   "name": "searchie-monorepo",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun --cwd searchie run dev",
+    "build": "bun --cwd searchie run build",
+    "preview": "bun --cwd searchie run preview",
+    "tauri": "bun --cwd searchie run tauri",
+    "generate:settings-json": "bun --cwd searchie run generate:settings-json",
+    "test": "bun --cwd searchie run test",
+    "test:watch": "bun --cwd searchie run test:watch",
+    "test:coverage": "bun --cwd searchie run test:coverage"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }
