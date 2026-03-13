@@ -19,6 +19,26 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  PanelArticle,
+  PanelAside,
+  PanelCode,
+  PanelContainer,
+  PanelFigureImage,
+  PanelFlex,
+  PanelGrid,
+  PanelHeading,
+  PanelInline,
+  PanelList,
+  PanelListItem,
+  PanelMetaGrid,
+  PanelParagraph,
+  PanelPre,
+  PanelSection,
+  PanelText,
+  PanelTextButton,
+  panelListItemVariants,
+} from "sdk";
 
 export const PanelBadge = Badge;
 export const PanelButton = Button;
@@ -63,4 +83,4 @@ export {
   PanelText,
   PanelTextButton,
   panelListItemVariants,
-} from "../../../../../packages/sdk/src/primitives/panel-primitives";
+};
