@@ -1,0 +1,37 @@
+{
+  "name": "color-preview-plugin",
+  "title": "Color Preview",
+  "description": "Preview and inspect typed color values in a Searchie panel.",
+  "icon": "assets/icon.svg",
+  "author": "searchie",
+  "platforms": ["Windows", "macOS"],
+  "categories": ["Developer Tools", "Design"],
+  "license": "MIT",
+  "commands": [
+    {
+      "id": "color-preview-panel",
+      "name": "color-preview",
+      "title": "Color Preview",
+      "description": "Open a panel that previews hex, rgb(a), hsl(a), and named CSS colors.",
+      "mode": "panel",
+      "entry": "./src/command.tsx",
+      "aliases": ["color", "hex", "rgb", "hsl"],
+      "capabilities": [],
+      "searchIntegration": {
+        "activationMode": "immediate",
+        "placeholder": "Preview a color...",
+        "exitOnEscape": true
+      },
+      "shortcuts": [
+        {
+          "keys": "Enter",
+          "description": "Keep the current color preview focused"
+        },
+        {
+          "keys": "Escape",
+          "description": "Return to launcher commands"
+        }
+      ]
+    }
+  ]
+}

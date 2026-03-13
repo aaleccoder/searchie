@@ -5,14 +5,12 @@ function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
-type WithoutClassName<T> = Omit<T, "className">;
-
-type DivProps = WithoutClassName<React.HTMLAttributes<HTMLDivElement>>;
-type SpanProps = WithoutClassName<React.HTMLAttributes<HTMLSpanElement>>;
-type ParagraphProps = WithoutClassName<React.HTMLAttributes<HTMLParagraphElement>>;
-type SectionProps = WithoutClassName<React.HTMLAttributes<HTMLElement>>;
-type ButtonProps = WithoutClassName<React.ButtonHTMLAttributes<HTMLButtonElement>>;
-type ImageProps = WithoutClassName<React.ImgHTMLAttributes<HTMLImageElement>>;
+type DivProps = React.HTMLAttributes<HTMLDivElement>;
+type SpanProps = React.HTMLAttributes<HTMLSpanElement>;
+type ParagraphProps = React.HTMLAttributes<HTMLParagraphElement>;
+type SectionProps = React.HTMLAttributes<HTMLElement>;
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+type ImageProps = React.ImgHTMLAttributes<HTMLImageElement>;
 
 function splitClassName<T extends object>(props: T): {
   className?: string;
@@ -251,7 +249,7 @@ export const PanelParagraph = React.forwardRef<HTMLParagraphElement, PanelParagr
 );
 PanelParagraph.displayName = "PanelParagraph";
 
-export type PanelHeadingProps = WithoutClassName<React.HTMLAttributes<HTMLHeadingElement>> & {
+export type PanelHeadingProps = React.HTMLAttributes<HTMLHeadingElement> & {
   level?: 1 | 2 | 3 | 4;
 };
 
@@ -270,7 +268,7 @@ export function PanelHeading({ level = 3, ...props }: PanelHeadingProps) {
   return <h3 className={cn("text-lg", headingClassName, className)} {...restProps} />;
 }
 
-export const PanelCode = React.forwardRef<HTMLElement, WithoutClassName<React.HTMLAttributes<HTMLElement>>>(
+export const PanelCode = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   (props, ref) => {
     const { className, restProps } = splitClassName(props);
     return <code ref={ref} className={cn("font-mono text-xs", className)} {...restProps} />;
@@ -278,7 +276,7 @@ export const PanelCode = React.forwardRef<HTMLElement, WithoutClassName<React.HT
 );
 PanelCode.displayName = "PanelCode";
 
-export const PanelPre = React.forwardRef<HTMLPreElement, WithoutClassName<React.HTMLAttributes<HTMLPreElement>>>(
+export const PanelPre = React.forwardRef<HTMLPreElement, React.HTMLAttributes<HTMLPreElement>>(
   (props, ref) => {
     const { className, restProps } = splitClassName(props);
     return <pre ref={ref} className={cn("font-sans text-sm", className)} {...restProps} />;
@@ -452,7 +450,7 @@ export const PanelList = React.forwardRef<HTMLDivElement, PanelListProps>(
 );
 PanelList.displayName = "PanelList";
 
-export type PanelListItemProps = WithoutClassName<React.ButtonHTMLAttributes<HTMLButtonElement>> & {
+export type PanelListItemProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   active?: boolean;
 };
 
