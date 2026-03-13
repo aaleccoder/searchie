@@ -9,6 +9,29 @@ This document explains how to add a new launcher panel in Searchie and how to de
 - Match the visual and interaction standards established by `src/plugins/core/internal/apps/panels/apps-launcher-panel.tsx`.
 - Keep implementation modular and testable.
 
+### Runtime Plugin Build Flow (TS/TSX)
+
+For runtime-installed plugins, authors can write panel code in `ts/tsx` and compile it to a runtime JS entry.
+
+Minimum manifest fields:
+
+- Keep command source entries in `commands[].entry` (for example `./src/command.tsx`).
+- Add `runtimeEntry` (for example `./dist/runtime.js`).
+
+Build command from a plugin package:
+
+```bash
+bun run build:runtime
+```
+
+The practical build pipeline now:
+
+1. Reads `manifest.json` panel command entries.
+2. Bundles TS/TSX into `runtimeEntry` using the plugin CLI.
+3. Keeps runtime loader compatibility (the app loads `runtimeEntry` first).
+
+For now, package/install still happens via zip upload in Settings.
+
 ### Core Contracts You Must Use
 
 These are the core files you should read before writing a panel.

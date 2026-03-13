@@ -15,6 +15,8 @@ const MAX_EXTRACTED_BYTES: u64 = 96 * 1024 * 1024;
 struct RuntimePluginManifest {
     name: String,
     title: Option<String>,
+    #[serde(rename = "runtimeEntry")]
+    runtime_entry: Option<String>,
     commands: Option<Vec<RuntimePluginManifestCommand>>,
 }
 
@@ -306,6 +308,13 @@ fn ensure_valid_plugin_id(plugin_id: &str) -> Result<(), String> {
 }
 
 fn resolve_plugin_entry(manifest: &RuntimePluginManifest) -> Option<String> {
+    if let Some(runtime_entry) = manifest.runtime_entry.as_ref() {
+        let runtime_entry = runtime_entry.trim();
+        if !runtime_entry.is_empty() {
+            return Some(runtime_entry.to_string());
+        }
+    }
+
     let commands = manifest.commands.as_ref()?;
     for command in commands {
         let entry = command.entry.as_ref()?;
