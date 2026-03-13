@@ -11,9 +11,36 @@
       "mode": "panel",
       "entry": "./src/command.tsx",
       "aliases": [
-        "google search"
+        "google",
+        "gsearch",
+        "search",
+        "rechercher",
+        "suchen",
+        "cerca",
+        "pesquisar"
       ],
-      "capabilities": []
+      "capabilities": [
+        "window.shell"
+      ],
+      "searchIntegration": {
+        "activationMode": "immediate",
+        "placeholder": "Search Google...",
+        "exitOnEscape": true
+      },
+      "shortcuts": [
+        {
+          "keys": "ArrowUp/ArrowDown",
+          "description": "Move suggestion selection"
+        },
+        {
+          "keys": "Enter",
+          "description": "Open selected suggestion"
+        },
+        {
+          "keys": "Escape",
+          "description": "Back to launcher commands"
+        }
+      ]
     }
   ]
 }

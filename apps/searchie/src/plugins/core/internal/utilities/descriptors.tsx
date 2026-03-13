@@ -6,7 +6,6 @@ import {
   CALC_ALIASES,
   CONVERSION_ALIASES,
   FILE_SEARCH_ALIASES,
-  GOOGLE_SEARCH_ALIASES,
   GLYPH_PICKER_ALIASES,
   flattenAliases,
 } from "@/plugins/core/internal/utilities/aliases";
@@ -16,8 +15,6 @@ import { onFileSearchInputKeyDown } from "./features/file-search/file-search-key
 import { FileSearchUtilityPanel } from "./features/file-search/file-search-utility-panel";
 import { onGlyphPickerInputKeyDown } from "./features/glyph-picker/glyph-picker-keybindings";
 import { GlyphPickerUtilityPanel } from "./features/glyph-picker/glyph-picker-utility-panel";
-import { onGoogleSearchInputKeyDown } from "./features/google-search/google-search-keybindings";
-import { GoogleSearchUtilityPanel } from "./features/google-search/google-search-utility-panel";
 
 function createCalcPanel(): ShortcutPanelDescriptor {
   const aliases = flattenAliases(CALC_ALIASES);
@@ -144,51 +141,11 @@ function createGlyphPickerPanel(): ShortcutPanelDescriptor {
   });
 }
 
-function createGoogleSearchPanel(): ShortcutPanelDescriptor {
-  const aliases = flattenAliases(GOOGLE_SEARCH_ALIASES);
-  return definePluginPanel({
-    id: "utilities-google-search",
-    name: "Google Search",
-    aliases,
-    capabilities: ["window.shell"],
-    commandIcon: Search,
-    priority: 22,
-    searchIntegration: {
-      activationMode: "immediate",
-      placeholder: "Search Google...",
-      exitOnEscape: true,
-    },
-    shortcuts: [
-      { keys: "ArrowUp/ArrowDown", description: "Move suggestion selection" },
-      { keys: "Enter", description: "Open selected suggestion" },
-      { keys: "Escape", description: "Back to launcher commands" },
-    ],
-    matcher: createPrefixAliasMatcher(aliases),
-    onInputKeyDown: onGoogleSearchInputKeyDown,
-    component: ({
-      commandQuery,
-      registerInputArrowDownHandler,
-      registerInputEnterHandler,
-      registerPanelFooter,
-      focusLauncherInput,
-    }) => (
-      <GoogleSearchUtilityPanel
-        commandQuery={commandQuery}
-        registerInputArrowDownHandler={registerInputArrowDownHandler}
-        registerInputEnterHandler={registerInputEnterHandler}
-        registerPanelFooter={registerPanelFooter}
-        focusLauncherInput={focusLauncherInput}
-      />
-    ),
-  });
-}
-
 export function buildUtilityPanels(): ShortcutPanelDescriptor[] {
   return [
     createFileSearchPanel(),
     createCalcPanel(),
     createConversionPanel(),
     createGlyphPickerPanel(),
-    createGoogleSearchPanel(),
   ];
 }

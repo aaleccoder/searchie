@@ -36,14 +36,6 @@ export const GLYPH_PICKER_ALIASES: LocalizedAliasMap = {
   pt: ["emoji", "emoticon", "simbolos"],
 };
 
-export const GOOGLE_SEARCH_ALIASES: LocalizedAliasMap = {
-  en: ["google", "gsearch", "search"],
-  fr: ["rechercher"],
-  de: ["suchen"],
-  it: ["cerca"],
-  pt: ["pesquisar"],
-};
-
 export function flattenAliases(map: LocalizedAliasMap): string[] {
   const merged = new Set<string>();
   for (const aliases of Object.values(map)) {

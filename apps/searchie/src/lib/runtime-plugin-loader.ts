@@ -30,6 +30,7 @@ type RuntimePluginModuleApi = {
 
 type RuntimePluginFactory = (api: RuntimePluginModuleApi) => CorePluginDescriptor;
 type RuntimeGlobalScope = typeof globalThis & {
+  __searchieRuntimeApi?: RuntimePluginModuleApi;
   __searchieRuntimePluginFactory?: RuntimePluginFactory;
 };
 
@@ -62,7 +63,9 @@ async function executeRuntimeModule(source: RuntimePluginSource): Promise<CorePl
   const runtimeApi = buildRuntimeApi();
   const globalScope = globalThis as RuntimeGlobalScope;
 
+  const previousRuntimeApi = globalScope.__searchieRuntimeApi;
   const previousFactory = globalScope.__searchieRuntimePluginFactory;
+  globalScope.__searchieRuntimeApi = runtimeApi;
   globalScope.__searchieRuntimePluginFactory = undefined;
 
   const blob = new Blob([source.entrySource], { type: "text/javascript" });
@@ -93,6 +96,7 @@ async function executeRuntimeModule(source: RuntimePluginSource): Promise<CorePl
     return descriptorCandidate;
   } finally {
     URL.revokeObjectURL(blobUrl);
+    globalScope.__searchieRuntimeApi = previousRuntimeApi;
     globalScope.__searchieRuntimePluginFactory = previousFactory;
   }
 }
